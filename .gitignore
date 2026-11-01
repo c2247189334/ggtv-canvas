@@ -1,0 +1,20 @@
+node_modules/
+dist/
+out/
+release/
+runtime/
+*.log
+
+# 密钥：只在本机，绝不进版本
+.env.local
+.env*.local
+
+# 运行时数据（作品、任务、上传的视频）
+数据/
+日志/
+
+# 假火山验收用的临时数据
+.fake-data/
+
+# 参考截图：只给自己参考，不进版本、不随开源发布
+参考截图/

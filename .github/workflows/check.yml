@@ -1,0 +1,30 @@
+# 自动检查：每次推送和拉取请求，在一台全新的 GitHub Windows 云电脑上跑类型检查、全部测试、打整合包，
+# 再把整合包解压到临时目录、不装依赖、用假火山模式启动，确认页面能打开。云电脑没有显卡，深度和白模的真实推理测不到。
+name: 自动检查
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: 装 ffmpeg（视频相关测试要用）
+        run: choco install ffmpeg -y --no-progress
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - name: 打整合包
+        run: npm run pack
+      - name: 整合包冒烟测试
+        run: npm run smoke

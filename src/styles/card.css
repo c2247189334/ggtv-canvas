@@ -1,0 +1,40 @@
+/* 图片卡：标题一行小字 + 一块显示图；选中描边，左右 ＋，右上翻页，底部失败原因。 */
+.card { position: relative; width: 280px; }
+.card__title { margin-bottom: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--muted); font-size: 12px; }
+.card__body { position: relative; display: grid; min-height: 180px; place-items: center; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+.card.is-selected .card__body { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.react-flow__node.rewrite-drop-target .card__body { border-color: #55e0bd; box-shadow: 0 0 0 3px #55e0bd, 0 0 22px #55e0bd66; }
+.card__image { display: block; width: 100%; max-height: 380px; object-fit: contain; }
+.card__empty { padding: 24px; color: var(--muted); font-size: 13px; text-align: center; }
+.card__busy { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; gap: 6px; background: rgba(14, 14, 17, 0.72); font-size: 13px; }
+/* 生成中：转圈 + 一句话，不写已用时间（用户 10-25 定，10-31 白模也去掉）；本机算的下面一行小字说明快慢看电脑配置。 */
+.busy-label { display: inline-flex; align-items: center; gap: 8px; }
+.busy-hint { padding: 0 12px; color: var(--muted); font-size: 12px; text-align: center; }
+.busy-stop { padding: 3px 14px; border: 1px solid var(--line); border-radius: 6px; background: rgba(255, 255, 255, 0.08); color: inherit; font-size: 12px; cursor: pointer; }
+.busy-stop:disabled { opacity: 0.5; cursor: default; }
+.busy-spinner { flex: none; width: 14px; height: 14px; border: 2px solid rgba(255, 255, 255, 0.2); border-top-color: var(--accent); border-radius: 50%; animation: busy-spin 0.8s linear infinite; }
+@keyframes busy-spin { to { transform: rotate(360deg); } }
+.card__note { position: absolute; right: 0; bottom: 0; left: 0; padding: 8px 10px; background: rgba(60, 20, 20, 0.92); color: #ffd7d7; font-size: 12px; line-height: 1.5; }
+.card__pager { position: absolute; top: 8px; right: 8px; display: flex; align-items: center; gap: 4px; padding: 2px 4px; border-radius: 999px; background: rgba(0, 0, 0, 0.6); font-size: 12px; }
+.card__pager button { padding: 0 6px; border: 0; background: transparent; }
+.card__handle { width: 10px; height: 10px; border: 2px solid var(--bg); background: var(--line-strong); }
+.card .card__handle--hidden { opacity: 0; pointer-events: none; }
+.card__plus { position: absolute; top: 50%; left: 50%; width: 32px; height: 32px; padding: 0; border-radius: 50%; font-size: 18px; line-height: 1; pointer-events: auto; }
+.card__plus--left { transform: translate(-50%, -50%) translateX(-36px); }
+.card__plus--right { transform: translate(-50%, -50%) translateX(36px); }
+
+.card__note { user-select: text; }
+.card--video .card__body { min-height: 0; background: #202024; }
+.card__video { display: block; width: 100%; height: 100%; min-height: 0; object-fit: contain; }
+.card__play { position: absolute; top: 50%; left: 50%; width: 48px; height: 48px; border-radius: 50%; background: rgba(0,0,0,.6); transform: translate(-50%, -50%); font-size: 22px; }
+.card__duration { position: absolute; right: 8px; bottom: 8px; padding: 2px 5px; border-radius: 4px; background: rgba(0,0,0,.7); font-size: 12px; }
+.card-tools { display: flex; flex-wrap: wrap; width: max-content; max-width: calc(100vw - 16px); gap: 2px; padding: 4px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); box-shadow: var(--shadow); }
+.card-tools__button { padding: 5px 12px; border: 0; border-radius: 6px; background: transparent; color: var(--text); font-size: 13px; text-decoration: none; }
+.card-tools__button:hover { background: var(--panel-2); }
+.card__asset { float: right; padding: 1px 5px; border: 1px solid var(--accent); border-radius: 4px; color: var(--accent); font-size: 10px; }
+.card--audio .card__body { gap: 10px; padding: 16px 8px; background: #202024; }
+.card__audio-symbol { font-size: 40px; color: var(--muted); }
+.card__audio { width: 100%; }
+.depth-choices { display: grid; gap: 12px; padding: 12px; }
+.depth-choices > div { display: flex; gap: 8px; }
+.depth-choices .is-on { border-color: var(--accent); color: var(--accent); }

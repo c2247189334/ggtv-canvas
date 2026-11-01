@@ -1,0 +1,2 @@
+# 启动脚本是 GBK + CRLF：Git 原样存、原样取，不转换换行（被转成只有 LF 时 Windows 的 cmd 可能读错）
+*.bat -text

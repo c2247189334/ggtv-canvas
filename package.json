@@ -1,0 +1,61 @@
+{
+  "name": "ggtv-canvas",
+  "private": true,
+  "version": "0.1.0",
+  "description": "GG TV：本机运行的无限画布 AI 图片 / 视频创作工具（火山引擎 Seedream、Seedance），支持视频改写。Local infinite-canvas studio for AI image and video generation with Volcengine Ark (Seedream, Seedance) and motion-preserving video rewrite. Windows.",
+  "keywords": [
+    "infinite-canvas",
+    "ai-video",
+    "ai-image",
+    "video-generation",
+    "image-generation",
+    "seedance",
+    "seedream",
+    "doubao",
+    "volcengine",
+    "volcengine-ark",
+    "video-rewrite",
+    "video-to-video",
+    "motion-transfer",
+    "comfyui",
+    "video-depth-anything",
+    "react-flow",
+    "windows",
+    "local-first"
+  ],
+  "homepage": "https://github.com/c2247189334/ggtv-canvas#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/c2247189334/ggtv-canvas.git"
+  },
+  "bugs": {
+    "url": "https://github.com/c2247189334/ggtv-canvas/issues"
+  },
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "pack": "node scripts/pack-release.mjs",
+    "smoke": "node scripts/smoke-release.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run test:web && npm run test:server",
+    "test:web": "vitest run src",
+    "test:server": "node --test \"server/**/*.test.mjs\"",
+    "start": "node server/start.mjs",
+    "fake": "vite build && node server/start.mjs --fake --port=5291"
+  },
+  "dependencies": {
+    "@xyflow/react": "12.12.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.0",
+    "@vitejs/plugin-react": "6.0.4",
+    "typescript": "7.0.2",
+    "vite": "8.1.5",
+    "vitest": "4.1.10"
+  }
+}

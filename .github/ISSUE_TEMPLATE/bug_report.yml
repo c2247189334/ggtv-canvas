@@ -1,0 +1,50 @@
+name: 报告问题 / Bug report
+description: 装不上、打不开、生成失败、结果不对，都可以在这里报
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提交前请检查截图和日志，删掉密钥、账号、个人路径。**不要贴 `.env.local` 的内容。**
+  - type: textarea
+    id: what
+    attributes:
+      label: 发生了什么
+      description: 你做了哪几步、想看到什么、实际看到了什么
+    validations:
+      required: true
+  - type: dropdown
+    id: part
+    attributes:
+      label: 哪个环节出的问题
+      options:
+        - 一键启动 / 页面打不开
+        - 出图
+        - 出视频
+        - 视频改写
+        - 安装深度
+        - 白模（ComfyUI）
+        - 其他
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: GG TV 版本
+      placeholder: 例如 0.1.0（整合包文件名里有）
+  - type: input
+    id: system
+    attributes:
+      label: 系统和显卡
+      placeholder: 例如 Windows 11 24H2，RTX 4060 8GB
+  - type: input
+    id: node
+    attributes:
+      label: Node.js 版本
+      placeholder: 在终端运行 node -v 看到的结果
+  - type: textarea
+    id: log
+    attributes:
+      label: 黑窗口报错或日志
+      description: 黑窗口里的报错原文，或 `日志/服务端.log` 最后几十行
+      render: text

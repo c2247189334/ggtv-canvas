@@ -1,0 +1,25 @@
+/* 作品库：网格（侧栏和弹窗共用）、左侧栏、「从作品库选」弹窗。 */
+.works { display: flex; flex: none; flex-direction: column; gap: 10px; width: 300px; padding: 12px; overflow: hidden; border-right: 1px solid var(--line); background: var(--panel); }
+.works__head { display: flex; align-items: center; justify-content: space-between; }
+.works__filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; }
+.works__filters button.is-on { border-color: var(--accent); color: var(--accent); }
+.works__filters label { display: flex; align-items: center; gap: 4px; color: var(--muted); }
+.works__grid { display: grid; flex: 1; grid-template-columns: repeat(2, 1fr); grid-auto-rows: max-content; align-content: start; gap: 8px; overflow-y: auto; }
+.works__tile { position: relative; margin: 0; overflow: hidden; aspect-ratio: 1; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.works__tile img { width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; }
+.works__actions { position: absolute; right: 0; bottom: 0; left: 0; display: none; justify-content: flex-end; gap: 4px; padding: 4px; background: linear-gradient(transparent, rgba(0, 0, 0, 0.75)); }
+.works__tile:hover .works__actions { display: flex; }
+.works__actions a, .works__actions button { padding: 2px 8px; border: 1px solid var(--line); border-radius: 6px; background: rgba(0, 0, 0, 0.6); color: var(--text); font-size: 12px; text-decoration: none; }
+.works__empty, .works__tip { color: var(--muted); font-size: 12px; }
+.works__error { color: var(--danger); }
+
+.picker { position: fixed; inset: 0; z-index: 1150; display: grid; place-items: center; background: rgba(0, 0, 0, 0.6); }
+.picker__box { display: flex; flex-direction: column; gap: 10px; width: min(760px, 92vw); height: min(560px, 86vh); padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+.picker__head { display: flex; align-items: center; justify-content: space-between; }
+.picker .works__grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.picker .works__tile img { cursor: pointer; }
+.works__tile video { width: 100%; height: 100%; object-fit: cover; cursor: pointer; }
+.works__play { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 50%; background: #0009; }
+.works__duration { position: absolute; right: 6px; bottom: 6px; padding: 1px 4px; background: #000b; border-radius: 4px; font-size: 11px; pointer-events: none; }
+.works__audio { width: 100%; height: 100%; border: 0; border-radius: 0; color: var(--accent); font-size: 48px; }
+.works__depth { position: absolute; top: 6px; left: 6px; padding: 1px 4px; border-radius: 4px; background: #000b; font-size: 11px; pointer-events: none; }

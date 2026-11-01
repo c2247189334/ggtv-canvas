@@ -1,0 +1,47 @@
+/* 画布：连线颜色、空画布提示、左上标志和画布名、左下缩放和作品库按钮。点阵背景色在 CanvasBoard 的 <Background> 上。 */
+.board {
+  width: 100%; height: 100%;
+  --xy-selection-border: 1px dashed #b6b6bf;
+  --xy-selection-background-color: rgba(190, 190, 200, 0.025);
+}
+.board .react-flow__pane.selection:not(.draggable):not(.dragging) { cursor: default; }
+.board .react-flow__nodesselection-rect { border-radius: 10px; }
+/* 单选隐藏整个覆盖层，让卡片、左右 ＋ 和提示词面板照常接收点击。 */
+.board:not(.board--multi-selection) .react-flow__nodesselection { display: none; }
+.board .react-flow__edge-path { stroke: #5a5a66; stroke-width: 2px; }
+.board .react-flow__edge { pointer-events: visibleStroke; cursor: pointer; }
+.cut-edge__highlight { fill: none; stroke: var(--accent); stroke-width: 2px; stroke-dasharray: 8 12; pointer-events: none; animation: edge-cut-flow 1.8s linear infinite; }
+@keyframes edge-cut-flow { to { stroke-dashoffset: -20; } }
+.cut-edge__button { position: absolute; transform-origin: 0 0; width: 32px; height: 32px; padding: 6px; border: 1px solid #62626d; border-radius: 50%; background: #303037; color: #ededf2; pointer-events: all; cursor: pointer; display: grid; place-items: center; }
+.cut-edge__button:hover { background: #404049; }
+.cut-edge__button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
+.board__hint { position: absolute; top: 50%; left: 50%; z-index: 4; color: var(--muted); pointer-events: none; transform: translate(-50%, -50%); }
+.board__corner { display: flex; gap: 8px; }
+.board__works.is-on { border-color: var(--accent); color: var(--accent); }
+.brand-mark { display: flex; align-items: center; height: 32px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--text); user-select: none; }
+.brand-mark svg { display: block; fill: currentColor; }
+.canvas-menu { font-weight: 600; background: var(--panel); }
+.canvas-menu--edit { width: 220px; padding: 6px 10px; border: 1px solid var(--accent); border-radius: 8px; outline: none; }
+.zoom { min-width: 64px; background: var(--panel); }
+.board__pending { position: absolute; overflow: visible; pointer-events: none; }
+.board__pending path { fill: none; stroke: #5a5a66; stroke-width: 2; }
+.shortcut-help { position: relative; }
+.shortcut-help__panel { position: absolute; bottom: 42px; left: 0; width: 340px; max-height: min(680px, 80vh); overflow: auto; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); box-shadow: var(--shadow); }
+.shortcut-help__heading, .shortcut-help__row { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.shortcut-help__heading button { border: 0; background: transparent; }
+.shortcut-help__panel h3 { margin: 12px 0 6px; font-size: 12px; color: var(--muted); }
+.shortcut-help__row { padding: 4px 0; font-size: 13px; }
+.shortcut-help__row kbd { color: var(--muted); font-family: inherit; }
+.board--ref-pick .react-flow__node-card { cursor: pointer; }
+.ref-pick-bar { display: flex; align-items: center; gap: 12px; min-width: 480px; padding: 10px 14px; border-radius: 10px; background: #225ddb; color: #fff; box-shadow: var(--shadow); }
+.ref-pick-bar span { flex: 1; }
+.ref-pick-bar button { border-color: #ffffff66; background: #ffffff18; color: #fff; }
+.ref-pick-label { position: fixed; z-index: 900; padding: 14px 0 0 14px; max-width: 300px; color: #fff; font-size: 12px; pointer-events: none; }
+.ref-pick-label.is-cancel { pointer-events: auto; }
+.ref-pick-label span, .ref-pick-label button { display: block; padding: 6px 10px; border: 0; border-radius: 6px; background: #08080b; color: inherit; font-size: inherit; }
+.ref-pick-label button { cursor: pointer; }
+
+.board, .pop-menu { user-select: none; }
+.board input, .board textarea, .board [contenteditable],
+.panel-popup input, .panel-popup textarea, .panel-popup [contenteditable],
+.pop-menu input, .pop-menu textarea, .pop-menu [contenteditable] { user-select: text; }
