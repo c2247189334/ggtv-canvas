@@ -41,10 +41,15 @@ set "BUILD_PAGE="
 if exist "node_modules\.bin\vite.cmd" set "BUILD_PAGE=1"
 if not defined BUILD_PAGE if not exist "dist\index.html" (
     echo.
-    echo   [X] node_modules 不完整，找不到 vite
+    echo   [X] 这里没有打包好的页面，也没有装依赖
     echo.
-    echo   我不会自动装依赖。请在这个文件夹里手动跑一次：
-    echo       npm install
+    echo   如果你是在 GitHub 上点「Code - Download ZIP」下的，那是源码包。
+    echo   普通使用请到发版页面下载整合包 ggtv-canvas-版本号-win.zip：
+    echo       https://github.com/c2247189334/ggtv-canvas/releases
+    echo   完整解压后，双击整合包里的 一键启动.bat。
+    echo.
+    echo   开发者：我不会自动装依赖，请在这个文件夹里手动跑一次：
+    echo       npm ci
     echo.
     pause
     exit /b 1

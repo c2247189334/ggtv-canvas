@@ -3,6 +3,12 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号按 [语义化版本](https://semver.org/lang/zh-CN/)。
 Format follows Keep a Changelog; versions follow Semantic Versioning.
 
+## [Unreleased]
+
+### 改动 / Changed
+
+- 在源码包（GitHub「Download ZIP」）里双击 `一键启动.bat`，提示先指去 Releases 下载整合包；开发者命令改成和 README 一致的 `npm ci`。Double-clicking `一键启动.bat` in a source download now points to the Releases bundle first; the developer hint uses `npm ci`, matching the README.
+
 ## [0.1.0] - 2026-11-01
 
 首个公开预览版。只在一台 Windows 11 + RTX 5080（16 GB 显存）上完整测过。
@@ -20,4 +26,5 @@ First public preview. Fully tested on one Windows 11 + RTX 5080 (16 GB) machine 
 - Windows 整合包：`一键启动.bat` / `停止.bat`，深度一键安装 `安装深度.bat`，白模体检 `检查白模环境.bat`。Windows release bundle with one-click start / stop, a depth installer and a mesh environment check.
 - GitHub 自动检查：类型检查、测试、打包、整合包冒烟测试。CI on a fresh Windows runner: type check, tests, pack, smoke test.
 
+[Unreleased]: https://github.com/c2247189334/ggtv-canvas/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/c2247189334/ggtv-canvas/releases/tag/v0.1.0

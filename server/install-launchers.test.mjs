@@ -16,7 +16,7 @@ function runSection(from, to, setup, env = process.env) {
   return { code: result.status, output: new TextDecoder('gbk').decode(result.stdout) };
 }
 
-test('启动依赖分支识别源码、整合包、缺少页面三种情况，整合包不执行打包', () => {
+test('启动依赖分支识别源码、整合包、缺少页面三种情况，整合包不执行打包；缺页面先指去 Releases 下整合包', () => {
   for (const [kind, code] of [['source', 0], ['bundle', 0], ['missing', 1]]) {
     const result = runSection('rem RELEASE_CHECK_BEGIN', 'rem RELEASE_CHECK_END', cwd => {
       if (kind === 'source') { mkdirSync(join(cwd, 'node_modules/.bin'), { recursive: true }); writeFileSync(join(cwd, 'node_modules/.bin/vite.cmd'), ''); }
@@ -24,7 +24,11 @@ test('启动依赖分支识别源码、整合包、缺少页面三种情况，�
     });
     assert.equal(result.code, code);
     if (kind === 'bundle') assert.match(result.output, /整合包：页面已打包好/);
-    if (kind === 'missing') assert.match(result.output, /npm install/);
+    if (kind === 'missing') {
+      // 新手点 GitHub「Download ZIP」拿到的是源码包：先说清去哪下整合包，开发者命令和 README 一样用 npm ci。
+      assert.match(result.output, /https:\/\/github\.com\/c2247189334\/ggtv-canvas\/releases/);
+      assert.match(result.output, /npm ci/);
+    }
   }
 });
 
