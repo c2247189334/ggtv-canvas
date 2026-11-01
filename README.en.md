@@ -1,26 +1,33 @@
-# GG TV · Infinite-canvas AI video studio
+# GG TV · Motion-preserving AI video rewrite on an infinite canvas
 
 [简体中文](README.md) · **English**
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![Check](https://github.com/c2247189334/ggtv-canvas/actions/workflows/check.yml/badge.svg)](https://github.com/c2247189334/ggtv-canvas/actions/workflows/check.yml)
 
-GG TV is a local, Windows-first infinite-canvas studio for AI image and video generation with Volcengine Ark models (Seedream 5.0, Seedance 2.0 / 2.5, Doubao Seed). Its **video rewrite** feature turns a reference clip into a new video — a different person, outfit or scene — while keeping the original motion, using a local depth map (Video-Depth-Anything Small) or a 3D body mesh (ComfyUI + SAM 3D Body) as the motion reference. Everything runs on your own machine; your API key and your works never leave it.
-
-The UI is in Chinese. MIT licensed.
+**Turn a 4–30 s clip into a new video — a different person, outfit or background — while keeping the original motion and timing.**
+The motion reference (a depth map or a 3D body mesh) is computed on your own NVIDIA GPU for free. Image and video generation call Volcengine Ark (Seedream / Seedance) on your own account, with a cost estimate shown before every job. A 15-second 480p rewrite cost the author about ¥11.72. Everything runs on your own Windows machine; your API key and your works are stored only there.
 
 ![GG TV canvas: a body mesh, a background, a character sheet and the rewritten video connected on one canvas](docs/images/canvas.png)
+
+**How it works:** source clip → local motion reference (Video-Depth-Anything Small depth map, or ComfyUI + SAM 3D Body mesh) → Doubao watches the clip and writes per-segment prompts → you swap in your own character, outfit and background images → Seedance generates the video → the original soundtrack is re-attached. Every step is a card on one infinite canvas, and connections are references.
+
+**Good fit if** you want to restage an existing clip with your own characters and scenes, already use Volcengine Seedance / Seedream, and run Windows with an NVIDIA GPU.
+
+**Not a fit if** you need many model providers (OpenAI, Gemini…), macOS / Linux, or an English UI. Without an NVIDIA GPU, image / video generation and the library still work, but video rewrite does not.
+
+The UI is in Chinese. MIT licensed.
 
 > **Preview 0.1.0.** The full pipeline has only been tested on one Windows 11 laptop with an RTX 5080 (16 GB VRAM). Reports from other GPUs and systems are welcome in [Issues](../../issues).
 
 ## Features
 
+- **Video rewrite** — upload a clip; Doubao describes it and writes per-segment prompts; you swap in your own character, outfit and background images; the result is generated and the original soundtrack is re-attached.
+- **Motion reference (optional, runs on your GPU, free)** — a depth map (Video-Depth-Anything Small) or a body mesh (ComfyUI + SAM 3D Body).
 - **Infinite canvas** — multiple canvases; place image and video cards anywhere and connect them to use one as a reference for another.
 - **Image generation / editing** — Seedream 5.0 (Flash / Lite).
 - **Video generation** — Seedance 2.0 Mini / Fast / 2.0 / 2.5; images, videos and audio can all serve as references, and the estimated cost is shown before each job is submitted.
 - **Library** — generated images, videos and audio are collected automatically and can be dragged back onto the canvas.
 - **Video utilities** — extract the original soundtrack, trim a clip; a "rewrite for me" button asks Doubao to polish your prompt.
-- **Motion reference (optional, runs on your GPU, free)** — a depth map (Video-Depth-Anything Small) or a body mesh (ComfyUI + SAM 3D Body).
-- **Video rewrite** — upload a clip; Doubao describes it and writes per-segment prompts; you swap in your own character, outfit and background images; the result is generated and the original soundtrack is re-attached.
 
 ## Cost
 

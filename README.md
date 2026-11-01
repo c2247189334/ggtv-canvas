@@ -1,26 +1,42 @@
-# GG TV · 无限画布 AI 视频创作工具
+# GG TV · 保留动作的 AI 视频改写（无限画布 · 火山 Seedance）
 
 **简体中文** · [English](README.en.md)
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![自动检查](https://github.com/c2247189334/ggtv-canvas/actions/workflows/check.yml/badge.svg)](https://github.com/c2247189334/ggtv-canvas/actions/workflows/check.yml)
 
-在一张无限画布上用火山引擎（豆包）出图、出视频，还能把一段现成视频「改写」成新视频：换人、换衣服、换背景，动作跟着原片走。全部在你自己的 Windows 电脑上运行，密钥和作品都只存在本机。
+**把一段 4–30 秒的视频换人、换衣服、换背景，动作和节奏跟着原片走。**
+动作参考（深度图或 3D 白模）在你自己的 NVIDIA 显卡上算，不花钱；出图、出视频调用火山引擎 Seedream / Seedance，费用从你自己的火山账号扣，交单前先显示预估费用。作者实测一条 15 秒 480P 的改写约 ¥11.72。全部在你自己的 Windows 电脑上运行，密钥和作品都只存在本机。
 
-> **English** — GG TV (`ggtv-canvas`) is a local, Windows-first infinite-canvas studio for AI image and video generation with Volcengine Ark models (Seedream 5.0, Seedance 2.0 / 2.5, Doubao Seed). Its *video rewrite* feature turns a reference clip into a new video — different person, outfit or scene — while keeping the original motion, using a local depth map (Video-Depth-Anything Small) or a 3D body mesh (ComfyUI + SAM 3D Body) as the motion reference. The UI is in Chinese. MIT licensed.
+> **English** — GG TV (`ggtv-canvas`) does motion-preserving AI video rewrite on a local, Windows-first infinite canvas: turn a 4–30 s clip into a new video with a different person, outfit or background while keeping the original motion. The motion reference is a local depth map (Video-Depth-Anything Small) or a 3D body mesh (ComfyUI + SAM 3D Body); generation uses Volcengine Ark models (Seedream 5.0, Seedance 2.0 / 2.5, Doubao Seed). The UI is in Chinese. MIT licensed.
 
 ![GG TV 画布：白模、背景、人物三视图和改写出来的视频连在一张画布上](docs/images/canvas.png)
+
+**怎么做到的：** 原片 → 本机算出动作参考（深度图 / 白模）→ 豆包看懂原片、写好分段提示词 → 换上你的人物、衣服、背景图 → Seedance 生成 → 自动配回原声。每一步的图和视频都是画布上的一张卡，连线就是参考关系。
+
+**适合你，如果：**
+
+- 想把现成视频（舞蹈、动作片段）换成自己设计的人物和场景，同时保留原动作；
+- 已经在用火山引擎 Seedance / Seedream，想要一个本机运行、花多少钱看得见的画布；
+- 用 Windows，有 NVIDIA 显卡。
+
+**可能不适合你，如果：**
+
+- 想要能接很多家模型（OpenAI、Gemini 等）的通用画布：本项目只接火山引擎；
+- 用 macOS / Linux：目前只支持 Windows；
+- 没有 NVIDIA 显卡：出图、出视频、作品库照样能用，但视频改写用不了；
+- 需要英文界面：目前界面是中文。
 
 **当前是预览版 0.1.0。** 完整流程只在一台 Windows 11 + RTX 5080 笔记本（16 GB 显存）上测过，别的显卡和系统欢迎[提问题](../../issues)反馈。
 
 ## 能做什么
 
+- **视频改写**：上传一段视频，豆包看懂内容、写好分段提示词，你换上自己的人物、衣服、背景图，生成后自动配回原声。
+- **动作参考（选装，用本机显卡算，不花钱）**：深度图（Video-Depth-Anything Small）或白模（ComfyUI + SAM 3D Body）。
 - **无限画布**：多张画布，图片卡、视频卡随便摆，连线就能当参考。
 - **出图 / 改图**：Seedream 5.0（Flash / Lite）。
 - **出视频**：Seedance 2.0 Mini / Fast / 2.0 / 2.5；图片、视频、声音都能当参考，交单前先显示预估费用。
 - **作品库**：生成的图、视频、声音自动入库，能拖回画布接着用。
 - **视频小工具**：提取原声、片段截取；写提示词时可以点「帮我改写」让豆包润色。
-- **动作参考（选装，用本机显卡算，不花钱）**：深度图（Video-Depth-Anything Small）或白模（ComfyUI + SAM 3D Body）。
-- **视频改写**：上传一段视频，豆包看懂内容、写好分段提示词，你换上自己的人物、衣服、背景图，生成后自动配回原声。
 
 ## 花费说明
 
