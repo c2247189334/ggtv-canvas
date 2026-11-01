@@ -256,7 +256,8 @@ test('免费检查严格校验changeSeconds，旧卡不传兼容并按变化点�
 });
 
 test('启动传入fakeDelayMs后只有拆解等（10-30 起提示词由代码拼、不等），普通帮我改写不受影响', async () => {
-  const delayMs = 300, s = setup({ fakeDelayMs: delayMs });
+  // 等待时长要远大于拼词本身的耗时：GitHub 云电脑上拼词要 300ms 以上（11-01 自动检查红过一次），本机约几十毫秒。
+  const delayMs = 2000, s = setup({ fakeDelayMs: delayMs });
   const start = performance.now();
   const result = await s.call('POST', '/api/video-rewrite/analyze', analyzeBody(s.upload(6)));
   assert.equal(result.status, 200);
