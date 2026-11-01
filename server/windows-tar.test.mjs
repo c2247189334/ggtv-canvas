@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, writeFileSync, readdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tempDir } from './testKit.mjs';
 
@@ -17,26 +17,6 @@ test('系统tar使用SystemRoot绝对路径，未设置时回退C:\\Windows；�
   assert.deepEqual(checked, [expected]);
   assert.equal(windowsTar({ env: {}, exists: () => true }), 'C:\\Windows\\System32\\tar.exe');
   assert.throws(() => windowsTar({ env: { SystemRoot: root }, exists: () => false }), { message: missingMessage });
-});
-
-test('pack将系统tar绝对路径交给执行器；缺失时不构建、不产生zip', async () => {
-  const { packRelease, SERVER_FILES, SCRIPT_FILES, ROOT_FILES } = await import('../scripts/pack-release.mjs');
-  for (const found of [false, true]) {
-    const root = tempDir(), system = tempDir(), calls = [], tar = join(system, 'System32/tar.exe');
-    put(root, 'package.json', '{"version":"1.0.0"}');
-    if (found) {
-      put(system, 'System32/tar.exe');
-      for (const file of [...SERVER_FILES, ...SCRIPT_FILES, ...ROOT_FILES, 'dist/index.html', 'dist/THIRD_PARTY_LICENSES.md']) put(root, file);
-    }
-    const result = packRelease({ root, env: { ...process.env, SystemRoot: system }, exec: async (command, args) => {
-      calls.push(command);
-      if (command !== process.execPath) {
-        assert.equal(command, tar); writeFileSync(args[args.indexOf('-f') + 1], 'zip');
-      }
-    }});
-    if (found) { await result; assert.deepEqual(calls, [process.execPath, tar]); }
-    else { await assert.rejects(result, { message: missingMessage }); assert.deepEqual(calls, []); assert.deepEqual(readdirSync(root), ['package.json']); }
-  }
 });
 
 test('深度解压uv和VDA都使用系统tar；缺失时不下载且保留明确错误', async () => {

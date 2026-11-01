@@ -2,7 +2,8 @@ import { copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSyn
   readFileSync, renameSync, rmSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { execute, isMain, windowsTar } from './command.mjs';
+import { execute, isMain } from './command.mjs';
+import { zipDirectory } from './zip.mjs';
 import { assertNoLinks } from './install-safety.mjs';
 import { SERVER_FILES, SCRIPT_FILES, ROOT_FILES, assertAllowed } from './release-manifest.mjs';
 export { SERVER_FILES, SCRIPT_FILES, ROOT_FILES, FORBIDDEN, assertAllowed } from './release-manifest.mjs';
@@ -40,25 +41,25 @@ export function assembleRelease(root, destination) {
   return files.sort();
 }
 
-export async function packRelease({ root = resolve(dirname(fileURLToPath(import.meta.url)), '..'), exec = execute, env = process.env } = {}) {
+export async function packRelease({ root = resolve(dirname(fileURLToPath(import.meta.url)), '..'), exec = execute, env = process.env, zip = zipDirectory } = {}) {
   root = resolve(root);
   const { version } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
   if (!/^[\dA-Za-z][\dA-Za-z.+-]*$/.test(version ?? '')) throw Error('package.json version 不合法');
   const name = `ggtv-canvas-${version}-win`, release = join(root, 'release');
-  const directory = join(release, name), zip = join(release, `${name}.zip`);
+  const directory = join(release, name), zipFile = join(release, `${name}.zip`);
   assertNoLinks(release);
-  if (existsSync(directory) || existsSync(zip)) throw Error('同版本整合包已存在，请先移走旧包再打包。');
-  const tar = windowsTar({ env });
+  if (existsSync(directory) || existsSync(zipFile)) throw Error('同版本整合包已存在，请先移走旧包再打包。');
   await exec(process.execPath, [join(root, 'scripts/build-release.mjs')], { cwd: root, env, inherit: true });
   mkdirSync(release, { recursive: true });
   const stage = mkdtempSync(join(release, '.pack-')), stagedZip = join(stage, `${name}.zip`);
   try {
     const files = assembleRelease(root, join(stage, name));
     console.log(`禁带检查通过：${files.length} 个文件，0 个禁带项。`);
-    await exec(tar, ['-a', '-c', '-f', stagedZip, '-C', stage, name], { cwd: root, env, inherit: true });
+    // 用 Node 自己压 zip，不调系统 tar.exe（11-01 GitHub 云电脑上它压 zip 会崩）。
+    zip(join(stage, name), stagedZip, name);
     const bytes = statSync(stagedZip).size;
-    renameSync(join(stage, name), directory); renameSync(stagedZip, zip);
-    return { directory, zip, bytes, files };
+    renameSync(join(stage, name), directory); renameSync(stagedZip, zipFile);
+    return { directory, zip: zipFile, bytes, files };
   } finally {
     // stage 是本次 mkdtemp 返回的绝对目录，且固定在项目 release 下。
     if (dirname(stage) !== release) throw Error('临时打包目录越界，拒绝清理');

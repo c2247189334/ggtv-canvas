@@ -5,7 +5,8 @@ import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { execute, isMain, windowsTar } from './command.mjs';
+import { isMain } from './command.mjs';
+import { unzipTo } from './zip.mjs';
 
 const PORT = 5297;
 
@@ -23,7 +24,7 @@ export async function smokeRelease(root = resolve(dirname(fileURLToPath(import.m
   if (zips.length !== 1) throw Error(`release/ 里应正好有 1 个整合包，现在有 ${zips.length} 个`);
   const temp = mkdtempSync(join(tmpdir(), 'ggtv-smoke-'));
   try {
-    await execute(windowsTar(), ['-x', '-f', join(release, zips[0]), '-C', temp], { cwd: temp });
+    unzipTo(join(release, zips[0]), temp);
     const app = join(temp, zips[0].replace(/\.zip$/, ''));
     const server = spawn(process.execPath, ['server/start.mjs', '--fake', `--port=${PORT}`], { cwd: app, stdio: 'inherit' });
     const exited = new Promise(done => server.once('exit', done));

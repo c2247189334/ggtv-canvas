@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync, readFileSync, existsSync, symlinkSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tempDir } from './testKit.mjs';
-const systemTar = join(process.env.SystemRoot || 'C:\\Windows', 'System32/tar.exe');
+import { listZip } from '../scripts/zip.mjs';
 
 const load = () => import('../scripts/pack-release.mjs');
 function put(root, file, value = 'sample') {
@@ -58,29 +58,27 @@ test('dist 混入禁项或符号链接时打包中止，不执行 zip', async ()
   }
 });
 
-test('打包先 build 后 zip，zip 失败不留下正式产物；成功返回清单和大小', async () => {
+test('打包先 build 再用 Node 自己压 zip（不调系统 tar），压 zip 失败不留下正式产物；成功返回清单和大小', async () => {
   const { packRelease, SERVER_FILES, SCRIPT_FILES, ROOT_FILES } = await load();
   for (const failZip of [true, false]) {
     const root = tempDir(), calls = [];
     for (const file of [...SERVER_FILES, ...SCRIPT_FILES, ...ROOT_FILES]) put(root, file);
     put(root, 'package.json', '{"version":"1.2.3"}'); put(root, 'dist/index.html'); put(root, 'dist/THIRD_PARTY_LICENSES.md');
-    const action = packRelease({ root, exec: async (cmd, args) => {
-      calls.push([cmd, args]);
-      if (cmd === systemTar) {
-        if (failZip) throw Error('tar failed');
-        writeFileSync(args[args.indexOf('-f') + 1], 'zip');
-      }
-    }});
+    const exec = async (cmd, args) => { calls.push([cmd, args]); };
+    const action = failZip ? packRelease({ root, exec, zip: () => { throw Error('zip failed'); } }) : packRelease({ root, exec });
     if (failZip) {
-      await assert.rejects(action, /tar failed/);
+      await assert.rejects(action, /zip failed/);
       assert.equal(existsSync(join(root, 'release/ggtv-canvas-1.2.3-win.zip')), false);
     } else {
       const result = await action;
-      assert.equal(result.bytes, 3); assert.ok(result.files.includes('server/start.mjs'));
+      assert.ok(result.bytes > 0 && existsSync(result.zip)); assert.ok(result.files.includes('server/start.mjs'));
       assert.ok(existsSync(join(result.directory, 'dist/index.html')));
+      const names = listZip(result.zip);
+      assert.ok(names.includes('ggtv-canvas-1.2.3-win/server/start.mjs') && names.includes('ggtv-canvas-1.2.3-win/dist/index.html'));
+      assert.ok(names.every(name => name.startsWith('ggtv-canvas-1.2.3-win/')), '解压出来是一个同名文件夹');
     }
+    assert.equal(calls.length, 1, '只有 build 一个外部命令，没有 tar');
     assert.equal(calls[0][0], process.execPath); assert.ok(calls[0][1][0].replaceAll('\\', '/').endsWith('scripts/build-release.mjs'));
-    assert.equal(calls[1][0], systemTar); assert.ok(calls[1][1].includes('-a'));
   }
 });
 
