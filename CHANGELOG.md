@@ -7,6 +7,8 @@ Format follows Keep a Changelog; versions follow Semantic Versioning.
 
 ### 改动 / Changed
 
+- 许可从 MIT 改为 PolyForm Noncommercial 1.0.0：0.1.0 之后的版本，软件本身未经作者书面授权禁止商业使用，个人生成的图片和视频可以发布和赚钱；已发布的 0.1.0 仍按 MIT。License changed from MIT to PolyForm Noncommercial 1.0.0: after 0.1.0 the software itself may not be used commercially without the author's written permission, while individuals may publish and monetize what they generate; the released 0.1.0 stays MIT.
+- 画布左下角加上作者署名和官方仓库链接。Added an author credit linking to the official repository at the bottom left of the canvas.
 - 在源码包（GitHub「Download ZIP」）里双击 `一键启动.bat`，提示先指去 Releases 下载整合包；开发者命令改成和 README 一致的 `npm ci`。Double-clicking `一键启动.bat` in a source download now points to the Releases bundle first; the developer hint uses `npm ci`, matching the README.
 
 ## [0.1.0] - 2026-11-01

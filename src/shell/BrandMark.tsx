@@ -16,3 +16,13 @@ export function BrandMark() {
     </div>
   );
 }
+
+/** 作者署名：标志本身只展示不能点（用户 10-31 定），出处另放一个能点的小链接。 */
+export function BrandCredit() {
+  return (
+    <a className="brand-credit" href="https://github.com/c2247189334/ggtv-canvas" target="_blank" rel="noreferrer noopener"
+      title="打开 GG TV 官方仓库">
+      by chen guo tongxue
+    </a>
+  );
+}

@@ -2,7 +2,7 @@
 
 [简体中文](README.md) · **English**
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![Check](https://github.com/c2247189334/ggtv-canvas/actions/workflows/check.yml/badge.svg)](https://github.com/c2247189334/ggtv-canvas/actions/workflows/check.yml)
+[![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm%20Noncommercial-orange.svg)](LICENSE) [![Check](https://github.com/c2247189334/ggtv-canvas/actions/workflows/check.yml/badge.svg)](https://github.com/c2247189334/ggtv-canvas/actions/workflows/check.yml)
 
 **Turn a 4–30 s clip into a new video — a different person, outfit or background — while keeping the original motion and timing.**
 The motion reference (a depth map or a 3D body mesh) is computed on your own NVIDIA GPU for free. Image and video generation call Volcengine Ark (Seedream / Seedance) on your own account, with a cost estimate shown before every job. A 15-second 480p rewrite cost the author about ¥11.72. Everything runs on your own Windows machine; your API key and your works are stored only there.
@@ -15,7 +15,7 @@ The motion reference (a depth map or a 3D body mesh) is computed on your own NVI
 
 **Not a fit if** you need many model providers (OpenAI, Gemini…), macOS / Linux, or an English UI. Without an NVIDIA GPU, image / video generation and the library still work, but video rewrite does not.
 
-The UI is in Chinese. MIT licensed.
+The UI is in Chinese. Free for noncommercial use (PolyForm Noncommercial 1.0.0). Individuals may publish and monetize what they generate.
 
 > **Preview 0.1.0.** The full pipeline has only been tested on one Windows 11 laptop with an RTX 5080 (16 GB VRAM). Reports from other GPUs and systems are welcome in [Issues](../../issues).
 
@@ -83,7 +83,17 @@ See [SECURITY.md](SECURITY.md) for how to report a vulnerability.
 
 ## License and credits
 
-The code is released under the [MIT License](LICENSE). The release bundle ships no models and no Python environment; you download the models yourself and must follow their licenses:
+Versions after 0.1.0 are released under the [PolyForm Noncommercial License 1.0.0](LICENSE); the full text in LICENSE is what counts:
+
+- Free for personal study, research, hobby projects and other noncommercial purposes. You may share and modify it free of charge if you keep the copyright notice and the license text.
+- **Images and videos an individual generates with it on their own computer are theirs to handle: they may publish them and earn money from them** (the author's additional permission at the top of LICENSE).
+- **The software itself may not be used commercially without the author's written permission**: no selling, paid distribution, paid listings or paid services, and a company using it in its business needs permission too. To ask, [open an issue](https://github.com/c2247189334/ggtv-canvas/issues).
+- Version 0.1.0, already released, stays under the MIT License it shipped with.
+- This license covers only GG TV's own code and workflow. ComfyUI, Video-Depth-Anything, the models and Volcengine Ark keep their own licenses and terms.
+- The GG TV name and logo are not licensed. If you publish a modified version, rename it and do not imply it is official.
+- Made by chen guo tongxue. The only official home is https://github.com/c2247189334/ggtv-canvas .
+
+The release bundle ships no models and no Python environment; you download the models yourself and must follow their licenses:
 
 - Depth uses only the **Small** model of [Video-Depth-Anything](https://github.com/DepthAnything/Video-Depth-Anything) (Apache-2.0); Base / Large are non-commercial and are not used.
 - Body mesh models: SAM 3.1 and SAM 3D Body are under Meta's SAM License, RT-DETR is Apache-2.0, MoGe is MIT (as labelled on Hugging Face on 2026-11-01); the release pages are authoritative.

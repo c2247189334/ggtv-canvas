@@ -2,12 +2,12 @@
 
 **简体中文** · [English](README.en.md)
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![自动检查](https://github.com/c2247189334/ggtv-canvas/actions/workflows/check.yml/badge.svg)](https://github.com/c2247189334/ggtv-canvas/actions/workflows/check.yml)
+[![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm%20Noncommercial-orange.svg)](LICENSE) [![自动检查](https://github.com/c2247189334/ggtv-canvas/actions/workflows/check.yml/badge.svg)](https://github.com/c2247189334/ggtv-canvas/actions/workflows/check.yml)
 
 **把一段 4–30 秒的视频换人、换衣服、换背景，动作和节奏跟着原片走。**
 动作参考（深度图或 3D 白模）在你自己的 NVIDIA 显卡上算，不花钱；出图、出视频调用火山引擎 Seedream / Seedance，费用从你自己的火山账号扣，交单前先显示预估费用。作者实测一条 15 秒 480P 的改写约 ¥11.72。全部在你自己的 Windows 电脑上运行，密钥和作品都只存在本机。
 
-> **English** — GG TV (`ggtv-canvas`) does motion-preserving AI video rewrite on a local, Windows-first infinite canvas: turn a 4–30 s clip into a new video with a different person, outfit or background while keeping the original motion. The motion reference is a local depth map (Video-Depth-Anything Small) or a 3D body mesh (ComfyUI + SAM 3D Body); generation uses Volcengine Ark models (Seedream 5.0, Seedance 2.0 / 2.5, Doubao Seed). The UI is in Chinese. MIT licensed.
+> **English** — GG TV (`ggtv-canvas`) does motion-preserving AI video rewrite on a local, Windows-first infinite canvas: turn a 4–30 s clip into a new video with a different person, outfit or background while keeping the original motion. The motion reference is a local depth map (Video-Depth-Anything Small) or a 3D body mesh (ComfyUI + SAM 3D Body); generation uses Volcengine Ark models (Seedream 5.0, Seedance 2.0 / 2.5, Doubao Seed). The UI is in Chinese. Free for noncommercial use (PolyForm Noncommercial 1.0.0). Individuals may publish and monetize what they generate.
 
 ![GG TV 画布：白模、背景、人物三视图和改写出来的视频连在一张画布上](docs/images/canvas.png)
 
@@ -92,7 +92,17 @@ npm run smoke       # 整合包冒烟测试：解压、不装依赖、假火山�
 
 ## 许可与致谢
 
-本项目代码使用 [MIT 许可](LICENSE)。整合包不带任何模型和 Python 环境，模型由你自己下载，请遵守各自的许可：
+本项目从 0.1.0 之后的版本起使用 [PolyForm Noncommercial License 1.0.0](LICENSE)，具体条款以 LICENSE 全文为准：
+
+- 可以免费用于个人学习、研究、爱好等非商业用途，也可以在保留版权声明和许可全文的前提下免费转发、修改。
+- **个人在自己电脑上用本软件生成的图片和视频，由使用者自行处理，可以发布，也可以用来赚钱**（LICENSE 开头的作者额外许可）。
+- **软件本身未经作者书面授权禁止商业使用**：不得出售、收费分发、收费上架或做成收费服务，公司在业务中使用也需要授权。想商用请先[开 issue](https://github.com/c2247189334/ggtv-canvas/issues) 联系作者。
+- 已经发布的 0.1.0 仍按当时的 MIT 许可。
+- 这份许可只管 GG TV 自己的代码和整合流程；ComfyUI、Video-Depth-Anything、各模型和火山方舟都按各自的协议和条款。
+- 「GG TV」名称和标志不在授权范围内，改版发布请换名字，不得暗示是官方版本。
+- 作者 chen guo tongxue，官方地址只有 https://github.com/c2247189334/ggtv-canvas 。
+
+整合包不带任何模型和 Python 环境，模型由你自己下载，请遵守各自的许可：
 
 - 深度只用 [Video-Depth-Anything](https://github.com/DepthAnything/Video-Depth-Anything) 的 **Small** 模型（Apache-2.0）；Base / Large 是非商用许可，本项目不用。
 - 白模用到的模型：SAM 3.1、SAM 3D Body 是 Meta 的 SAM License，RT-DETR 是 Apache-2.0，MoGe 是 MIT（2026-11-01 按 Hugging Face 页面标注），以各自发布页为准。

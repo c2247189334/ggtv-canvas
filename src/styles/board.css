@@ -20,6 +20,8 @@
 .board__works.is-on { border-color: var(--accent); color: var(--accent); }
 .brand-mark { display: flex; align-items: center; height: 32px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--text); user-select: none; }
 .brand-mark svg { display: block; fill: currentColor; }
+.brand-credit { align-self: center; padding: 0 4px; color: var(--muted); font-size: 12px; text-decoration: none; white-space: nowrap; }
+.brand-credit:hover { color: var(--text); }
 .canvas-menu { font-weight: 600; background: var(--panel); }
 .canvas-menu--edit { width: 220px; padding: 6px 10px; border: 1px solid var(--accent); border-radius: 8px; outline: none; }
 .zoom { min-width: 64px; background: var(--panel); }

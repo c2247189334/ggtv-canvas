@@ -35,7 +35,7 @@ import { CONNECTION_DRAG_THRESHOLD } from "@/domain/connectionGesture";
 import { WORK_DRAG_TYPE } from "@/library/WorksGrid";
 import { WorksPicker } from "@/library/WorksPicker";
 import { CanvasMenu } from "@/shell/CanvasMenu";
-import { BrandMark } from "@/shell/BrandMark";
+import { BrandCredit, BrandMark } from "@/shell/BrandMark";
 import type { CanvasSummary, CardNode, MediaWorkView } from "@/types";
 import { useVideoRewrite } from "./useVideoRewrite";
 import { useMeasuredRewriteLayout } from "./useMeasuredRewriteLayout";
@@ -239,6 +239,7 @@ function Board(props: BoardProps) {
           </button>
           <ZoomControl />
           <ShortcutHelp />
+          <BrandCredit />
         </Panel>
         {doc.nodes.length === 0 ? <div className="board__hint">双击空白处添加卡片，或者把图片拖进来</div> : null}
         <PendingConnection pending={pending} nodes={doc.nodes} />

@@ -31,7 +31,7 @@
   "bugs": {
     "url": "https://github.com/c2247189334/ggtv-canvas/issues"
   },
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "scripts": {
     "dev": "vite",

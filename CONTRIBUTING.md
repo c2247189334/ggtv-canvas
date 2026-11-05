@@ -37,6 +37,8 @@ npm start       # 小服务，端口 5290；或 npm run fake 用假火山、不�
 
 调用真火山接口会从你自己的账号扣费，测试时请用 `npm run fake`。
 
+提交代码或其他内容，即表示你有权提交这些内容，并同意作者按本项目的许可发布，也同意作者以后调整许可或另行授权商用。
+
 ## 行为准则
 
 互相尊重，就事论事。请勿用他人肖像生成未经本人同意的内容，也不要把这类内容带进 issue 和 PR。
@@ -46,4 +48,5 @@ npm start       # 小服务，端口 5290；或 npm run fake 用假火山、不�
 - Open an issue before large changes. Use the issue template for bugs; include console output and logs with keys, accounts and personal paths removed.
 - Run from source with `npm ci`, `npm run dev` (web, 5280) and `npm start` (server, 5290) or `npm run fake` (free fake mode).
 - Before a PR: `npm run typecheck` and `npm test` must pass; add tests for new behaviour; keep files under ~300 lines; no local paths or secrets in code; UI text is Chinese, identifiers are English; `server/` uses Node built-ins only; one topic per PR.
+- By contributing, you confirm you have the right to submit your work and agree that the author may release it under this project's license, change that license later, or grant commercial licenses.
 - Be respectful. Do not generate content from another person's likeness without their consent.
