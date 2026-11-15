@@ -12,15 +12,16 @@ export function readRewriteItem(raw: unknown): RewriteItem | undefined {
   const item = object(raw);
   if (!item || typeof item.id !== 'string' || !item.id || !kinds.includes(item.kind as RewriteItemKind) || typeof item.desc !== 'string' ||
     !finite(item.from) || !finite(item.to) || item.to < item.from || !finite(item.frame)) return undefined;
-  return { id: item.id, kind: item.kind as RewriteItemKind, desc: item.desc, from: item.from, to: item.to, frame: item.frame };
+  return { id: item.id, kind: item.kind as RewriteItemKind, desc: item.desc, from: item.from, to: item.to, frame: item.frame,
+    ...(typeof item.person === 'string' ? { person: item.person } : {}), ...(typeof item.where === 'string' ? { where: item.where } : {}),
+    ...(typeof item.sameAs === 'string' ? { sameAs: item.sameAs } : {}) };
 }
 
 export function readRewriteStatus(raw: unknown): RewriteStatus | undefined {
   const value = object(raw);
   if (value?.status === 'pending' || value?.status === 'interrupted') return { status: 'interrupted' };
   if (value?.status !== 'failed' || typeof value.error !== 'string') return undefined;
-  return { status: 'failed', error: value.error, yuan: finite(value.yuan) ? value.yuan : 0,
-    costUnknown: value.costUnknown === true || !finite(value.yuan) };
+  return { status: 'failed', error: value.error };
 }
 
 export function readRewriteChangeSeconds(raw: unknown, duration: number): number[] | undefined {

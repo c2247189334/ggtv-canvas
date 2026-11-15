@@ -1,19 +1,19 @@
 import type { CardNode, VideoCardData } from '@/types';
+/** 两种拆解共用：历史恢复不能把另一种仍在跑的单标成中断。 */
+export const activeRewriteSources = new Set<string>();
+
+/** 新输出卡还在等拆解：只是在等、不算出错，面板用灰字（11-04）。 */
+export function rewriteWaiting(data: VideoCardData): boolean {
+  return Boolean(data.rewriteId && !data.rewritePlan && !data.productPlan && (data.rewriteBusy || data.rewriteStatus?.status === 'pending'));
+}
 
 /** 新输出卡拆解结束前，写词和发送共用同一个拦截原因。 */
 export function rewriteOutputProblem(data: VideoCardData): string | null {
-  if (!data.rewriteId || data.rewritePlan) return null;
-  if (data.rewriteBusy || data.rewriteStatus?.status === 'pending') return '正在拆解视频，图片卡铺好后再补图';
+  if (!data.rewriteId || data.rewritePlan || data.productPlan) return null;
+  if (rewriteWaiting(data)) return '正在拆解视频，图片卡铺好后再补图';
   if (data.rewriteStatus?.status === 'failed') return `拆解失败：${data.rewriteStatus.error}。请在原视频卡重新开始。`;
   if (data.rewriteStatus?.status === 'interrupted') return '上次没做完，请在原视频卡重新开始视频改写。';
   return null;
-}
-
-/** 没拿到服务端的费用回执，不能把失败显示成零花费。 */
-export function rewriteCharge(previous: { yuan: number; costUnknown: boolean }, result: unknown) {
-  const value = result as { yuan?: unknown; costUnknown?: unknown } | null;
-  return { yuan: previous.yuan + (typeof value?.yuan === 'number' && Number.isFinite(value.yuan) ? value.yuan : 0),
-    costUnknown: previous.costUnknown || (typeof value?.costUnknown === 'boolean' ? value.costUnknown : true) };
 }
 
 /** 历史快照里原视频卡的「正在改写」只有当前页面仍在跑这条来源时才有效，否则改成「上次没做完」。 */

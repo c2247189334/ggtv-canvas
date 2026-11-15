@@ -12,10 +12,10 @@ it('只读单项的合法字段，坏时间、类型、缺id不带入画布', ()
 it('10-30 起拆解不问东西怎么动：10-29 旧存档里的 states 读回时丢掉，单项照常', () => {
   expect(readRewriteItem({ ...item, states: [{ from: 0, to: 4.6, state: '静止' }] })).toEqual(item);
 });
-it('改写状态：没做完的一律读成上次没做完；失败要有原话，费用不合法就标待确认', () => {
+it('改写状态：没做完的一律读成上次没做完；失败要有原话，老存档里的金额读的时候丢掉', () => {
   expect(readRewriteStatus({ status: 'pending' })).toEqual({ status: 'interrupted' });
-  expect(readRewriteStatus({ status: 'failed', error: '断线', yuan: 0.02, costUnknown: false })).toEqual({ status: 'failed', error: '断线', yuan: 0.02, costUnknown: false });
-  expect(readRewriteStatus({ status: 'failed', error: '断线', yuan: -1 })).toEqual({ status: 'failed', error: '断线', yuan: 0, costUnknown: true });
+  expect(readRewriteStatus({ status: 'failed', error: '断线', yuan: 0.02 })).toEqual({ status: 'failed', error: '断线' });
+  expect(readRewriteStatus({ status: 'failed', error: '断线', yuan: -1 })).toEqual({ status: 'failed', error: '断线' });
   for (const raw of [null, [], { status: 'failed' }, { status: 'analyzing' }]) expect(readRewriteStatus(raw)).toBeUndefined();
 });
 it('10-26 一轮版拆解单没有补看秒数照样读回；旧存档带补看秒数、改正说明也能读，只是不再带入', () => {

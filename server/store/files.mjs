@@ -12,13 +12,27 @@ export function newId() {
   return randomUUID();
 }
 
-/** 先写临时文件再改名盖过去：写到一半断电，旧文件还是完整的。失败了把临时文件删掉再报错，不留垃圾。 */
-export function writeJsonAtomic(file, data) {
+// Windows 上目标文件正被别的程序打开（杀毒扫描、备份、索引）时改名会报这几种错，过一会儿就好。
+const BUSY_CODES = new Set(['EPERM', 'EBUSY', 'EACCES']);
+const RETRY_WAITS_MS = [20, 50, 100, 200];
+const pause = (ms) => { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); };
+
+/**
+ * 先写临时文件再改名盖过去：写到一半断电，旧文件还是完整的。失败了把临时文件删掉再报错，不留垃圾。
+ * 改名时文件被占着就等一下重试（一共试 5 次、最多等 0.37 秒）；别的错（盘满、目录没了）不重试。
+ */
+export function writeJsonAtomic(file, data, { rename = renameSync, wait = pause } = {}) {
   mkdirSync(dirname(file), { recursive: true });
   const tmp = `${file}.${process.pid}.tmp`;
   try {
     writeFileSync(tmp, JSON.stringify(data, null, 2) + '\n', 'utf8');
-    renameSync(tmp, file);
+    for (let attempt = 0; ; attempt += 1) {
+      try { rename(tmp, file); break; }
+      catch (err) {
+        if (!BUSY_CODES.has(err?.code) || attempt >= RETRY_WAITS_MS.length) throw err;
+        wait(RETRY_WAITS_MS[attempt]);
+      }
+    }
   } catch (err) {
     rmSync(tmp, { force: true });
     throw err;

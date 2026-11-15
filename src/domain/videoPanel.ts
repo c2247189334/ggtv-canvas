@@ -1,4 +1,4 @@
-import { checkVideoRefs, estimateVideo, type VideoSettings } from "./videoModels";
+import { checkVideoRefs, type VideoSettings } from "./videoModels";
 import { numberMediaRefs, type RefMedia } from "./mention";
 import type { AssetRef, Health, JobPhase, VideoGenSettings } from "@/types";
 
@@ -21,12 +21,6 @@ export function blockedReferenceMessage(message: string, blocked: readonly numbe
 
 export function videoSummary(settings: VideoGenSettings): string {
   return `${settings.ratio === "adaptive" ? "Auto" : settings.ratio} · ${settings.resolution.toUpperCase()} · ${settings.duration}s · ${settings.count}个`;
-}
-
-export function videoEstimate(settings: VideoGenSettings, refs: readonly AssetRef[]) {
-  const refVideoSeconds = refs.reduce((total, ref) => total + (ref.media === "video" ? ref.seconds ?? 0 : 0), 0);
-  const estimate = estimateVideo({ ...settings, refVideoSeconds });
-  return { ...estimate, yuan: estimate.yuan * settings.count };
 }
 
 export const TOS_PROBLEM = "参考视频要先传到火山存储：.env.local 里还没填 TOS_ACCESS_KEY_ID、TOS_SECRET_ACCESS_KEY、TOS_BUCKET，填好不用重启。";

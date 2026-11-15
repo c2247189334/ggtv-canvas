@@ -23,15 +23,15 @@ function phrase(value, max) {
 }
 
 /**
- * 10-30 功夫舞真成片后加：拼词前看一次要换的人物图，只答固定四项，代码按答案填模板，不让豆包写整段。
+ * 10-30 功夫舞真成片后加：拼词前看一次要换的人物图，只答固定四项，代码按答案填模板，不让模型写整段。
  * 简单认图，关深度思考省钱省时；回话格式毛病能纠正就纠正（没写编号按顺序对、次数乱写当 1），没有人物列表才报错（钱已花，不重发）。
  */
 export async function lookPeople({ materials, images }, { ask }) {
   if (!materials.length) return {};
   const tags = materials.map(row => row.tag);
-  const reply = await ask({ round: 'look', text: question(tags), images, think: false, context: { tags } });
+  const reply = await ask({ round: 'look', text: question(tags), images, context: { tags } });
   const people = Array.isArray(reply?.people) ? reply.people : null;
-  if (!people?.length) throw Error(`豆包看图回话不对，没有每张人物图的回答：${JSON.stringify(reply)}`);
+  if (!people?.length) throw Error(`看图回话不对，没有每张人物图的回答：${JSON.stringify(reply)}`);
   return Object.fromEntries(tags.map((tag, index) => {
     const row = people.find(entry => entry?.tag === tag) ?? people[index] ?? {};
     const views = Number(row.views);

@@ -9,7 +9,7 @@ const person = { id: 'P1', kind: '人物', desc: '原人物', from: 0, to: 6, fr
 const plan = { summary: '动作', items: [person], replace: ['P1'], actions: [], changes: [], unsure: [], lookAgain: [] };
 const video = { tag: '@视频12', purpose };
 const picture = { tag: '@图片8', purpose: '人物', itemId: 'P1' };
-const expected = '@视频12是白模参考：只采用人物的动作、姿态、位置和机位，不采用其中的灰色模型外观、材质和黑色背景；@视频12里的灰色人体模型就是@图片8。';
+const expected = '@视频12是白模参考：严格参考其中人物的动作、姿态、位置和机位，顺序和节奏与视频保持一致；不采用其中的灰色模型外观、材质和黑色背景；@视频12里的灰色人体模型就是@图片8。';
 
 test('白模用途常量逐字固定，单人职责逐字相同，不受背景是否换场景影响', () => {
   assert.equal(roles.MESH_PURPOSE, purpose);
@@ -20,7 +20,7 @@ test('白模用途常量逐字固定，单人职责逐字相同，不受背景�
 });
 
 test('白模没有换人物不指认；多人沿用人物顺序称呼并改为灰色人体模型', () => {
-  assert.equal(roles.materialRoles({ plan: { ...plan, replace: [] }, materials: [video] }), expected.split('；')[0] + '。');
+  assert.equal(roles.materialRoles({ plan: { ...plan, replace: [] }, materials: [video] }), expected.replace('；@视频12里的灰色人体模型就是@图片8', ''));
   const second = { ...person, id: 'P2' };
   const text = roles.materialRoles({ plan: { ...plan, items: [person, second], replace: ['P1', 'P2'] },
     materials: [video, picture, { tag: '@图片9', itemId: 'P2', purpose: '人物' }] });
@@ -45,8 +45,9 @@ test('白模道具和遮挡物名字用顿号列入提醒（包含要替换的�
     duration: 6, sourceDuration: 6, ratio: '16:9', userText: '人物换成我的' };
   const result = writePrompt(input);
   assert.ok(result.warnings.includes('白模里没有球杆、扇叶，成片里它怎么动只能靠模型猜；在意就改用深度'));
-  assert.ok(!result.warnings.some(warning => warning.includes('交给背景图和深度视频')));
+  assert.ok(result.warnings.includes('拆解认出画面里还有扇叶：程序底稿没写，成片里可能少了或摆错；在意就自己补一句。'));
   assert.ok(result.videoPrompt.includes(expected)); assert.deepEqual(checkRules({ ...input, ...result }), []);
   const depth = writePrompt({ ...input, materials: [{ ...video, purpose: '深度' }, picture] });
   assert.ok(!depth.warnings.some(warning => warning.startsWith('白模里没有')));
+  assert.ok(depth.warnings.includes('拆解认出画面里还有扇叶：程序底稿没写；成片里少了或摆错，再自己补一句。'));
 });

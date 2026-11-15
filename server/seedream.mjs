@@ -94,7 +94,7 @@ export function upstreamMessage(payload, raw) {
 
 /**
  * 发一次，出一张。返回 { ok: true, image } 或 { ok: false, status, message }。
- * 网络层出错抛 EDIT_TIMEOUT / EDIT_UNREACHABLE；真实原因只进黑窗口，Key 打码。
+ * 网络层出错抛 EDIT_TIMEOUT / EDIT_UNREACHABLE（没发出去）/ EDIT_INTERRUPTED（发出去之后才断）；真实原因只进黑窗口，Key 打码。
  */
 export async function generateOne({ model, prompt, images = [], size }, { env, fetch: doFetch, log = console.error, timeout = IMAGE_TIMEOUT_MS }) {
   const cfg = seedreamConfig(env);
@@ -110,8 +110,9 @@ export async function generateOne({ model, prompt, images = [], size }, { env, f
     });
   } catch (err) {
     if (err?.name === 'TimeoutError' || err?.name === 'AbortError') throw new Error('EDIT_TIMEOUT');
-    log(`[出图] 连不上火山：${String(err?.message ?? err).replaceAll(cfg.key, '***')}`);
-    throw new Error('EDIT_UNREACHABLE');
+    // net.mjs 给「请求没发完就断」的错标 notSent；没带标记的是发出去以后才断，火山可能已经出图扣费。
+    log(`[出图] ${err?.notSent ? '连不上火山' : '请求发出后断了'}：${String(err?.message ?? err).replaceAll(cfg.key, '***')}`);
+    throw new Error(err?.notSent ? 'EDIT_UNREACHABLE' : 'EDIT_INTERRUPTED');
   }
   const raw = Buffer.from(await response.arrayBuffer()).toString('utf8');
   let payload = null;

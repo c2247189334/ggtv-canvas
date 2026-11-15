@@ -6,8 +6,11 @@ import { createDepthQueue } from './depth/queue.mjs';
 import { createLocalMedia } from './depth/local.mjs';
 import { localMediaRoutes } from './routes/localMedia.mjs';
 import { rewriteRoutes } from './routes/rewrite.mjs';
+import { agentHealth } from './agent.mjs';
 import { createRewrite, fakeRewrite } from './rewrite.mjs';
 import { videoRewriteRoutes } from './routes/videoRewrite.mjs';
+import { productRemakeRoutes } from './routes/productRemake.mjs';
+import { createRewriteSession } from './videoRewrite/session.mjs';
 import { createSheets } from './videoRewrite/sheets.mjs';
 import { createPromptImages } from './videoRewrite/promptImages.mjs';
 import { assetRoutes } from './routes/assets.mjs';
@@ -18,7 +21,10 @@ import { createCanvasStore } from './store/canvases.mjs';
 import { createJobStore } from './store/jobs.mjs';
 import { createSpendLog } from './store/spend.mjs';
 import { createUploadStore } from './store/uploads.mjs';
+import { createUploadRecords } from './store/uploadRecords.mjs';
 import { createWorkStore } from './store/works.mjs';
+import { createCharacterStore } from './store/characters.mjs';
+import { characterRoutes } from './routes/characters.mjs';
 
 /** npm run dev 时页面所在的端口（vite.config.ts 里写的），它发来的写请求也放行。 */
 export const DEV_PORT = 5280;
@@ -28,7 +34,9 @@ export function createApp({ dataRoot, distDir, port, fake, readEnv, generate, vi
   const stores = {
     canvases: createCanvasStore(dataRoot),
     uploads: createUploadStore(dataRoot),
+    uploadRecords: createUploadRecords(dataRoot),
     works: createWorkStore(dataRoot),
+    characters: createCharacterStore(dataRoot),
     jobs: createJobStore(dataRoot),
     spend: createSpendLog(dataRoot)
   };
@@ -38,16 +46,24 @@ export function createApp({ dataRoot, distDir, port, fake, readEnv, generate, vi
   const media = createLocalMedia({ ...stores, dataRoot, readEnv, fake, executor, logError });
   const depthQueue = createDepthQueue({ ...stores, media });
   const router = createRouter();
-  canvasRoutes(router, stores);
+  canvasRoutes(router, { ...stores, depthQueue });
   assetRoutes(router, stores);
   jobRoutes(router, { ...stores, queue, readEnv, fake });
+  characterRoutes(router, { ...stores, queue, readEnv, fake });
   videoJobRoutes(router, { ...stores, videoQueue, readEnv, fake });
   localMediaRoutes(router, { media, depthQueue });
   const sheets = videoRewrite.sheets ?? createSheets({ executor });
   const promptImages = videoRewrite.promptImages ?? createPromptImages({ ...stores, executor });
-  videoRewriteRoutes(router, { dataRoot, media, sheets, promptImages, readEnv, fake, fakeDelayMs, spend: stores.spend, fetch: videoRewrite.fetch, logError });
-  rewriteRoutes(router, { readEnv, fake, spend: stores.spend, rewrite: rewrite ?? (fake ? fakeRewrite :
-    input => createRewrite({ env: readEnv(), logError })(input)) });
+  const rewriteOptions = { dataRoot, media, sheets, promptImages, readEnv, fake, fakeDelayMs, spend: stores.spend, logError,
+    claude: videoRewrite.claude };
+  rewriteOptions.session = createRewriteSession(rewriteOptions);
+  videoRewriteRoutes(router, rewriteOptions);
+  productRemakeRoutes(router, rewriteOptions);
+  const agentRewrite = input => {
+    const env = readEnv();
+    return createRewrite({ call: rewriteOptions.session.agentCall(env), model: agentHealth(env).agentModel })(input);
+  };
+  rewriteRoutes(router, { readEnv, fake, spend: stores.spend, rewrite: rewrite ?? (fake ? fakeRewrite : agentRewrite) });
   const handler = createHandler({ router, distDir, allowedPorts: [port, DEV_PORT], logError });
   return { handler, queue, videoQueue, depthQueue, stores, stopVideoRewrite: () => { sheets.stop(); promptImages.stop(); } };
 }

@@ -1,7 +1,15 @@
-.rewrite-input label { display: grid; gap: 8px; }
+/* 11-08 用户定：改写输入框少占地方——两个勾并排、动作参考和开始按钮同一行，解释收进「?」。 */
+.rewrite-input__title { display: flex; align-items: center; gap: 6px; }
+/* 11-10 用户要：标题右边常用项，点一下拼进原话 */
+.rewrite-input__picks { display: inline-flex; gap: 6px; margin-left: auto; }
+.rewrite-input__picks > button { padding: 2px 10px; border-radius: 999px; font-size: 12px; }
 .rewrite-input textarea { width: 100%; resize: vertical; }
+.rewrite-input__row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; }
+.rewrite-input__option { display: inline-flex; align-items: center; gap: 6px; }
 .rewrite-input .rewrite-input__keep { display: flex; align-items: center; gap: 6px; cursor: pointer; }
-.rewrite-input__hint { color: var(--muted); font-size: 12px; line-height: 1.6; }
+.rewrite-input__option > button[aria-pressed] { padding: 4px 12px; }
+.rewrite-input__option > button.is-on { border-color: var(--accent); color: var(--accent); }
+.rewrite-input__start { margin-left: auto; padding: 6px 16px; border-color: var(--accent); background: var(--accent); color: #fff; }
 .card__rewrite-status { padding: 8px 4px; overflow-wrap: anywhere; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .card__rewrite-status--failed { color: #ffd7d7; }
 .card__replacement { display: -webkit-box; max-width: 100%; max-height: 5.5em; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }

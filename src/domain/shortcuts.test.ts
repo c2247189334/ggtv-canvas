@@ -24,7 +24,7 @@ describe("Esc只处理一层", () => {
 describe("shortcuts", () => {
   it.each([
     ["z", false, "undo"], ["Z", false, "undo"], ["z", true, "redo"], ["Z", true, "redo"],
-    ["c", false, "copy"], ["v", false, "paste"], ["d", false, "duplicate"], ["l", false, "link"], ["L", false, "link"],
+    ["c", false, "copy"], ["v", false, "paste"], ["d", false, "duplicate"], ["l", false, "link"], ["L", false, "link"], ["g", false, "group"],
     ["=", false, "zoomIn"], ["+", true, "zoomIn"], ["-", false, "zoomOut"], ["0", false, "fit"]
   ])("Ctrl %s shift=%s → %s", (key, shiftKey, action) => {
     expect(shortcutAction({ key, ctrlKey: true, shiftKey }, { editable: false })).toBe(action);
@@ -53,12 +53,29 @@ describe("shortcuts", () => {
   it("说明面板只有四组和已实现操作", () => {
     expect(SHORTCUT_GROUPS.map(g => g.title)).toEqual(["创作", "缩放", "移动画布", "其他"]);
     expect(SHORTCUT_GROUPS.flatMap(g => g.items).map(i => i[0])).toEqual([
-      "复制", "粘贴", "复制节点和连线", "连线", "节点复制", "创建副本", "生成", "删除", "放大", "缩小", "适应画布", "缩放画布",
+      "复制", "粘贴", "复制节点和连线", "连线", "打组", "节点复制", "创建副本", "生成", "删除", "放大", "缩小", "适应画布", "缩放画布",
       "临时移动", "移动", "上下移动", "左右移动", "撤销", "重做", "取消选择"
     ]);
     expect(SHORTCUT_GROUPS[0].items).toEqual([
-      ["复制", "Ctrl+C"], ["粘贴", "Ctrl+V"], ["复制节点和连线", "Ctrl+D"], ["连线", "Ctrl+L"],
+      ["复制", "Ctrl+C"], ["粘贴", "Ctrl+V"], ["复制节点和连线", "Ctrl+D"], ["连线", "Ctrl+L"], ["打组", "Ctrl+G"],
       ["节点复制", "Alt+拖动"], ["创建副本", "Ctrl+Alt+拖动"], ["生成", "Ctrl+Enter"], ["删除", "Delete / Backspace"]
     ]);
+  });
+});
+
+// 11-14 体检：看大图、确认框这类弹层开着时，Delete / Ctrl+Z / Ctrl+V 会动到后面画布上的卡；选中了页面上的字（比如出错原话）时 Ctrl+C 被画布抢去复制卡片。
+describe("弹层开着、选中文字时让开", () => {
+  it("弹层开着：画布快捷键全部不触发，Esc 照旧交给弹层", () => {
+    for (const event of [{ key: "Delete" }, { key: "Backspace" }, { key: "z", ctrlKey: true }, { key: "v", ctrlKey: true }, { key: "c", ctrlKey: true }, { key: "0", ctrlKey: true }]) {
+      expect(shortcutAction(event, { editable: false, modal: true })).toBeNull();
+    }
+    expect(shortcutAction({ key: "Escape" }, { editable: false, modal: true })).toBe("escape");
+  });
+
+  it("选中了页面上的字：Ctrl+C 留给浏览器复制文字，别的快捷键不受影响", () => {
+    expect(shortcutAction({ key: "c", ctrlKey: true }, { editable: false, textSelected: true })).toBeNull();
+    expect(shortcutAction({ key: "c", ctrlKey: true }, { editable: false, textSelected: false })).toBe("copy");
+    expect(shortcutAction({ key: "v", ctrlKey: true }, { editable: false, textSelected: true })).toBe("paste");
+    expect(shortcutAction({ key: "Delete" }, { editable: false, textSelected: true })).toBe("delete");
   });
 });

@@ -3,8 +3,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { Edge } from '@xyflow/react';
 import type { CardNode } from '@/types';
 import { cardCounter, newVideoCard } from '@/domain/cards';
-import { videoRewriteMaterials, REWRITE_NEW_SCENE_PROMPT } from '@/domain/videoRewrite';
+import { REWRITE_BACKGROUND_PROMPT, videoRewriteMaterials } from '@/domain/videoRewrite';
 import { api } from '@/api';
+import { agentNeededProblem, closeAgentNeeded } from '@/common/agentNeeded';
 import { useVideoRewrite } from './useVideoRewrite';
 import type { RewritePlan } from '@/videoRewriteTypes';
 const graph = vi.hoisted(() => ({ nodes: [] as CardNode[], edges: [] as Edge[], effects: [] as Array<() => void | (() => void)> }));
@@ -25,18 +26,18 @@ function setup(seconds = 6) {
   graph.edges = [];
   graph.nodes = [{ id: 'source', type: 'card', selected: true, position: { x: 0, y: 0 }, data: newVideoCard('upload', 0,
     [{ type: 'upload', id: 'upload', media: 'video', seconds, hasAudio: true, width: 720, height: 1280 }]) }];
-  const notify = vi.fn(), layout = vi.fn(), focus = vi.fn(), send = vi.fn(async (_id: string) => {}); let actions!: ReturnType<typeof useVideoRewrite>;
+  const notify = vi.fn(), layout = vi.fn(), focus = vi.fn(); let actions!: ReturnType<typeof useVideoRewrite>;
   let queued = false;
   const updates: Array<() => void> = [];
   const commit = (update: () => void) => { if (queued) updates.push(update); else update(); };
   function Harness() {
     actions = useVideoRewrite({ canvasId: 'c', setNodes: update => commit(() => { graph.nodes = update(graph.nodes); }),
-      setEdges: update => commit(() => { graph.edges = update(graph.edges); }), takeNumber: cardCounter(), notify, layout, focus, send });
+      setEdges: update => commit(() => { graph.edges = update(graph.edges); }), takeNumber: cardCounter(), notify, layout, focus });
     return null;
   }
   renderToStaticMarkup(<Harness />);
   const cleanups = graph.effects.splice(0).map(effect => effect());
-  return { actions, notify, layout, focus, send, unmount: () => { for (const cleanup of cleanups) cleanup?.(); },
+  return { actions, notify, layout, focus, unmount: () => { for (const cleanup of cleanups) cleanup?.(); },
     queue: () => { queued = true; }, flush: () => { queued = false; for (const update of updates.splice(0)) update(); } };
 }
 const sourceCard = () => graph.nodes.find(node => node.id === 'source')!;
@@ -49,12 +50,12 @@ beforeEach(() => {
   vi.mocked(api.health).mockResolvedValue({ fake: true } as Awaited<ReturnType<typeof api.health>>);
   vi.mocked(api.submitDepthJob).mockResolvedValue({ id: 'depth-job' }); vi.mocked(api.submitMeshJob).mockResolvedValue({ id: 'mesh-job' });
   vi.mocked(api.extractAudio).mockResolvedValue({ id: 'audio-work', duration: 6 } as Awaited<ReturnType<typeof api.extractAudio>>);
-  vi.mocked(api.analyzeVideo).mockResolvedValue({ ...meta, plan, yuan: 0.08, costUnknown: false });
+  vi.mocked(api.analyzeVideo).mockResolvedValue({ ...meta, plan, yuan: 0.08 });
   vi.mocked(api.extractFrame).mockResolvedValue({ id: 'frame', kind: 'image' });
 });
 it('开始改写前缺Key、TOS、所选动作参考或ffmpeg均返回输入框说明，零建卡零交单零花费', async () => {
   const ready = { filled: true, found: true };
-  const complete = { ok: true, fake: false, keyReady: true, tosReady: true, ffmpegFound: true, ffprobeFound: true, todayYuan: 0, uncertainToday: 0,
+  const complete = { ok: true, fake: false, keyReady: true, tosReady: true, ffmpegFound: true, ffprobeFound: true, todayYuan: 0, uncertainToday: 0, agentReady: true,
     depth: { python: ready, modelDir: ready, extraPackages: { filled: false, found: false } },
     mesh: { ready: true, url: ready, directory: { filled: false, found: false } } };
   for (const [health, kind, expected] of [
@@ -66,12 +67,21 @@ it('开始改写前缺Key、TOS、所选动作参考或ffmpeg均返回输入框�
     [{ ...complete, ffprobeFound: false }, 'depth', 'ffprobe'], [{ ...complete, ffprobeFound: undefined }, 'depth', 'ffprobe']
   ] as const) {
     vi.clearAllMocks(); vi.mocked(api.health).mockResolvedValue(health);
-    const { actions, send, layout, focus } = setup(); const before = structuredClone(graph.nodes);
+    const { actions, layout, focus } = setup(); const before = structuredClone(graph.nodes);
     expect(await actions.run('source', '换人物', true, kind)).toContain(expected);
     expect(graph.nodes).toEqual(before); expect(graph.edges).toHaveLength(0);
-    for (const call of [api.analyzeVideo, api.extractFrame, api.submitDepthJob, api.submitMeshJob, send, layout, focus]) expect(call).not.toHaveBeenCalled();
+    for (const call of [api.analyzeVideo, api.extractFrame, api.submitDepthJob, api.submitMeshJob, layout, focus]) expect(call).not.toHaveBeenCalled();
     expect(actions.isPending('source')).toBe(false);
   }
+  // 11-15 用户定：拆解只走本机 agent；没配好弹说明框，不建卡、不交单，也不在输入框里写缺 Key（先说最要紧的）。
+  closeAgentNeeded(); vi.clearAllMocks();
+  vi.mocked(api.health).mockResolvedValue({ ...complete, keyReady: false, agentReady: false, agentProblem: '本机 Claude 没配好：装 Claude Code。' });
+  const { actions, layout, focus } = setup(); const before = structuredClone(graph.nodes);
+  expect(await actions.run('source', '换人物')).toBeUndefined();
+  expect(agentNeededProblem()).toBe('本机 Claude 没配好：装 Claude Code。');
+  expect(graph.nodes).toEqual(before); expect(graph.edges).toHaveLength(0);
+  for (const call of [api.analyzeVideo, api.extractFrame, api.submitDepthJob, api.submitMeshJob, layout, focus]) expect(call).not.toHaveBeenCalled();
+  expect(actions.isPending('source')).toBe(false); closeAgentNeeded();
 });
 it('体检等待时同一来源也锁住，体检失败不建卡且可重试', async () => {
   let rejectHealth!: (reason: Error) => void; vi.mocked(api.health).mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectHealth = reject; }));
@@ -104,15 +114,15 @@ it('用户选白模时补白模并交白模单，复用同种卡、手动操作�
 it('打开入口不建卡、不发拆解；短视频给原时长原因；再次打开清掉上次失败说明', () => {
   const good = setup(); good.actions.start('source');
   expect(graph.nodes).toHaveLength(1); expect(graph.edges).toHaveLength(0); expect(api.analyzeVideo).not.toHaveBeenCalled();
-  graph.nodes[0].data = { ...graph.nodes[0].data, kind: 'video', rewriteStatus: { status: 'failed', error: '断线', yuan: 0.02, costUnknown: false } } as CardNode['data'];
+  graph.nodes[0].data = { ...graph.nodes[0].data, kind: 'video', rewriteStatus: { status: 'failed', error: '断线' } } as CardNode['data'];
   good.actions.start('source');
   expect(sourceCard().data).not.toHaveProperty('rewriteStatus');
   const short = setup(2); short.actions.start('source');
   expect(short.notify).toHaveBeenCalledWith(expect.stringContaining('4 到 30 秒'));
   expect(graph.nodes).toHaveLength(1);
 });
-it('开始就出深度、第一帧和背景卡（背景马上自动出图），不建原声卡，拆解回来前不铺人物衣服卡；进度写在原视频卡上', async () => {
-  const { actions, layout, send } = setup();
+it('开始只出深度和视频卡，不建原声卡；拆解回来才截图、铺背景和人物衣服卡，背景写好去人的词、不自动出图；进度写在原视频卡上', async () => {
+  const { actions, layout } = setup();
   const resolving = waitAnalyze();
   const task = actions.run('source', '换衣服'); await Promise.resolve(); // 建卡要先等health预检完成。
   expect(graph.nodes.map(node => node.data.kind)).toEqual(['video', 'video', 'video']);
@@ -122,19 +132,19 @@ it('开始就出深度、第一帧和背景卡（背景马上自动出图），�
   expect(sourceCard().data).toMatchObject({ rewriteBusy: 'analyzing', rewriteStatus: { status: 'pending' } });
   expect(layout).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ ids: [graph.nodes[1].id], origin: { x: 380, y: 0 } }));
   await vi.waitFor(() => expect(api.analyzeVideo).toHaveBeenCalledTimes(1));
+  expect(api.extractFrame).not.toHaveBeenCalled();
+  expect(outputs().map(node => node.id)).toEqual([early.id]);
+  (await resolving)({ ...meta, plan, yuan: 0 }); await task;
   expect(api.extractFrame).toHaveBeenCalledWith({ source: { type: 'upload', id: 'upload' }, second: 0 });
-  expect(vi.mocked(api.extractFrame).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(api.analyzeVideo).mock.invocationCallOrder[0]);
   const frame = graph.nodes.find(node => node.data.kind === 'image' && node.data.source === 'upload')!;
   const background = outputs().find(node => node.data.title === '背景')!;
   expect(frame.data).toMatchObject({ title: '原视频第一帧', results: [{ type: 'upload', id: 'frame' }] });
   expect(graph.edges).toContainEqual(expect.objectContaining({ source: frame.id, target: background.id }));
-  const media = [graph.nodes[1].id, frame.id];
-  expect(layout).toHaveBeenLastCalledWith(expect.any(String), { ids: media, movableIds: media, origin: { x: 380, y: 0 } });
-  expect(new Set(layout.mock.calls.map(call => call[0])).size).toBe(1);
-  await vi.waitFor(() => expect(send).toHaveBeenCalledWith(background.id));
-  expect(outputs().map(node => node.id)).toEqual([early.id, background.id]);
-  (await resolving)({ ...meta, plan, yuan: 0, costUnknown: false }); await task;
-  expect(outputs()).toHaveLength(7); expect(send).toHaveBeenCalledTimes(1);
+  // 11-11：第 2 列只排深度卡；截图和要补的卡一行一对，从第 3 列排。
+  expect(new Set(layout.mock.calls.filter(call => call[1].origin.x === 380).map(call => call[0])).size).toBe(1);
+  expect(layout.mock.calls.find(call => call[1].rows)![1].rows[0]).toEqual({ left: frame.id, right: background.id });
+  expect(background.data).toMatchObject({ prompt: REWRITE_BACKGROUND_PROMPT, results: [] });
+  expect(outputs()).toHaveLength(7);
   expect(outputs().find(node => node.data.kind === 'video')!.id).toBe(early.id);
   expect(outputs().find(node => node.id === early.id)!.data).not.toHaveProperty('rewriteBusy');
   expect(actions.restore([early])[0].data.rewriteStatus).toEqual({ status: 'interrupted' });
@@ -154,13 +164,20 @@ it('第一步完成：图片卡填模板、视频词留空并保存改写快照�
   expect(focus).toHaveBeenCalledWith(video.id);
   for (const field of ['rewriteBusy', 'rewriteStatus']) expect(sourceCard().data).not.toHaveProperty(field);
   expect(sourceCard().data).not.toHaveProperty('rewritePlan');
-  expect(notify).toHaveBeenCalledWith('图片卡已铺好：补完 6 张图后，在视频卡点「生成提示词」；已花 ¥0.08；背景图另算约 ¥0.12');
+  expect(notify).toHaveBeenCalledWith('图片卡已铺好：补完 6 张图后，在视频卡点「生成提示词」；其中 1 张已连好截图、写好词，点生成就行；左边没连线的截图只给你对照');
 });
-it('铺好的图片卡排在背景卡下面，按顺序交给实测排版排紧，背景卡不挪', async () => {
+it('11-11 用户定：背景、人物、每套衣服一行一对，左边是原片同一刻的截图（去人那张连线当素材，人和衣服的只对照），按顺序交给实测排版', async () => {
   const { actions, layout } = setup(); await actions.run('source', '换人换衣服');
   const [background, ...items] = outputs().filter(node => node.data.kind === 'image').map(node => node.id);
   expect(outputs().find(node => node.id === background)?.data.title).toBe('背景');
-  expect(layout).toHaveBeenCalledWith(expect.any(String), { ids: [background, ...items], movableIds: items, origin: { x: 760, y: 0 } });
+  const shots = graph.nodes.filter(node => node.data.kind === 'image' && node.data.source === 'upload');
+  expect(shots.map(node => node.data.title)).toEqual(['原视频第一帧', '人物 原片（1 秒）', ...[1, 2, 3, 4].map(n => `衣服 ${n} 原片（${n} 秒）`)]);
+  expect(vi.mocked(api.extractFrame).mock.calls.map(([input]) => input.second)).toEqual([0, 1, 1, 2, 3, 4]);
+  const rows = [background, ...items].map((right, index) => ({ left: shots[index].id, right }));
+  const ids = rows.flatMap(row => [row.left, row.right]);
+  expect(layout).toHaveBeenCalledWith(expect.any(String), { ids, movableIds: ids, origin: { x: 760, y: 0 }, rows });
+  expect(graph.edges.filter(edge => shots.slice(1).some(shot => shot.id === edge.source))).toEqual([]);
+  for (const id of [background, ...items]) expect(graph.nodes.find(node => node.id === id)!.data).toMatchObject({ emptyAspect: 720 / 1280 });
 });
 it('素材表背景排 @图片1，背景卡第一个连进视频卡；铺好的人物衣服卡尺寸跟视频比例', async () => {
   const { actions } = setup(); await actions.run('source', '换人换衣服');
@@ -172,53 +189,28 @@ it('素材表背景排 @图片1，背景卡第一个连进视频卡；铺好的�
   expect(graph.edges.filter(edge => edge.target === video.id)[0].source).toBe(background.id);
   for (const node of outputs().filter(node => node.data.kind === 'image' && node.data.rewriteItem)) expect(node.data.kind === 'image' && node.data.gen.aspect).toBe('9:16');
 });
-it('不勾「背景和原片一致」：第一帧照截连着背景卡，背景卡不自动出图，完成提示把背景算进要补的图', async () => {
-  const { actions, send, notify } = setup(); await actions.run('source', '换人换衣服', false);
-  expect(api.extractFrame).toHaveBeenCalledTimes(1);
-  const frame = graph.nodes.find(node => node.data.kind === 'image' && node.data.source === 'upload')!;
-  const background = outputs().find(node => node.data.title === '背景')!;
-  expect(background.data).toMatchObject({ rewriteNewScene: true, prompt: REWRITE_NEW_SCENE_PROMPT, results: [] });
-  expect(graph.edges).toContainEqual(expect.objectContaining({ source: frame.id, target: background.id }));
-  expect(send).not.toHaveBeenCalled();
-  expect(notify).toHaveBeenCalledWith('图片卡已铺好：补完 6 张图后，在视频卡点「生成提示词」；已花 ¥0.08；背景卡等你上传或生成');
-});
-it('截第一帧失败就不拆解、不花钱，原卡写原话和 ¥0', async () => {
-  vi.mocked(api.extractFrame).mockRejectedValue(Error('找不到执行程序'));
-  const { actions, notify } = setup(); await actions.run('source', '换人');
-  expect(api.analyzeVideo).not.toHaveBeenCalled(); expect(outputs()).toHaveLength(1);
-  expect(outputs()[0].data).toMatchObject({ kind: 'video', rewriteStatus: { status: 'failed', error: '找不到执行程序', yuan: 0, costUnknown: false } });
-  expect(sourceCard().data).toMatchObject({ rewriteStatus: { status: 'failed', error: '找不到执行程序', yuan: 0, costUnknown: false } });
-  expect(notify).toHaveBeenCalledWith(expect.stringContaining('找不到执行程序'));
-});
-it('背景卡自动生成失败把原话写在背景卡上，其余照常', async () => {
-  const { actions, send } = setup(); send.mockRejectedValueOnce(Error('ARK_API_KEY 还没填'));
-  await actions.run('source', '换人换衣服');
-  const background = () => outputs().find(node => node.data.title === '背景')!;
-  await vi.waitFor(() => expect(background().data.note).toBe('ARK_API_KEY 还没填'));
-  expect(outputs().filter(node => node.data.kind === 'video')).toHaveLength(1);
-});
-it('两轮拆解中途失败不铺替换卡，原视频卡写原话和已花，额外费用标未知，不重发', async () => {
+it('两轮拆解中途失败不铺替换卡，原视频卡写原话、不写金额，不重发', async () => {
   const { actions, notify, focus } = setup();
-  vi.mocked(api.analyzeVideo).mockRejectedValue(Object.assign(Error('第二轮断线'), { yuan: 0.04, costUnknown: true }));
+  vi.mocked(api.analyzeVideo).mockRejectedValue(Object.assign(Error('第二轮断线'), { yuan: 0.04 }));
   await actions.run('source', '换衣服');
-  expect(outputs().filter(node => node.data.kind === 'image').map(node => node.data.title)).toEqual(['背景']); expect(focus).not.toHaveBeenCalled();
+  expect(outputs().filter(node => node.data.kind === 'image')).toHaveLength(0); expect(focus).not.toHaveBeenCalled();
   const early = outputs().find(node => node.data.kind === 'video')!;
   expect(early.data.rewriteStatus).toEqual(sourceCard().data.rewriteStatus);
-  expect(sourceCard().data).toMatchObject({ rewriteStatus: { status: 'failed', error: '第二轮断线', yuan: 0.04, costUnknown: true } });
+  expect(sourceCard().data).toMatchObject({ rewriteStatus: { status: 'failed', error: '第二轮断线' } });
   expect(sourceCard().data).not.toHaveProperty('rewriteBusy');
-  expect(notify).toHaveBeenCalledWith(expect.stringContaining('第二轮断线'));
+  expect(notify).toHaveBeenCalledWith('视频改写没成功：第二轮断线');
   expect(api.analyzeVideo).toHaveBeenCalledTimes(1); expect(api.writeVideoPrompt).not.toHaveBeenCalled();
   const resolving = waitAnalyze(), retry = actions.run('source', '换衣服');
   expect(outputs().filter(node => node.data.kind === 'video').map(node => node.id)).toEqual([early.id]);
-  (await resolving)({ ...meta, plan, yuan: 0, costUnknown: false }); await retry;
+  (await resolving)({ ...meta, plan, yuan: 0 }); await retry;
   expect(outputs().filter(node => node.data.kind === 'video').map(node => node.id)).toEqual([early.id]);
 });
-it('拆解前就被拒（没花钱）时原卡写清零花费，不写词', async () => {
+it('拆解前就被拒时原卡写原话，不写词', async () => {
   const { actions } = setup();
-  vi.mocked(api.analyzeVideo).mockRejectedValue(Object.assign(Error('缺少 Key，这次没发出去，没花钱。'), { yuan: 0, costUnknown: false }));
+  vi.mocked(api.analyzeVideo).mockRejectedValue(Object.assign(Error('缺少 Key，这次没发出去。'), { yuan: 0 }));
   await actions.run('source', '换');
-  expect(api.writeVideoPrompt).not.toHaveBeenCalled(); expect(outputs().filter(node => node.data.kind === 'image').map(node => node.data.title)).toEqual(['背景']);
-  expect(sourceCard().data).toMatchObject({ rewriteStatus: { status: 'failed', yuan: 0, costUnknown: false } });
+  expect(api.writeVideoPrompt).not.toHaveBeenCalled(); expect(outputs().filter(node => node.data.kind === 'image')).toHaveLength(0);
+  expect(sourceCard().data).toMatchObject({ rewriteStatus: { status: 'failed', error: '缺少 Key，这次没发出去。' } });
 });
 it('同来源并发只跑一次，做完再开始是全新一套且媒体复用，原话记在页面期间', async () => {
   const { actions } = setup(); const resolving = waitAnalyze();
@@ -226,7 +218,7 @@ it('同来源并发只跑一次，做完再开始是全新一套且媒体复用�
   await actions.run('source', '不该重复');
   await vi.waitFor(() => expect(api.analyzeVideo).toHaveBeenCalledTimes(1));
   expect(api.analyzeVideo).toHaveBeenCalledTimes(1);
-  (await resolving)({ ...meta, plan, yuan: 0, costUnknown: false }); await first;
+  (await resolving)({ ...meta, plan, yuan: 0 }); await first;
   expect(actions.textFor('source')).toBe('我的衣服');
   await actions.run('source', '我的衣服');
   expect(outputs()).toHaveLength(14);
@@ -239,7 +231,7 @@ it('撤销恢复回来的「正在改写」：这页还在跑就不动，跑完�
   const snapshot = sourceCard();
   expect(actions.restore([snapshot])[0]).toBe(snapshot);
   graph.nodes = graph.nodes.filter(node => node.id !== 'source');
-  (await resolving)({ ...meta, plan, yuan: 0, costUnknown: false }); await task;
+  (await resolving)({ ...meta, plan, yuan: 0 }); await task;
   expect(outputs()).toHaveLength(7); expect(graph.nodes.some(node => node.id === 'source')).toBe(false);
   expect(actions.restore([snapshot])[0].data).toMatchObject({ rewriteStatus: { status: 'interrupted' } });
 });
@@ -264,16 +256,16 @@ it('同素材的另一张卡或切画布后重建的入口也不能重复收费'
   expect(remounted.actions.isPending('source')).toBe(true);
   await remounted.actions.run('source', '仍然不能重复');
   expect(api.analyzeVideo).toHaveBeenCalledTimes(1);
-  (await resolving)({ ...meta, plan, yuan: 0, costUnknown: false }); await task;
+  (await resolving)({ ...meta, plan, yuan: 0 }); await task;
   expect(remounted.actions.isPending('source')).toBe(false);
 });
-it('切画布卸载时已发拆解继续记账，但不得再花第三轮费用丢掉产物', async () => {
+it('切画布卸载时已发拆解继续跑完，但不得再发第三轮丢掉产物', async () => {
   const { actions, unmount } = setup(); const resolving = waitAnalyze();
   const task = actions.run('source', '换衣服');
   await vi.waitFor(() => expect(api.analyzeVideo).toHaveBeenCalledTimes(1));
-  unmount(); (await resolving)({ ...meta, plan, yuan: 0.08, costUnknown: false }); await task;
+  unmount(); (await resolving)({ ...meta, plan, yuan: 0.08 }); await task;
   expect(api.analyzeVideo).toHaveBeenCalledTimes(1); expect(api.writeVideoPrompt).not.toHaveBeenCalled();
-  expect(outputs().filter(node => node.data.kind === 'image').map(node => node.data.title)).toEqual(['背景']);
+  expect(outputs().filter(node => node.data.kind === 'image')).toHaveLength(0);
   expect(outputs().filter(node => node.data.kind === 'video')).toHaveLength(1); expect(actions.isPending('source')).toBe(false);
 });
 it('旧来源没有音轨标记时，拆解接口的真实元数据写进新视频卡的来源快照（配回原声靠它），也不建原声卡', async () => {
@@ -282,14 +274,9 @@ it('旧来源没有音轨标记时，拆解接口的真实元数据写进新视�
   expect(graph.nodes.some(node => node.data.kind === 'audio')).toBe(false); expect(api.extractAudio).not.toHaveBeenCalled();
   expect(outputs().find(node => node.data.kind === 'video')!.data).toMatchObject({ rewriteSource: { hasAudio: true }, video: { audio: false } });
 });
-it('背景已有结果时只提示补人物衣服五张，模板不含原描述，原描述独立留在快照', async () => {
-  const { actions, send, notify } = setup();
-  send.mockImplementationOnce(async id => {
-    const background = graph.nodes.find(node => node.id === id)!;
-    background.data.results = [{ type: 'work', id: 'background-done' }];
-  });
+it('模板不含原描述，原描述独立留在快照', async () => {
+  const { actions } = setup();
   await actions.run('source', '保留原话');
-  expect(notify).toHaveBeenCalledWith('图片卡已铺好：补完 5 张图后，在视频卡点「生成提示词」；已花 ¥0.08；背景图另算约 ¥0.12');
   for (const node of outputs()) {
     if (node.data.kind !== 'image' || !node.data.rewriteItem) continue;
     const itemId = node.data.rewriteItemId;

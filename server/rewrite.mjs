@@ -1,11 +1,6 @@
-// 10-25 用户定换 2.1 Pro（2.0 Pro 官方标即将下线）；单价照方舟模型价格页在线推理：输入 6、输出 30 元 / 百万 token。
-import { transport } from './net.mjs';
-import { seedreamConfig } from './seedream.mjs';
+// 「帮我改写」：把用户随手写的需求整理成一句能交给出图 / 视频模型的中文指令。
 import { MAX_PROMPT } from './jobInput.mjs';
-import { humanNetworkError } from './networkErrors.mjs';
 
-export const REWRITE_MODEL = 'doubao-seed-2-1-pro-260915';
-export const PRICE_PER_M = Object.freeze({ input: 6, output: 30 });
 // 沿用旧 src/domain/rewritePrompt.ts 的规则；接口只收文字和参考数量，不发送素材文件。
 const RULES = [
   '先定位，再说改动。用位置和衣着这类看得准的特征指出要改的是画面里的哪一个（例：画面右侧、穿黑色外套的那个男孩）。不许靠帽子底下的头发、看不清的图案这类猜出来的细节定位。',
@@ -40,7 +35,7 @@ export function redactRewriteError(value, env = {}) {
   return secrets.reduce((text, secret) => text.replaceAll(secret, '***'), String(value ?? ''));
 }
 
-function instruction({ prompt, kind, refs }) {
+function instruction({ kind, refs }) {
   const video = kind === 'video';
   const task = `你的任务：把用户随手写的需求，整理成一句清楚、能直接交给${video ? '视频' : '出图'}模型的中文指令。`;
   const names = (label, count) => Array.from({ length: count }, (_, i) => `@${label}${i + 1}`).join('、');
@@ -53,7 +48,8 @@ function instruction({ prompt, kind, refs }) {
   const rules = video ? RULES.map(text => text.replaceAll('出图模型', '视频模型')) : [...RULES];
   rules.push(`用户写的 @图片N、@视频N、@音频N 编号必须原样保留，不改名、不重排、不增删引用。${video ? '把动作、镜头和节奏写清楚。' : ''}`);
   rules.push(OUTPUT);
-  return [task, context, ['【怎么写】', ...rules.map((text, index) => `${index + 1}. ${text}`)].join('\n')].join('\n\n') + `\n\n---\n\n${prompt}`;
+  return [task, context, ['【怎么写】', ...rules.map((text, index) => `${index + 1}. ${text}`)].join('\n'),
+    '用户的原话在提问里。'].join('\n\n');
 }
 
 function cleanReply(text) {
@@ -65,42 +61,19 @@ function cleanReply(text) {
   return out;
 }
 
-/** 只发一次。任何失败原话先脱敏，成功按上游实际 token 用量计费。 */
-export function createRewrite({ env = {}, fetch: suppliedFetch, logError = () => {} } = {}) {
-  const fetch = suppliedFetch ?? transport({ TOS_BUCKET: String(env.TOS_BUCKET ?? '').trim() }).fetch;
+/** 帮我改写交给本机 agent（11-15 用户定，不再用豆包）：只发文字、不带素材文件，花费记 0。 */
+export function createRewrite({ call, model }) {
   return async input => {
     const checked = checkRewriteInput(input);
-    const cfg = seedreamConfig(env);
-    const body = { model: REWRITE_MODEL, thinking: { type: 'disabled' },
-      messages: [{ role: 'user', content: [{ type: 'text', text: instruction(checked) }] }] };
-    try {
-      let response, raw;
-      try {
-        response = await fetch(`${cfg.base}/chat/completions`, { method: 'POST',
-          headers: { Authorization: `Bearer ${cfg.key}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body), timeout: 180000 });
-        raw = Buffer.from(await response.arrayBuffer()).toString('utf8');
-      } catch (error) {
-        logError('豆包文字改写网络失败', Error(redactRewriteError(error?.stack ?? error?.message ?? error, env)));
-        throw Error(humanNetworkError(error, { timeoutMinutes: 3 }));
-      }
-      let payload;
-      try { payload = JSON.parse(raw); } catch {
-        throw Error(response.status >= 200 && response.status < 300 ? '火山改写回话不是合法的 JSON。' : raw);
-      }
-      if (response.status < 200 || response.status >= 300) throw Error(payload?.error?.message || raw);
-      const content = payload?.choices?.[0]?.message?.content;
-      const text = typeof content === 'string' ? cleanReply(content) : '';
-      if (!text) throw Error('改写没有返回内容，直接用原文也行。');
-      const usage = { input_tokens: payload?.usage?.prompt_tokens, output_tokens: payload?.usage?.completion_tokens };
-      if (Object.values(usage).some(n => !Number.isSafeInteger(n) || n < 0)) throw Error('火山没返回有效的改写用量，无法确认花费。');
-      const yuan = (usage.input_tokens * PRICE_PER_M.input + usage.output_tokens * PRICE_PER_M.output) / 1e6;
-      return { text: redactRewriteError(text, env), model: REWRITE_MODEL, usage, yuan };
-    } catch (error) { throw Error(redactRewriteError(error?.message ?? error, env)); }
+    const reply = await call({ system: instruction(checked), prompt: checked.prompt, model });
+    const text = cleanReply(reply.text);
+    if (!text) throw Error('改写没有返回内容，直接用原文也行。');
+    return { text, model: reply.model || model, usage: reply.usage, yuan: 0 };
   };
 }
 
 export async function fakeRewrite(input) {
   const { prompt } = checkRewriteInput(input);
   if (prompt.includes('假失败')) throw Error('假改写：按提示词拒绝这单。');
-  return { text: `（假改写）${prompt}`, model: REWRITE_MODEL, usage: { input_tokens: 0, output_tokens: 0 }, yuan: 0 };
+  return { text: `（假改写）${prompt}`, model: 'fake', usage: { input_tokens: 0, output_tokens: 0 }, yuan: 0 };
 }

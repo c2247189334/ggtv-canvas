@@ -81,7 +81,7 @@ export function createMeshMedia({ dataRoot, uploads, works, readEnv = () => ({})
       const buffer = readFileSync(output); validate(buffer, meta, size);
       work = works.addVideo(buffer, { ...job, jobId: id, resolution: '480p', mesh: true,
         model: 'SAM-3D-Body', yuan: 0, elapsedSeconds: (now() - started) / 1000,
-        prompt: `白模视频；来源 ${job.source.type}:${job.source.id}；480p；花费 0` });
+        prompt: `白模视频；来源 ${job.source.type}:${job.source.id}；480p` });
       if (!work) throw Error('输出不是有效的视频。');
     } catch (error) { if (!error.canceled) logError('白模处理失败', error); failure = error; }
     finally {

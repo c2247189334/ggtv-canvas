@@ -1,13 +1,13 @@
 import { useRef, useState } from "react";
 import { ASPECT_OPTIONS, SIZE_FROM_ASPECT, sizeSourceOf } from "@/domain/aspects";
-import { IMAGE_MODELS, estimateYuan, formatYuan } from "@/domain/pricing";
+import { IMAGE_MODELS } from "@/domain/pricing";
 import { FloatingPanel } from "./FloatingPanel";
 import { ModelPicker } from "./ModelPicker";
 import type { GenSettings } from "@/types";
 
 type Props = { gen: GenSettings; refCount: number; sending: boolean; onChange: (gen: GenSettings) => void; onSend: () => void };
 
-/** 提示词面板底行：模型 · 比例/分辨率/张数 · 估价 · 发送。发送中锁住发送按钮。 */
+/** 提示词面板底行：模型 · 比例/分辨率/张数 · 发送。发送中锁住发送按钮。 */
 export function GenOptions({ gen, refCount, sending, onChange, onSend }: Props) {
   const source = sizeSourceOf(gen.sizeFrom, refCount);
   const sizeLabel = "aspect" in source ? gen.aspect : `跟图片${source.ref}`;
@@ -24,7 +24,6 @@ export function GenOptions({ gen, refCount, sending, onChange, onSend }: Props) 
           <GenOptionChoices gen={gen} refCount={refCount} onChange={onChange} />
         </FloatingPanel>
       ) : null}
-      <span className="gen__price" title="火山按张收钱，参考图不收钱">{formatYuan(estimateYuan(gen.model, gen.count))}</span>
       <button type="button" className="gen__send" disabled={sending} onClick={onSend}>
         {sending ? "发送中…" : "发送"}
       </button>

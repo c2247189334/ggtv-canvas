@@ -8,7 +8,8 @@ test('执行器关闭整棵子进程树、拒绝退出后的新任务；输出�
   const children=[],killed=[];
   const launch=(command,args,options)=>{
     const c=new EventEmitter();c.pid=children.length+1;c.stdout=new EventEmitter();c.stderr=new EventEmitter();
-    children.push(c);assert.equal(options.windowsHide,true);assert.equal(options.env.PYTHONDONTWRITEBYTECODE,'1');return c;
+    children.push(c);assert.equal(options.windowsHide,true);assert.equal(options.env.PYTHONDONTWRITEBYTECODE,'1');
+    assert.equal(options.env.PYTHONIOENCODING,'utf-8','中文 Windows 上 Python 默认按 GBK 写管道，中文报错到卡片上会成乱码');return c;
   };
   const executor=createExecutor({launch,killTree:c=>killed.push(c.pid)});
   const result=executor.run('python',['-B']);children[0].stderr.emit('data',Buffer.from('NO_CUDA'));

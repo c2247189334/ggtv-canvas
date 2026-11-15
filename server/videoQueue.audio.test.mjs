@@ -64,12 +64,16 @@ test('只有声音的2.5队列不需要TOS且保留两个声音的顺序', async
   assert.deepEqual(s.jobs.read(job.id).blocked, [2]);
 });
 
-test('参考视频上传超时给慢网建议，普通上传失败保留原话，两者都不交单不记费', async () => {
-  for (const code of ['TOS_UPLOAD_TIMEOUT', 'TOS_TRANSFER_FAILED']) {
+// 11-14 体检：TOS 配错是新用户最容易撞的，以前除了超时一律只说「读取或上传失败」，页面和日志都查不到是哪种。现在按错误码各说一句、错误码记进日志。
+test('参考视频上传超时给慢网建议，其它上传失败按原因各说一句并记日志，都不交单不记费', async () => {
+  const hints = { TOS_UPLOAD_FAILED: /TOS 没收下.*没发出去.*密钥.*桶名.*北京区/, TOS_REFERENCE_NOT_READABLE: /读不回来.*没发出去/,
+    TOS_TRANSFER_FAILED: /没传到 TOS.*网络.*没发出去/, TOS_VIDEO_SIZE_INVALID: /200MB.*没发出去/, SOMETHING_ELSE: /^参考素材读取或上传失败，这单没发出去。$/ };
+  for (const code of ['TOS_UPLOAD_TIMEOUT', ...Object.keys(hints)]) {
+    const logged = [];
     const s = stores();
     const video = s.uploads.save(readFileSync(new URL('./fixtures/fake-video.mp4', import.meta.url)));
-    const queue = createVideoQueue({ ...s, spend: { add: () => assert.fail('不得记费') },
-      uploadVideo: async () => { throw Object.assign(Error(code), { code }); },
+    const queue = createVideoQueue({ ...s, spend: { add: () => assert.fail('不得记费') }, logError: (tag, err) => logged.push(`${tag} ${err.message}`),
+      uploadVideo: async () => { throw Object.assign(Error(`${code} secret-url`), { code }); },
       client: { submit: async () => assert.fail('不得交单') } });
     const job = queue.submit(input([{ type: 'upload', id: video.id, kind: 'video' }]));
     await waitFor(done(s.jobs, job.id));
@@ -77,8 +81,31 @@ test('参考视频上传超时给慢网建议，普通上传失败保留原话�
     assert.equal(saved.submitStartedAt, undefined);
     if (code === 'TOS_UPLOAD_TIMEOUT') {
       assert.equal(saved.errorCode, code);
-      assert.match(saved.error, /上传太慢超时.*没发出去.*没花钱.*截短.*压小/);
+      assert.match(saved.error, /上传太慢超时.*没发出去.*截短.*压小/);
       assert.doesNotMatch(saved.error, /TOS_UPLOAD_TIMEOUT/);
-    } else assert.equal(saved.error, '参考素材读取或上传失败，这单没发出去，没花钱。');
+    } else {
+      assert.match(saved.error, hints[code]);
+      assert.equal(saved.errorCode, code === 'SOMETHING_ELSE' ? 'REF_PREPARE_FAILED' : code);
+      assert.ok(logged.some(line => line.includes(saved.errorCode)), '错误码要进日志');
+    }
+    assert.ok(!logged.join().includes('secret-url') && !saved.error.includes('secret-url'), '错误原文不进日志和页面');
   }
+});
+
+test('参考素材被删说清是找不到了；请求体超 64MB 说清是太大、没发出去', async () => {
+  const s = stores();
+  const queue = createVideoQueue({ ...s, spend: { add: () => assert.fail('不得记费') }, client: { submit: async () => assert.fail('不得交单') } });
+  const gone = queue.submit(input([{ type: 'upload', id: '99999999-9999-4999-8999-999999999999', kind: 'image' }]));
+  await waitFor(done(s.jobs, gone.id));
+  assert.match(s.jobs.read(gone.id).error, /找不到了.*没发出去/);
+  assert.equal(s.jobs.read(gone.id).errorCode, 'REF_MISSING');
+  const big = createVideoQueue({ ...s, spend: { add: () => assert.fail('不得记费') },
+    client: { submit: async () => { throw Object.assign(Error('SEEDANCE_BODY_TOO_LARGE：这单没发出去。'), { notSent: true }); } } });
+  const job = big.submit(input([]));
+  await waitFor(done(s.jobs, job.id));
+  const saved = s.jobs.read(job.id);
+  assert.equal(saved.status, 'failed');
+  assert.equal(saved.errorCode, 'SEEDANCE_BODY_TOO_LARGE');
+  assert.match(saved.error, /太大.*64MB.*没发出去/);
+  assert.doesNotMatch(saved.error, /火山没收下/);
 });

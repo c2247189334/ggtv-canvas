@@ -63,6 +63,9 @@ export async function prepareUpload(file: File, maxEdge = MAX_UPLOAD_EDGE): Prom
       element.onerror = () => reject(new Error("图片解码失败。"));
       element.src = url;
     });
+    // JPG 没有透明：不先铺白底的话，透明底 PNG（抠好的衣服、商品图）透明的地方会变成黑的。
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, target.width, target.height);
     context.drawImage(image, 0, 0, target.width, target.height);
   } finally {
     URL.revokeObjectURL(url);

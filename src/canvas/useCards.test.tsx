@@ -19,7 +19,7 @@ vi.mock("@/api", () => ({ api: { upload: vi.fn() } }));
 vi.mock("@/domain/imagePrep", () => ({ prepareUpload: async () => new File(["small"], "renamed.jpg") }));
 vi.mock("@/common/videoDuration", () => ({ videoDuration: async () => 2 }));
 
-function setup() {
+function setup(pickWork: Parameters<typeof useCards>[0]["pickWork"] = async () => null) {
   graph.nodes = []; graph.edges = [];
   let uploads = 0;
   vi.mocked(api.upload).mockImplementation(async () => ({ id: `u-${++uploads}`, kind: "image" }));
@@ -29,7 +29,7 @@ function setup() {
     cards = useCards({
       setNodes: update => { graph.nodes = update(graph.nodes); },
       setEdges: update => { graph.edges = update(graph.edges); },
-      takeNumber: cardCounter(), notify, pickWork: async () => null, onBlankConnect: vi.fn()
+      takeNumber: cardCounter(), notify, pickWork, onBlankConnect: vi.fn()
     });
     return null;
   }
@@ -77,5 +77,26 @@ describe("上传入口的标题和编号", () => {
     cards.addGenerateCard({ x: 400, y: 0 });
     expect(titles()).toEqual(["图片 1 · 作品库", "图片 2"]);
     expect(cardTitle(newCard("upload", 17))).toBe("图片 17 · 传的图");
+  });
+});
+
+describe("从作品库选「我上传的」", () => {
+  const upload = { id: "keep", kind: "image" as const, name: "旧图.png", createdAt: "t", uploadedAt: "t", canvases: [] };
+  it("双击菜单选中：建上传卡、原文件名当标题、不占号", async () => {
+    const { cards } = setup(async () => ({ source: "upload", upload }));
+    vi.mocked(api.upload).mockClear();
+    await cards.workAt({ x: 0, y: 0 });
+    expect(graph.nodes[0].data.source).toBe("upload");
+    expect(titles()).toEqual(["旧图.png"]);
+    expect(graph.nodes[0].data.results).toEqual([{ type: "upload", id: "keep" }]);
+    expect(api.upload).not.toHaveBeenCalled();
+  });
+  it("左＋从作品库选：上传卡连进生成卡", async () => {
+    const { cards } = setup(async () => ({ source: "upload", upload }));
+    cards.addGenerateCard({ x: 800, y: 0 });
+    const target = graph.nodes[0].id;
+    await cards.addReference(target, "work");
+    expect(graph.nodes[1].data.source).toBe("upload");
+    expect(graph.edges).toEqual([expect.objectContaining({ source: graph.nodes[1].id, target })]);
   });
 });

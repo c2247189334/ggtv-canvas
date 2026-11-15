@@ -15,11 +15,11 @@ test('签名搬运没走样：旧项目算法、固定假密钥和时间的回�
   assert.equal(tosConfig({ ...env, TOS_REGION: 'other' }).TOS_REGION, 'cn-beijing');
 });
 
-test('缺任一配置明确报变量名和没花钱，不打印值', async () => {
+test('缺任一配置明确报变量名和没发出去，不打印值', async () => {
   for (const name of Object.keys(env)) {
     const incomplete = { ...env, [name]: '' };
     await assert.rejects(createTos({ env: incomplete, fetch: async () => assert.fail('不应联网') }).uploadVideo({ buffer: Buffer.from('x') }),
-      (err) => err.code === `${name}_MISSING` && err.message.includes(name) && err.message.includes('没花钱') && !err.message.includes('test-sk'));
+      (err) => err.code === `${name}_MISSING` && err.message.includes(name) && err.message.includes('没发出去') && !err.message.includes('test-sk'));
   }
 });
 
@@ -44,7 +44,7 @@ test('已经存在就不PUT；非404、哈希不一致和网络失败都明确�
   await createTos({ env, fetch: async () => { calls += 1; return new Response('video'); } }).uploadVideo({ buffer: Buffer.from('video') });
   assert.equal(calls, 1);
   for (const fetch of [async () => new Response(null, { status: 403 }), async () => new Response('wrong'), async () => { throw Error('test-sk'); }]) {
-    await assert.rejects(createTos({ env, fetch }).uploadVideo({ buffer: Buffer.from('video') }), (err) => /没花钱/.test(err.message) && !err.message.includes('test-sk'));
+    await assert.rejects(createTos({ env, fetch }).uploadVideo({ buffer: Buffer.from('video') }), (err) => /没发出去/.test(err.message) && !err.message.includes('test-sk'));
   }
 });
 

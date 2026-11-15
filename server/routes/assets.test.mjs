@@ -6,6 +6,8 @@ import { request } from 'node:http';
 import * as assets from './assets.mjs';
 import { createHandler, createRouter } from '../http.mjs';
 import { createUploadStore } from '../store/uploads.mjs';
+import { createUploadRecords } from '../store/uploadRecords.mjs';
+import { createCanvasStore } from '../store/canvases.mjs';
 import { createWorkStore } from '../store/works.mjs';
 import { videoJobRoutes } from './videoJobs.mjs';
 import { DEFAULT_VIDEO_SETTINGS } from '../videoModels.mjs';
@@ -16,14 +18,15 @@ async function boot(t, limits) {
   const root = tempDir();
   const uploads = createUploadStore(root);
   const works = createWorkStore(root);
+  const uploadRecords = createUploadRecords(root), canvases = createCanvasStore(root);
   const router = createRouter();
-  assets.assetRoutes(router, { uploads, works }, limits);
+  assets.assetRoutes(router, { uploads, uploadRecords, works, canvases }, limits);
   let submitted = 0;
   videoJobRoutes(router, { uploads, works, fake: true, readEnv: () => ({}),
     videoQueue: { submit() { submitted++; return { id: 'job' }; } } });
   const s = await listen(createHandler({ router, distDir: tempDir(), allowedPorts: [], logError: () => {} }));
   t.after(s.close);
-  return { ...s, root, uploads, works, submitted: () => submitted };
+  return { ...s, root, uploads, uploadRecords, canvases, works, submitted: () => submitted };
 }
 const fixture = () => readFileSync(new URL('../fixtures/fake-video.mp4', import.meta.url));
 const upload = (s, body, type) => call(s.port, { method: 'POST', path: '/api/uploads', body, headers: { 'Content-Type': type } });

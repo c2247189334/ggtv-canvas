@@ -20,23 +20,23 @@ const input = { cardId: 'card-3886706a', plan, materials, duration: 7, sourceDur
 // 用户连的人物图：环卫工三视图（作品 a6ad1702），看图回答的样子。
 const worker = { '@图片2': { views: 3, plainClothes: false, clothes: '橙色长袖工作服和橙色长裤，带银灰色反光条，黑色工作鞋', hair: '灰白色短发' } };
 const scene = '@图片1是场景：只采用场景的布局、陈设、颜色和光线，不采用图中人物。';
-const depth = '@视频1只采用人物的动作、姿态、位置、机位，以及画面里东西的位置、动静和出现时机，不采用其中的灰度画面、发型和衣服轮廓；@视频1里的人就是@图片2。';
+const depth = '@视频1是动作参考：严格参考其中人物的动作、姿态、位置和机位，顺序和节奏与视频保持一致，并采用画面里东西的位置、动静和出现时机；不采用其中的灰度画面、发型和衣服轮廓；@视频1里的人就是@图片2。';
 const end = '全程同一个人、同一个场景和光线，不要字幕。';
 
 test('10-30 功夫舞：只换人、人物图穿着自己的衣服 → 衣服发型都照人物图，深度不采用发型，不写原衣服，不写「画面里还有」', () => {
   const result = writePrompt(input, worker);
   assert.equal(result.videoPrompt, [scene,
-    '@图片2是人物：采用脸、发型（灰白色短发）、身材和衣服，不采用图中的背景；图里3个身影是同一个人的不同角度，画面里只出现这一个人。',
+    '@图片2是人物：采用脸、发型（灰白色短发）、身材和衣服，不采用图中的背景；图里3个身影是同一个人的不同角度，只算一个人。',
     depth, '0-7秒：人物身穿@图片2里的衣服（橙色长袖工作服和橙色长裤，带银灰色反光条，黑色工作鞋）。', end].join('\n'));
   assert.ok(!result.videoPrompt.includes('舞蹈') && !result.videoPrompt.includes('猫'));
-  assert.deepEqual(result.warnings, ['拆解认出画面里还有宠物长毛猫、宠物短毛猫：提示词没写，交给背景图和深度视频；成片里少了或摆错，再自己补一句。']);
+  assert.deepEqual(result.warnings, ['拆解认出画面里还有宠物长毛猫、宠物短毛猫：程序底稿没写；成片里少了或摆错，再自己补一句。']);
   assert.deepEqual(checkRules({ ...input, ...result }), []);
 });
 
 test('原话说了衣服不换 / 只换脸，才照原视频写衣服；人物图只取脸、发型和身材', () => {
   for (const userText of ['人物换掉，衣服不换', '只换脸', '换脸', '保留原来的衣服', '衣服保持原样']) {
     const result = writePrompt({ ...input, userText }, worker);
-    assert.match(result.videoPrompt, /\n@图片2是人物：只采用脸、发型（灰白色短发）和身材，不采用图中的衣服和背景；图里3个身影是同一个人的不同角度，画面里只出现这一个人。\n/, userText);
+    assert.match(result.videoPrompt, /\n@图片2是人物：只采用脸、发型（灰白色短发）和身材，不采用图中的衣服和背景；图里3个身影是同一个人的不同角度，只算一个人。\n/, userText);
     assert.match(result.videoPrompt, /\n0-7秒：人物身穿中式舞蹈套装，黑底红色花枝纹样立领短袖收腰上衣，/, userText);
     assert.ok(result.videoPrompt.includes(depth), '换了人就不跟深度里的发型');
     assert.deepEqual(checkRules({ ...input, userText, ...result }), [], userText);
@@ -68,7 +68,7 @@ test('原视频在换装（多套衣服）又只换人：保留换装照原视�
   }, 15.047);
   const rows = [materials[0], { ...materials[1], originalDesc: fan.items[0].desc }, materials[2]];
   const result = writePrompt({ ...input, plan: fan, materials: rows, duration: 15, sourceDuration: 15.047 }, worker);
-  assert.match(result.videoPrompt, /\n0-5秒：人物身穿短款立领连衣裙，深蓝色丝绒材质。\n5-6秒：人物身穿短款立领连衣裙，深蓝色丝绒材质，随后身穿吊带超短连衣裙/);
+  assert.match(result.videoPrompt, /\n0-5秒：人物身穿短款立领连衣裙，深蓝色丝绒材质。\n5-6秒：人物身穿短款立领连衣裙，随后身穿吊带超短连衣裙，上粉下橙渐变亮片，换装时机跟随@视频1。\n6-15秒：人物身穿吊带超短连衣裙。/);
   assert.match(result.videoPrompt, /@图片2是人物：只采用脸、发型（灰白色短发）和身材，不采用图中的衣服和背景/);
   assert.deepEqual(result.warnings, ['原视频有2套衣服在换装，提示词照原视频写了换装；人物图里自己穿的衣服没用上。']);
   assert.deepEqual(checkRules({ ...input, plan: fan, materials: rows, duration: 15, sourceDuration: 15.047, ...result }), []);
@@ -84,6 +84,6 @@ test('没连人物图：深度视频照旧只不采用衣服轮廓，不加发�
   const clothesOnly = { ...plan, replace: ['C1'] };
   const rows = [materials[0], { tag: '@图片2', purpose: '衣服', itemId: 'C1', originalDesc: plan.items[1].desc }, materials[2]];
   const result = writePrompt({ ...input, plan: clothesOnly, materials: rows }, {});
-  assert.match(result.videoPrompt, /\n@视频1只采用人物的动作、姿态、位置、机位，以及画面里东西的位置、动静和出现时机，不采用其中的灰度画面和衣服轮廓。\n/);
+  assert.match(result.videoPrompt, /\n@视频1是动作参考：严格参考其中人物的动作、姿态、位置和机位，顺序和节奏与视频保持一致，并采用画面里东西的位置、动静和出现时机；不采用其中的灰度画面和衣服轮廓。\n/);
   assert.match(result.videoPrompt, /\n0-7秒：人物身穿@图片2的衣服。\n/);
 });

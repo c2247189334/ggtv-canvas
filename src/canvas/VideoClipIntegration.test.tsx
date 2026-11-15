@@ -43,8 +43,8 @@ it('剪辑期间禁止翻页，后台新增结果也继续用会话原视频预�
 it('剪辑上传卡使用看不见的来源接点，右侧仍能拖参考线，上方功能保持完整', () => {
   state.clip = false; state.input = false;
   const html = render(true);
-  expect(html).toContain('来源接点'); expect(html).toContain('片段截取'); expect(html).toContain('视频改写');
-  expect(html).toContain('提取原声'); expect(html).toContain('深度动作捕捉');
+  // 11-08 用户定：片段截取、提取原声、深度收进「更多 ▾」，菜单项见 CardTools.test.tsx。
+  expect(html).toContain('来源接点'); expect(html).toContain('更多 ▾'); expect(html).toContain('视频改写');
 });
 it('视频仍在生成时显示网络查询提示，并保留忙态', () => {
   state.clip = false; state.input = false;

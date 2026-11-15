@@ -94,7 +94,7 @@ test('执行或ComfyUI失败仍free和删本单文件，人话上卡、原文进
     clientFactory: () => ({ check: async () => {}, upload: async () => { throw Error('ComfyUI 上传失败：disk full'); },
       free: async () => { order.push('free'); assert.equal(existsSync(own), true); } }) });
   await assert.rejects(s.media.mesh({ id, source: s.source }), error => {
-    assert.match(error.message, /^本地处理失败，没有自动重跑，花费 0。\n.*上传.*磁盘.*。$/);
+    assert.match(error.message, /^本地处理失败，没有自动重跑。\n.*上传.*磁盘.*。$/);
     assert.doesNotMatch(error.message, /disk full/); return true;
   });
   assert.ok(logs.some(([, raw]) => raw.includes('disk full')));
@@ -144,7 +144,7 @@ test('未确认ComfyUI停止的gpuUnsafe标记及用户动作保留，原文和f
       free: async () => { throw Error('free断连原话'); } }) });
   await assert.rejects(s.media.mesh(s.job), error => {
     assert.equal(error.gpuUnsafe, true); assert.match(error.message, /无法确认 ComfyUI 已停止.*队列已暂停.*重启小服务/);
-    assert.doesNotMatch(error.message, /轮询断连原话|free断连原话/); assert.match(error.message, /花费 0/); return true;
+    assert.doesNotMatch(error.message, /轮询断连原话|free断连原话/); return true;
   });
   assert.ok(logs.some(([, raw]) => raw.includes('轮询断连原话')));
   assert.ok(logs.some(([, raw]) => raw.includes('free断连原话')));
@@ -157,7 +157,7 @@ test('连不上和释放显存失败不重复上卡，只有一句原因和操�
     comfyProcess: { ensure: async () => { throw Error('连不上 ComfyUI，先打开它或在 .env.local 填 COMFYUI_DIR，再点一次\n连不上 ComfyUI：fetch failed'); }, stop: () => {} },
     clientFactory: () => ({ free: async () => { throw Error('连不上 ComfyUI：fetch failed'); } }) });
   await assert.rejects(s.media.mesh(s.job), error => {
-    assert.equal(error.message, '本地处理失败，没有自动重跑，花费 0。\n连不上 ComfyUI，请先打开它，或在 .env.local 填好 COMFYUI_DIR，再重试。');
+    assert.equal(error.message, '本地处理失败，没有自动重跑。\n连不上 ComfyUI，请先打开它，或在 .env.local 填好 COMFYUI_DIR，再重试。');
     return true;
   });
   assert.equal(logs.length, 2); assert.ok(logs.every(([, raw]) => raw.includes('fetch failed')));

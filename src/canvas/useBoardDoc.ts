@@ -6,12 +6,12 @@ import { fromDoc, toDoc } from "@/domain/canvasDoc";
 import type { CanvasDoc, CardNode } from "@/types";
 import { cardCounter } from "@/domain/cards";
 import { CANVAS_CONFLICT, createCanvasSaver } from '@/domain/canvasSave';
+import { hasSaveConflict, markSaveConflict } from '@/domain/saveConflicts';
 import { recoverLocalJobs } from '@/domain/localRecovery';
+import { recoverPaidJobs } from '@/domain/paidRecovery';
 
 /** 停手多久后自动存。 */
 const SAVE_DELAY_MS = 800;
-// 同一标签页切换画布也不解除冲突锁；刷新页面后模块重新加载才可继续保存。
-const blockedCanvases = new Set<string>();
 
 /**
  * 一张画布的卡片和连线：打开时从小服务读；改了自动存（停手 0.8 秒存一次），换画布、关页面前把没存的存掉。
@@ -31,11 +31,12 @@ export function useBoardDoc(canvasId: string, name: string, notify: Notify) {
       async (doc) => {
         if (!alive) return;
         const loaded = fromDoc(doc);
-        const restored = await recoverLocalJobs(canvasId, loaded.nodes, api.findLocalJobs);
+        const local = await recoverLocalJobs(canvasId, loaded.nodes, api.findLocalJobs);
+        const restored = await recoverPaidJobs(canvasId, local, api.findOrphanJobs);
         if (!alive) return;
         counter.current = cardCounter();
         saver.current = createCanvasSaver({ initial: toDoc(loaded.meta, loaded.nodes, loaded.edges), version: doc.version ?? 0,
-          save: api.saveCanvas, notify: message => { if (message === CANVAS_CONFLICT) blockedCanvases.add(canvasId); notify(message); } });
+          save: api.saveCanvas, notify: message => { if (message === CANVAS_CONFLICT) markSaveConflict(canvasId); notify(message); } });
         setNodes(restored);
         setEdges(loaded.edges);
         setReady(true);
@@ -57,7 +58,7 @@ export function useBoardDoc(canvasId: string, name: string, notify: Notify) {
   const save = useCallback(
     (options: { keepalive?: boolean; silent?: boolean } = {}) => {
       const text = latest.current;
-      if (!text || !saver.current || blockedCanvases.has(canvasId)) return;
+      if (!text || !saver.current || hasSaveConflict(canvasId)) return;
       saver.current.update(JSON.parse(text) as CanvasDoc);
       void saver.current.save(options);
     },
@@ -65,7 +66,7 @@ export function useBoardDoc(canvasId: string, name: string, notify: Notify) {
   );
 
   useEffect(() => {
-    if (!docText || saver.current?.blocked || blockedCanvases.has(canvasId)) return;
+    if (!docText || saver.current?.blocked || hasSaveConflict(canvasId)) return;
     const timer = window.setTimeout(() => save(), SAVE_DELAY_MS);
     return () => window.clearTimeout(timer);
   }, [docText, save]);

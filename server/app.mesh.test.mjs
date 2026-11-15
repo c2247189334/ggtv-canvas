@@ -91,7 +91,7 @@ test('应用把白模原始错误写到注入的小服务日志，查单只有�
     await waitFor(() => s.app.stores.jobs.read(submitted.json.id)?.status === 'failed');
     const job = (await s.request(`/api/jobs?ids=${submitted.json.id}`)).json[0];
     assert.doesNotMatch(job.error, /technical test detail/);
-    assert.match(job.error, /^本地处理失败，没有自动重跑，花费 0。\n.*。$/);
+    assert.match(job.error, /^本地处理失败，没有自动重跑。\n.*。$/);
     assert.ok(logs.some(([, raw]) => raw.includes('technical test detail')));
     assert.equal(s.app.stores.spend.totalOn(new Date()), 0);
   } finally { s.app.depthQueue.stop(); }

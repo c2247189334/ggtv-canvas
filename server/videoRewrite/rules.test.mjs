@@ -11,8 +11,16 @@ const outfit = (id, from, to) => ({ id, kind: '衣服', desc: id, from, to, fram
 test('完整提示词和整数秒首尾相接通过；小数源时长四舍五入（15.05 秒按 15 秒，设计第 11 节）', () => {
   assert.deepEqual(check(), []);
   assert.deepEqual(check(prompt, { duration: 15.05 }), []);
-  assert.ok(check(prompt.replace('6-15秒', '6-16秒'), { duration: 15.05 }).some(x => /最后一段必须到15秒/.test(x)));
+  assert.ok(check(prompt.replace('6-15秒', '6-16秒'), { duration: 15.05 }).some(x => /写到了16秒，视频时长设的是15秒/.test(x)));
   assert.deepEqual(check(prompt.replace('6-15秒', '6-16秒'), { duration: 15.6 }), []);
+});
+
+// 11-15 真出片时把视频时长从 6 秒改成 4 秒，发送被拦，原话写「源时长四舍五入」看不懂：其实对照的是面板里设的时长。
+test('时长改过、时间轴没跟上：说清设的是几秒、时间轴写到几秒、怎么办', () => {
+  const issues = check(prompt, { duration: 4 });
+  const issue = issues.find(x => /最后一段/.test(x));
+  assert.equal(issue, '时间轴写到了15秒，视频时长设的是4秒：改过时长就重新点「生成提示词」，或者手动把最后一段改成到4秒。');
+  assert.ok(issues.every(x => !x.includes('源时长')));
 });
 for (const [name, text, pattern] of [
   ['空轴', '女生站立', /时间轴/], ['小数秒', prompt.replace('0-6秒', '0-6.5秒'), /整数秒/],

@@ -1,0 +1,31 @@
+.characters-panel { display: flex; flex: 1; flex-direction: column; gap: 10px; min-height: 0; }
+.characters-panel__create { width: 100%; border-color: var(--accent); }
+.characters-panel__list { display: grid; gap: 12px; overflow-y: auto; align-content: start; }
+.character-card { display: flex; flex-direction: column; gap: 6px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); cursor: pointer; }
+.character-card:hover, .character-card:focus-visible { border-color: var(--accent); outline: none; }
+/* 有图时框跟着图的比例走，不留上下空白；没图（生成中）按设定图 16:9 占位。 */
+.character-card__image { display: grid; place-items: center; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 6px; background: var(--panel-2); color: var(--muted); }
+.character-card__image.has-image { aspect-ratio: auto; }
+.character-card__image img { display: block; width: 100%; height: auto; max-height: 320px; object-fit: contain; }
+.character-card__count, .character-card__video { color: var(--muted); font-size: 12px; }
+.character-card p { margin: 0; line-height: 1.6; }
+.character-card__actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.character-card__actions button { font-size: 12px; }
+.character-modal { position: fixed; inset: 0; z-index: 1250; display: grid; place-items: center; padding: 24px; background: #000a; }
+.character-dialog { display: flex; flex-direction: column; gap: 18px; width: min(940px, 94vw); max-height: 90vh; overflow: auto; padding: 22px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); box-shadow: var(--shadow); }
+.character-dialog > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.character-dialog h2 { margin: 0; font-size: 24px; }
+.character-dialog form, .character-dialog label { display: flex; flex-direction: column; gap: 8px; }
+.character-dialog form { gap: 14px; }
+.character-dialog input, .character-dialog textarea { width: 100%; min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); resize: vertical; }
+.character-dialog footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.character-create__blank { min-height: min(320px, 36vh); border-radius: 12px; background: var(--bg); }
+.character-create__input { display: flex; align-items: flex-end; gap: 12px; }
+.character-create__input textarea { flex: 1; }
+.character-create__input button { flex: none; white-space: nowrap; }
+.character-detail__images { display: flex; gap: 18px; overflow-x: auto; }
+.character-detail__images figure { flex: none; max-width: 100%; margin: 0; }
+.character-detail__images img { display: block; width: auto; max-width: 100%; height: 240px; object-fit: contain; border-radius: 8px; background: var(--bg); }
+.character-detail__images p { color: var(--muted); font-size: 12px; line-height: 1.6; }
+.character-save__authorization { flex-direction: row !important; align-items: flex-start; }
+.character-save__authorization input { flex: none; width: auto; margin-top: 4px; }

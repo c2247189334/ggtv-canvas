@@ -49,6 +49,20 @@ test('10-30 清楚大帧：按给的秒数各截一张原片帧，长边最多 1
   assert.ok(calls[0].args.at(-1).endsWith('frame-0.jpg'));
 });
 
+test('11-11 连拍：整条每 0.5 秒一帧、每张 6×2 帧，最后一张照剩下的帧数拼；换点前后每 0.2 秒一帧一行 7 帧，回每张的起止秒数', async () => {
+  const { calls, sheets, arg } = recorder();
+  assert.deepEqual(await sheets.contact({ source: 's.mp4', folder: tempDir() }, { end: 15.115, prefix: 'all' }), [
+    { name: 'all-0.jpg', from: 0, to: 5.5 }, { name: 'all-1.jpg', from: 6, to: 11.5 }, { name: 'all-2.jpg', from: 12, to: 15 }]);
+  assert.deepEqual(calls.map(call => [arg(call, '-ss'), arg(call, '-t')]), [['0', '6'], ['6', '6'], ['12', '3.5']]);
+  assert.match(arg(calls[0], '-vf'), /fps=2:start_time=0.*scale=w='trunc\(sqrt\(129600\*iw\/ih\)\/2\)\*2':h=-2.*tile=6x2:nb_frames=12/);
+  assert.match(arg(calls[2], '-vf'), /tile=6x2:nb_frames=7/);
+  const strip = recorder();
+  assert.deepEqual(await strip.sheets.contact({ source: 's.mp4', folder: tempDir() }, { start: 5.2, end: 6.6, step: 0.2, columns: 7, rows: 1, prefix: 'change0' }),
+    [{ name: 'change0-0.jpg', from: 5.2, to: 6.4 }]);
+  assert.match(strip.arg(strip.calls[0], '-vf'), /fps=5:start_time=0.*tile=7x1:nb_frames=7/);
+  assert.equal(strip.arg(strip.calls[0], '-t'), '1.4');
+});
+
 test('字体文件不存在先报人话，不调用执行器', async () => {
   let calls = 0;
   const sheets = createSheets({ exists: () => false, executor: { run: async () => { calls++; } } });
@@ -71,6 +85,12 @@ test('真ffmpeg处理audio-video.mp4：生成一张带时间的大图，宽高�
   const [frame] = await sheets.frames({ source, folder }, [1]);
   const probe = await executor.run('ffmpeg', ['-hide_banner', '-i', join(folder, frame), '-f', 'null', '-']);
   assert.match(probe.stderr, /Video: .*?, 864x480/, '原片 864×480 不放大');
+  const [burst] = await sheets.contact({ source, folder }, { end: 2, prefix: 'all' });
+  assert.deepEqual([burst.from, burst.to], [0, 1.5]);
+  const shot = await executor.run('ffmpeg', ['-hide_banner', '-i', join(folder, burst.name), '-f', 'null', '-']);
+  const [, burstWidth, burstHeight] = shot.stderr.match(/Video: .*?, (\d+)x(\d+)/) ?? [];
+  assert.equal(Number(burstWidth), 3 + 6 * (482 + 3), '横屏按面积 270×480 定帧宽 482，一行 6 格');
+  assert.ok(Number(burstHeight) > 260 && Number(burstHeight) < 280, `2 秒 4 帧一行，实际高 ${burstHeight}`);
 });
 
 test('真ffmpeg非方形像素（存192×320、显示384×320）：拼图每帧和清楚大帧都按显示比例转成方形像素', async () => {
@@ -85,4 +105,20 @@ test('真ffmpeg非方形像素（存192×320、显示384×320）：拼图每帧�
   assert.deepEqual(await size(sheet), [3 + 10 * (frameWidth + 3), 3 + 2 * Math.round(frameWidth * 320 / 384 / 2) + 3]);
   const [frame] = await sheets.frames({ source, folder }, [0.5]);
   assert.deepEqual(await size(frame), [384, 320]);
+});
+
+test('11-09 真ffmpeg量一帧最亮的像素：前半秒纯黑低于 40，后半秒白底高于 200（背景帧兜底判黑屏用）', async () => {
+  const folder = tempDir(), executor = createExecutor(), source = join(folder, 'fade.mp4');
+  await executor.run('ffmpeg', ['-v', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=320x240:r=10:d=0.5', '-f', 'lavfi', '-i', 'color=c=white:s=320x240:r=10:d=0.5',
+    '-filter_complex', '[0:v][1:v]concat=n=2:v=1', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', source]);
+  const sheets = createSheets({ executor });
+  assert.ok((await sheets.peak({ source }, 0.1)) < 40);
+  assert.ok((await sheets.peak({ source }, 0.8)) > 200);
+});
+
+test('11-09 量亮度读不出数字回 null，不当成黑屏', async () => {
+  const { sheets, calls, arg } = recorder();
+  assert.equal(await sheets.peak({ source: 'clip.mp4' }, 2.4), null);
+  assert.equal(arg(calls[0], '-ss'), '2.4');
+  assert.match(arg(calls[0], '-vf'), /signalstats/);
 });

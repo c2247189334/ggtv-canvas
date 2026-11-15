@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import { clipKeyRange, clipPlaybackTime, defaultClipRange, type ClipRange } from '@/domain/videoClip';
+import { clipEndFrameTime, clipKeyRange, clipPlaybackTime, defaultClipRange, type ClipJump, type ClipRange } from '@/domain/videoClip';
 import { useEscapeLayer } from '@/common/useEscapeLayer';
 import type { Notify } from '@/common/Toast';
 
@@ -13,10 +13,17 @@ export function useClipControls({ duration, video, busy, playerVersion = 0, onCl
   const [precise, setPrecise] = useState(false), [time, setTime] = useState(0), [help, setHelp] = useState(false);
   const latest = useRef({ range, loop, busy, onClose, onConfirm, notify });
   latest.current = { range, loop, busy, onClose, onConfirm, notify };
-  const seek = (second: number) => { if (video.current) { video.current.currentTime = second; setTime(second); } };
-  const update = (next: ClipRange, jump: boolean) => {
+  const pausedSeek = useRef(false);
+  const seek = (second: number) => {
+    const element = video.current;
+    if (!element) return;
+    if (element.paused) pausedSeek.current = true;
+    element.currentTime = second; setTime(second);
+  };
+  const update = (next: ClipRange, jump: ClipJump) => {
     latest.current.range = next; setRange(next);
-    if (jump) seek(next.start);
+    if (jump === 'start') seek(next.start);
+    else if (jump === 'end') { video.current?.pause(); seek(clipEndFrameTime(next)); }
   };
   useEscapeLayer(() => { if (!latest.current.busy) latest.current.onClose(); }, true, 1050);
   useEffect(() => {
@@ -25,18 +32,19 @@ export function useClipControls({ duration, video, busy, playerVersion = 0, onCl
     element.pause(); element.currentTime = latest.current.range.start;
     let animation = 0;
     const play = () => { void element.play().catch(() => latest.current.notify('视频没播起来，请再点播放按钮试一次。')); };
-    const sample = () => {
+    const sample = (event?: Event) => {
       const state = latest.current;
-      const next = clipPlaybackTime(element.currentTime, state.range, state.loop && (!element.paused || element.ended));
+      // 只认播着播到头的 ended：Chrome 暂停跳到最后一帧也 ended=true，再跳会读到整条时长、还发 ended
+      const finished = event?.type === 'ended' && !pausedSeek.current;
+      const next = clipPlaybackTime(element.currentTime, state.range, state.loop && (!element.paused || finished));
       if (next !== element.currentTime) {
-        const ended = element.ended;
         element.currentTime = next;
-        if (ended) play();
+        if (finished) play();
       }
       setTime(element.currentTime);
     };
     const tick = () => { sample(); if (!element.paused) animation = window.requestAnimationFrame(tick); };
-    const onPlay = () => { window.cancelAnimationFrame(animation); tick(); };
+    const onPlay = () => { pausedSeek.current = false; window.cancelAnimationFrame(animation); tick(); };
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') return;
       if (event.key !== 'Tab') event.preventDefault();
@@ -46,13 +54,13 @@ export function useClipControls({ duration, video, busy, playerVersion = 0, onCl
       if (state.busy || event.key === 'Shift') return;
       if (event.key === ' ' || event.code === 'Space') {
         if (element.paused) {
-          if (element.currentTime < state.range.start || element.currentTime >= state.range.end) seek(state.range.start);
+          if (element.ended || element.currentTime < state.range.start || element.currentTime >= state.range.end) seek(state.range.start);
           play();
         } else element.pause();
       } else if (event.key === 'Enter') state.onConfirm(state.range);
       else {
         const next = clipKeyRange(state.range, event.key, duration, element.currentTime, event.ctrlKey || event.metaKey);
-        if (next !== state.range) update(next, event.key === 'ArrowLeft' || event.key === 'ArrowRight' || event.key.toLowerCase() === 'i');
+        if (next !== state.range) update(next, event.key === 'ArrowLeft' || event.key === 'ArrowRight' || event.key.toLowerCase() === 'i' ? 'start' : null);
       }
     };
     const onKeyUp = (event: KeyboardEvent) => {

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { isId, newId, readJsonSafe, writeJsonAtomic } from './files.mjs';
 import { tempDir } from '../testKit.mjs';
@@ -31,4 +31,35 @@ test('readJsonSafe：读不到或读坏了返回 null', () => {
   assert.equal(readJsonSafe(join(dir, 'nope.json')), null);
   writeFileSync(join(dir, 'bad.json'), '{坏');
   assert.equal(readJsonSafe(join(dir, 'bad.json')), null);
+});
+
+test('writeJsonAtomic 改名时文件被别的程序占着（EPERM / EBUSY）：等一下重试，占用松开就写成', () => {
+  const file = join(tempDir(), 'busy.json');
+  const waits = [];
+  let attempts = 0;
+  const rename = (from, to) => {
+    attempts += 1;
+    if (attempts <= 2) throw Object.assign(Error('busy'), { code: attempts === 1 ? 'EPERM' : 'EBUSY' });
+    renameSync(from, to);
+  };
+  writeJsonAtomic(file, { x: 2 }, { rename, wait: ms => waits.push(ms) });
+  assert.deepEqual(readJsonSafe(file), { x: 2 });
+  assert.equal(attempts, 3);
+  assert.equal(waits.length, 2);
+});
+
+test('writeJsonAtomic 一直被占着：试够次数才报错，临时文件不留；别的错（盘满）不重试', () => {
+  const dir = tempDir();
+  const waits = [];
+  let attempts = 0;
+  const always = () => { attempts += 1; throw Object.assign(Error('busy'), { code: 'EPERM' }); };
+  assert.throws(() => writeJsonAtomic(join(dir, 'a.json'), { x: 1 }, { rename: always, wait: ms => waits.push(ms) }), /busy/);
+  assert.equal(attempts, 5);
+  assert.equal(waits.length, 4);
+  attempts = 0;
+  const full = () => { attempts += 1; throw Object.assign(Error('full'), { code: 'ENOSPC' }); };
+  assert.throws(() => writeJsonAtomic(join(dir, 'b.json'), { x: 1 }, { rename: full, wait: ms => waits.push(ms) }), /full/);
+  assert.equal(attempts, 1);
+  assert.equal(waits.length, 4);
+  assert.deepEqual(readdirSync(dir), []);
 });

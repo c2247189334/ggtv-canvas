@@ -43,20 +43,26 @@ const uploadVideo = fakeVideo?.uploadVideo ?? (asset => {
 const app = createApp({ ...options, fakeDelayMs, readEnv, generate, videoClient, uploadVideo, logError, log: console.log, concurrency: concurrencyOf(readEnv()) });
 installShutdown(() => { app.depthQueue.stop(); app.stopVideoRewrite(); });
 
-const fixed = app.queue.recover();
-if (fixed) console.log(`  上次退出时有 ${fixed} 单正在生成，已标「结果不明」，没有自动重发（怕重复花钱）。`);
-const videoFixed = app.videoQueue.recover();
-const depthFixed = app.depthQueue.recover();
+// 启动时的收拾（恢复、清理、开跑）哪一步出错都只跳过那一步、服务照常启动：不能因为一个文件正被占用就起不来。
+// 跳过是安全的：没恢复的单子状态还是「生成中」，排队只挑「排队中」的，不会重发。
+const step = (name, run) => {
+  try { return run(); }
+  catch (err) { logError(`启动时${name}没做成，已跳过，服务照常启动`, err); return undefined; }
+};
+const fixed = step('收拾上次没出完的图', () => app.queue.recover());
+if (fixed) console.log(`  上次退出时有 ${fixed} 单正在生成，已标「结果不明」，没有自动重发。`);
+const videoFixed = step('收拾上次没出完的视频', () => app.videoQueue.recover());
+const depthFixed = step('收拾上次没算完的深度和白模', () => app.depthQueue.recover());
 if (depthFixed) console.log(`  ${depthFixed} 单深度或白模视频没算完，已标失败，没有自动重跑。`);
 if (videoFixed) console.log(`  收拾了 ${videoFixed} 单视频：有任务号的继续查，提交过没任务号的标结果不明，其余重新排队。`);
-const pruned = pruneUploads(app.stores);
-const rewritePruned = pruneRewrites({ dataRoot: options.dataRoot });
-if (rewritePruned.skipped) console.log('  改写中间目录不是普通文件夹，已跳过清理，请检查本地文件。');
-if (pruned.skipped) console.log('  有画布存档读不出来，这次没清理传的图（怕删掉还在用的）。');
-else if (pruned.removed) console.log(`  清掉了 ${pruned.removed} 张已经没有画布在用的传的图。`);
-app.queue.pump();
-app.videoQueue.pump();
-app.depthQueue.pump();
+const pruned = step('清理没人用的上传素材', () => pruneUploads(app.stores));
+const rewritePruned = step('清理改写中间目录', () => pruneRewrites({ dataRoot: options.dataRoot }));
+if (rewritePruned?.skipped) console.log('  改写中间目录不是普通文件夹，已跳过清理，请检查本地文件。');
+if (pruned?.skipped) console.log('  有画布存档或「我上传的」清单读不出来，这次没清理传的图（怕删掉还在用的）。');
+else if (pruned?.removed) console.log(`  清掉了 ${pruned.removed} 张已经没有画布在用的传的图。`);
+step('开跑排队的图', () => app.queue.pump());
+step('开跑排队的视频', () => app.videoQueue.pump());
+step('开跑排队的深度和白模', () => app.depthQueue.pump());
 
 const server = createServer(app.handler);
 server.on('error', (err) => {
@@ -69,7 +75,7 @@ server.on('error', (err) => {
 });
 server.listen(options.port, '127.0.0.1', () => {
   console.log('');
-  console.log(options.fake ? '  GG TV 已启动（假火山模式：出的是纯色假图，不花钱）' : '  GG TV 已启动');
+  console.log(options.fake ? '  GG TV 已启动（假火山模式：出的是纯色假图）' : '  GG TV 已启动');
   console.log(`  浏览器打开：http://127.0.0.1:${options.port}`);
   if (!options.fake && !keyFilled(readEnv())) console.log('  ⚠ .env.local 里还没填 ARK_API_KEY，出图用不了（填好不用重启）。');
   console.log('  关掉这个窗口就停止服务。');

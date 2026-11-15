@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync, readFileSync, existsSync, symlinkSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, relative, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { tempDir } from './testKit.mjs';
 import { listZip } from '../scripts/zip.mjs';
 
@@ -92,4 +93,20 @@ test('打包页面禁用env文件加载，测试目录里的VITE字段不能进�
   const { readdirSync } = await import('node:fs');
   const js = readdirSync(join(root, 'dist/assets')).find(file => file.endsWith('.js'));
   assert.doesNotMatch(readFileSync(join(root, 'dist/assets', js), 'utf8'), /do-not-bundle-this-test-value/);
+});
+
+test('整合包清单不漏文件：清单里每个程序文件引用到的本地模块都在清单里', async () => {
+  const { SERVER_FILES, SCRIPT_FILES } = await load();
+  const listed = new Set([...SERVER_FILES, ...SCRIPT_FILES]);
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const imports = /(?:\bfrom\s+|\bimport\s*\(\s*|^\s*import\s+)['"](\.{1,2}\/[^'"]+\.mjs)['"]/gm;
+  const missing = new Set();
+  for (const file of listed) {
+    if (!file.endsWith('.mjs')) continue;
+    for (const [, target] of readFileSync(join(root, file), 'utf8').matchAll(imports)) {
+      const path = relative(root, resolve(root, dirname(file), target)).split(sep).join('/');
+      if (!listed.has(path)) missing.add(`${path}（${file} 引用）`);
+    }
+  }
+  assert.deepEqual([...missing].sort(), [], '少了这些文件，解压后的整合包一启动就报找不到模块');
 });

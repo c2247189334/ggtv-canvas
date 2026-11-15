@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { VIDEO_MODELS, VIDEO_RATIOS, normalizeVideoSettings, videoModelOf, type VideoSettings } from "@/domain/videoModels";
-import { videoEstimate, videoModeLabel, videoSummary } from "@/domain/videoPanel";
+import { videoModeLabel, videoSummary } from "@/domain/videoPanel";
 import type { AssetRef, VideoGenSettings } from "@/types";
 import { FloatingPanel } from "./FloatingPanel";
 
@@ -38,9 +38,8 @@ export function VideoOptions({ video, refs, sending, disabled, onChange, onSend 
   const settingsButton = useRef<HTMLButtonElement>(null);
   const anchor = open === "model" ? modelButton.current : open === "mode" ? modeButton.current : settingsButton.current;
   const model = videoModelOf(video.model)!;
-  const estimate = videoEstimate(video, refs);
   const menuProps = { video, onChange, onClose: () => setOpen(null) };
-  return <div className="gen gen--video">
+  return <div className="gen">
     <button ref={modelButton} type="button" className="gen__model" aria-haspopup="menu" aria-expanded={open === "model"}
       onClick={() => setOpen(open === "model" ? null : "model")}><span className="model-icon" aria-hidden="true" />{model.name.replace("Seedance ", "")}</button>
     <button ref={modeButton} type="button" aria-haspopup="menu" aria-expanded={open === "mode"}
@@ -50,7 +49,6 @@ export function VideoOptions({ video, refs, sending, disabled, onChange, onSend 
     {open && anchor ? <FloatingPanel anchor={anchor} keepAnchor direction="up" className="gen-options" onClose={() => setOpen(null)}>
       {open === "model" ? <VideoModelMenu {...menuProps} /> : open === "mode" ? <VideoModeMenu {...menuProps} /> : <VideoOptionChoices video={video} onChange={onChange} />}
     </FloatingPanel> : null}
-    <span className="gen__price" title={estimate.note}>¥{estimate.yuan.toFixed(2)}</span>
     <button type="button" className="gen__send" disabled={sending || disabled} onClick={onSend}>{sending ? "发送中…" : "发送"}</button>
   </div>;
 }

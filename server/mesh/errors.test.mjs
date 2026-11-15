@@ -18,7 +18,7 @@ test('白模各种失败固定两句人话，技术原文、磁盘路径和重�
     ['random failure: C:\\private\\secret', '详情见小服务日志']
   ]) {
     const message = meshError(Error(raw));
-    assert.match(message, /^本地处理失败，没有自动重跑，花费 0。\n[^\n]+。$/);
+    assert.match(message, /^本地处理失败，没有自动重跑。\n[^\n]+。$/);
     assert.ok(message.includes(expected), message);
     assert.doesNotMatch(message, /private|diagnostic|traceback|execution_error|safetensors/);
     assert.equal(message.split('。').filter(Boolean).length, 2);

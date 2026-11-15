@@ -1,19 +1,23 @@
 // 显式白名单。fake 模块被入口静态导入，必须保留；测试媒体不随正式包发布。
 export const SERVER_FILES = [
   'app', 'cleanup', 'config', 'fakeArk', 'fakeSeedance', 'http', 'imageSize', 'jobInput', 'log',
-  'mp4', 'net', 'networkErrors', 'png', 'pricing', 'queue', 'rewrite', 'seedance', 'seedream',
-  'soundtrack', 'start', 'streamNet', 'tos', 'videoJobInput', 'videoModels', 'videoQueue',
-  'videoReferences', 'wav',
+  'mp4', 'net', 'png', 'pricing', 'queue', 'rewrite', 'seedance', 'seedream',
+  'soundtrack', 'start', 'tos', 'videoJobInput', 'videoModels', 'videoQueue',
+  'videoReferences', 'wav', 'characterInput', 'characterPolicy',
   'depth/executor', 'depth/local', 'depth/queue', 'depth/videoClip',
   'mesh/cleanup', 'mesh/client', 'mesh/errors', 'mesh/local', 'mesh/process', 'mesh/purpose',
   'mesh/segments', 'mesh/workflow',
-  'routes/assets', 'routes/canvases', 'routes/jobs', 'routes/localMedia', 'routes/rewrite',
-  'routes/videoJobs', 'routes/videoRewrite',
-  'store/canvases', 'store/files', 'store/jobs', 'store/spend', 'store/uploads', 'store/works',
-  'videoRewrite/analyze', 'videoRewrite/client', 'videoRewrite/fake', 'videoRewrite/input',
+  'productRemake/analyze', 'productRemake/fake', 'productRemake/input', 'productRemake/lookProducts', 'productRemake/rules',
+  'productRemake/writePrompt',
+  'routes/assets', 'routes/canvases', 'routes/characters', 'routes/jobs', 'routes/localMedia',
+  'routes/productRemake', 'routes/rewrite', 'routes/videoJobs', 'routes/videoRewrite',
+  'store/canvases', 'store/characters', 'store/files', 'store/jobs', 'store/spend',
+  'store/uploadRecords', 'store/uploads', 'store/works',
+  'agent', 'agentProcess', 'claude', 'codex',
+  'videoRewrite/analysisImages', 'videoRewrite/analyze', 'videoRewrite/claudeAsk', 'videoRewrite/finalPrompt', 'videoRewrite/fake', 'videoRewrite/input', 'videoRewrite/backgroundFrames',
   'videoRewrite/lookPeople', 'videoRewrite/modelJson', 'videoRewrite/promptImages',
-  'videoRewrite/roles', 'videoRewrite/rules', 'videoRewrite/sheets', 'videoRewrite/storage',
-  'videoRewrite/stream', 'videoRewrite/writePrompt',
+  'videoRewrite/roles', 'videoRewrite/rules', 'videoRewrite/sceneTexts', 'videoRewrite/session', 'videoRewrite/sheets', 'videoRewrite/storage',
+  'videoRewrite/writePrompt',
 ].map(name => `server/${name}.mjs`).concat('server/depth/depth_video.py');
 
 export const SCRIPT_FILES = [

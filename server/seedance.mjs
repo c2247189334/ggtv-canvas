@@ -9,7 +9,7 @@ export function buildSeedanceBody({ model, prompt, mode, images = [], videos = [
   if (taskType !== undefined && taskType !== 'reference') throw Object.assign(Error('任务类型只接受 reference。'), { notSent: true });
   if (taskType !== undefined && model !== 'doubao-seedance-2-5-260628') throw Object.assign(Error('任务类型只对 Seedance 2.5 有效。'), { notSent: true });
   if (videos.some(({ url }) => typeof url !== 'string' || !/^(https?:\/\/|asset:\/\/)/.test(url))) {
-    throw Object.assign(Error('SEEDANCE_VIDEO_URL_INVALID：这单没发出去，没花钱。'), { notSent: true });
+    throw Object.assign(Error('SEEDANCE_VIDEO_URL_INVALID：这单没发出去。'), { notSent: true });
   }
   return {
     model, content: [
@@ -26,14 +26,14 @@ export function buildSeedanceBody({ model, prompt, mode, images = [], videos = [
 }
 
 export function humanSeedanceError({ code = '', message = '', blocked = [], outcome = 'rejected' }) {
-  if (outcome === 'notSent') return '这单没发出去，没花钱。';
-  if (outcome === 'uncertain') return '可能已建任务并扣费，没有自动重发，去火山控制台视频任务列表看一眼。';
+  if (outcome === 'notSent') return '这单没发出去。';
+  if (outcome === 'uncertain') return '可能已建任务，没有自动重发，去火山控制台视频任务列表看一眼。';
   const refs = blocked.length ? `${blocked.map((n) => `参考 ${n}`).join('、')} 被火山拦下：` : '';
   let reason = message || '火山明确不收这单。';
   if (code.includes('PrivacyInformation')) reason = '疑似含真人（火山不收真人照片 / 真人视频，可改用真人素材编号）。';
   // 除 PrivacyInformation 外的 Input*SensitiveContentDetected* 尚未经真实火山实测。
   else if (/^Input.*SensitiveContentDetected/.test(code)) reason = '内容没过火山审核。';
-  return `${refs}${reason} 火山没建任务，没扣钱。`;
+  return `${refs}${reason} 火山没建任务。`;
 }
 
 /** 环境只留闭包里；任何上游错误文本和查询字段都先脱敏再交给排队。 */
@@ -54,7 +54,7 @@ export function createSeedance({ env = {}, fetch: suppliedFetch, timeout = 60000
       let cfg;
       try { cfg = seedreamConfig(env); } catch { return result('notSent', 'ARK_KEY_MISSING'); }
       const body = Buffer.from(JSON.stringify(buildSeedanceBody(input)));
-      if (body.length > MAX_BODY) throw Object.assign(Error('SEEDANCE_BODY_TOO_LARGE：这单没发出去，没花钱。'), { notSent: true });
+      if (body.length > MAX_BODY) throw Object.assign(Error('SEEDANCE_BODY_TOO_LARGE：这单没发出去。'), { notSent: true });
       let response;
       try {
         response = await fetch(`${cfg.base}/contents/generations/tasks`, { method: 'POST',

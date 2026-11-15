@@ -1,6 +1,6 @@
 // 花钱前检查视频单：只拒收，不替用户悄悄改设置。素材种类和元数据来自服务端存储。
 import { isId } from './store/files.mjs';
-import { MAX_PROMPT, MAX_REFS } from './jobInput.mjs';
+import { MAX_PROMPT } from './jobInput.mjs';
 import { VIDEO_RATIOS, videoModelOf, estimateVideo, checkVideoRefs } from './videoModels.mjs';
 
 const no = (reason) => ({ ok: false, reason });
@@ -58,7 +58,7 @@ export function checkVideoJobInput(body, readAsset) {
     soundtrack = { type: ref.type, id: ref.id };
   }
   if (b.refs !== undefined && !Array.isArray(b.refs)) return no('参考的格式不对。');
-  if ((b.refs ?? []).length > MAX_REFS + model.maxAudios) return no(`图和视频加起来最多 ${MAX_REFS} 个参考，音频最多 ${model.maxAudios} 段。`);
+  if ((b.refs ?? []).length > model.maxRefs + model.maxAudios) return no(`图和视频加起来最多 ${model.maxRefs} 个参考，音频最多 ${model.maxAudios} 段。`);
   const refs = [];
   let audioCount = 0, videoCount = 0;
   for (const ref of b.refs ?? []) {

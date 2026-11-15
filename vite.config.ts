@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath, URL } from "node:url";
@@ -9,6 +10,8 @@ export default defineConfig({
   resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
   // 页面打包进来的开源库（React、React Flow 等）的许可声明，随整合包一起发。
   build: { license: { fileName: "THIRD_PARTY_LICENSES.md" } },
+  // 项目里的 .claude/worktrees 是别的窗口的代码副本：不算本目录的测试，它的 @ 路径也指不对。
+  test: { exclude: ["**/node_modules/**", "**/.git/**", ".claude/**"] },
   server: {
     host: "127.0.0.1",
     port: 5280,

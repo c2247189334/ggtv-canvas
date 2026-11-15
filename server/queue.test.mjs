@@ -108,7 +108,7 @@ test('三张里第二张被拒：已出的那张留着，第三张不再发', as
   assert.equal(calls, 2);
 });
 
-test('超时：标失败、说明可能已扣费、不重发', async () => {
+test('超时：标失败、说明可能已出图、不重发', async () => {
   let calls = 0;
   const t = setup(async () => {
     calls += 1;
@@ -119,6 +119,22 @@ test('超时：标失败、说明可能已扣费、不重发', async () => {
   const done = t.jobs.read(job.id);
   assert.equal(done.status, 'failed');
   assert.match(done.error, /没有自动重发/);
+  assert.equal(calls, 1);
+});
+
+test('发出去之后断线：说明可能已出图、没有自动重发，不说成没发出去', async () => {
+  let calls = 0;
+  const t = setup(async () => {
+    calls += 1;
+    throw new Error('EDIT_INTERRUPTED');
+  });
+  const job = t.queue.submit(input());
+  await waitFor(finished(t.jobs, job.id));
+  const done = t.jobs.read(job.id);
+  assert.equal(done.status, 'failed');
+  assert.match(done.error, /可能已经出图/);
+  assert.match(done.error, /没有自动重发/);
+  assert.doesNotMatch(done.error, /没发出去/);
   assert.equal(calls, 1);
 });
 
@@ -186,4 +202,27 @@ test('先来的先跑，空位填满为止', () => {
   assert.deepEqual(nextToStart(jobs, ['c'], 2), ['a']);
   assert.deepEqual(nextToStart(jobs, [], 3), ['a', 'b']);
   assert.deepEqual(nextToStart(jobs, ['x', 'y', 'z'], 3), []);
+});
+
+// 11-14 体检：硬盘一直写不进（盘满、数据目录只读）时，排队中的单每次启动都失败、兜底也写不进，
+// 以前会在同一拍里无限重挑这一单，整个小服务卡死。现在隔一会儿再试，硬盘好了照常出图。
+test('硬盘写不进时不原地打转：隔一会儿再试，写得进了照常出图且只发一次', async () => {
+  const root = tempDir();
+  const real = { jobs: createJobStore(root), works: createWorkStore(root), uploads: createUploadStore(root), spend: createSpendLog(root) };
+  let fails = 300, tries = 0, sent = 0;
+  const jobs = { ...real.jobs, patch(id, changes) {
+    tries += 1;
+    if (fails > 0) { fails -= 1; throw Object.assign(Error('ENOSPC: no space left on device'), { code: 'ENOSPC' }); }
+    return real.jobs.patch(id, changes);
+  } };
+  const queue = createQueue({ ...real, jobs, generate: async () => { sent += 1; return okImage(); }, retryMs: 20, logError: () => {} });
+  const job = real.jobs.create(input());
+  queue.pump();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.ok(tries <= 4, `一拍之内只该试一轮，实际写了 ${tries} 次`);
+  assert.equal(sent, 0, '状态没写进硬盘就不能发火山');
+  fails = 0;
+  await waitFor(finished(real.jobs, job.id));
+  assert.equal(real.jobs.read(job.id).status, 'succeeded');
+  assert.equal(sent, 1);
 });

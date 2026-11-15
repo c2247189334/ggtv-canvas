@@ -1,11 +1,12 @@
-import { keyFilled } from '../config.mjs';
+import { agentNeeded } from '../agent.mjs';
 import { HttpError, readJson, sendJson } from '../http.mjs';
 import { checkRewriteInput, redactRewriteError } from '../rewrite.mjs';
 
-export function rewriteRoutes(router, { readEnv, fake, rewrite, spend }) {
+export function rewriteRoutes(router, { readEnv, fake, rewrite, spend, needAgent = agentNeeded }) {
   router.add('POST', '/api/rewrite', async ({ req, res }) => {
     const env = readEnv();
-    if (!fake && !keyFilled(env)) throw new HttpError(400, '.env.local 里还没填 ARK_API_KEY，填好再改写（这次没发出去，没花钱）。');
+    const problem = fake ? null : needAgent(env);
+    if (problem) throw new HttpError(400, problem);
     const body = await readJson(req);
     let input;
     try { input = checkRewriteInput(body); }

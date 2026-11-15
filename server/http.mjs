@@ -86,13 +86,14 @@ export async function readBody(req, limit) {
 }
 
 /** 每收一块就写磁盘，等待写完再收下一块；超限保留连接供调用方回413。 */
-export async function readBodyToFile(req, file, limit, message) {
+export async function readBodyToFile(req, file, limit, message, onChunk = () => {}) {
   const output = await open(file, 'wx');
   try {
     let size = 0;
     for await (const chunk of req.iterator({ destroyOnReturn: false })) {
       size += chunk.length;
       if (size > limit) throw new HttpError(413, message);
+      onChunk(chunk);
       await output.writeFile(chunk);
     }
     return size;
@@ -167,7 +168,10 @@ function serveFrontend(res, distDir, pathname) {
 
 export function createHandler({ router, distDir, allowedPorts, logError }) {
   return async function handle(req, res) {
-    const url = new URL(req.url ?? '/', 'http://127.0.0.1');
+    let url;
+    // 「//」这类路径 new URL 会抛错：直接回 400，别让连接一直挂着。
+    try { url = new URL(req.url ?? '/', 'http://127.0.0.1'); }
+    catch { return sendJson(res, 400, { error: '请求地址不对。' }); }
     const key = `${req.method} ${url.pathname}`;
     try {
       if (!requestAllowed(req, allowedPorts)) return sendJson(res, 403, { error: '只接受本机页面发来的请求。' });

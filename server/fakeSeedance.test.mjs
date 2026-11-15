@@ -32,7 +32,7 @@ test('四种提示词各自触发拒收、被拦、提交不明和任务失败',
   assert.equal((await c.submit({ ...input, prompt: '假失败' })).outcome, 'rejected');
   const blocked = await c.submit({ ...input, prompt: '假被拦' });
   assert.deepEqual(blocked.blocked, [1]);
-  assert.match(blocked.message, /没扣钱/);
+  assert.match(blocked.message, /没建任务/);
   assert.equal((await c.submit({ ...input, prompt: '假超时' })).outcome, 'uncertain');
   const result = await c.submit({ ...input, prompt: '假任务失败' });
   await c.query(result.taskId);

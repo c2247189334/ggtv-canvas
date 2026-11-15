@@ -4,12 +4,15 @@ import { pickFiles } from "@/common/pickFiles";
 import type { Notify } from "@/common/Toast";
 import { newCanvasCard, turnPage as turnPageOf } from "@/domain/cards";
 import { patchCard } from "@/domain/sendRefs";
-import { IMAGE_ACCEPT, MEDIA_ACCEPT, workRef } from "@/domain/media";
+import { IMAGE_ACCEPT, MEDIA_ACCEPT } from "@/domain/media";
 import { uploadMedia } from "./uploadMedia";
 import { cardPositions, leftOf, rightOf, type Point } from "@/domain/placement";
 import { offersConnectionMenu } from "@/domain/menus";
-import { MAX_REFS, checkLink, dropLinkHint, linkId, refSources, referenceLimitReached } from "@/domain/refs";
-import type { AssetRef, CardPatch, CardNode, CardSource, MediaWorkView } from "@/types";
+import { checkLink, dropLinkHint, linkId, maxRefsOf, refSources, referenceLimitReached } from "@/domain/refs";
+import type { AssetRef, CardPatch, CardNode, CardSource } from "@/types";
+import type { PickedMedia } from "@/uploadTypes";
+import { pickedAsset } from "@/domain/uploads";
+import { usesSceneText } from "@/domain/rewriteTextScene";
 
 function newNodeId(): string {
   return `card-${crypto.randomUUID().slice(0, 8)}`;
@@ -20,7 +23,7 @@ type Deps = {
   setEdges: (update: (edges: Edge[]) => Edge[]) => void;
   takeNumber: () => number;
   notify: Notify;
-  pickWork: (includeVideo?: boolean) => Promise<MediaWorkView | null>;
+  pickWork: (includeVideo?: boolean) => Promise<PickedMedia | null>;
   onBlankConnect: (source: string, screen: Point) => void;
 };
 
@@ -77,8 +80,8 @@ export function useCards({ setNodes, setEdges, takeNumber, notify, pickWork, onB
     const target = flow.getNode(targetId);
     if (!target) return;
     const kinds = refSources(flow.getEdges(), targetId).map(id => flow.getNode(id)?.data.kind ?? "image");
-    if (referenceLimitReached(kinds, kind)) {
-      notify(`一张卡最多连 ${MAX_REFS} 张参考图。`);
+    if (referenceLimitReached(kinds, kind, maxRefsOf(target.data))) {
+      notify(`一张卡最多连 ${maxRefsOf(target.data)} 张参考图。`);
       return;
     }
     if (kind === "video" && target.data.kind !== "video") { notify("出图不能拿视频当参考，连到视频卡上。"); return; }
@@ -86,29 +89,29 @@ export function useCards({ setNodes, setEdges, takeNumber, notify, pickWork, onB
     if (id) setEdges(edges => [...edges, { id: linkId(id, targetId), source: id, target: targetId }]);
   }, [flow, notify, placeCards, setEdges]);
 
-  /** 左边 ＋：传图或从作品库选一张，放在这张卡左边并连进来。最多 8 张。 */
+  /** 左边 ＋：传图或从作品库选一张，放在这张卡左边并连进来。上限见 maxRefsOf。 */
   const addReference = useCallback(
     async (targetId: string, how: "upload" | "work") => {
       const target = flow.getNode(targetId);
       if (!target) return;
       const kinds = refSources(flow.getEdges(), targetId).map(id => flow.getNode(id)?.data.kind ?? "image");
-      let refs: AssetRef[] = [];
+      let refs: Array<AssetRef & { fileName?: string }> = [], source = how;
       const includeVideo = target.data.kind === "video";
       if (how === "upload") {
         refs = await uploadFiles(await pickFiles(includeVideo ? MEDIA_ACCEPT : IMAGE_ACCEPT), includeVideo);
       } else {
-        const work = await pickWork(includeVideo);
-        if (work && (includeVideo || work.kind === "image")) refs = [workRef(work)];
+        const picked = await pickWork(includeVideo), asset = picked && pickedAsset(picked);
+        if (asset && (includeVideo || asset.kind === "image")) { refs = [asset.ref]; source = asset.source; }
       }
       if (!refs.length) return;
-      const ids = addAssets(how, refs, leftOf(target.position), "column", false);
+      const ids = addAssets(source, refs, leftOf(target.position), "column", false);
       const linked = ids.filter((_, index) => {
         const kind = refs[index].media ?? "image";
-        if (referenceLimitReached(kinds, kind)) return false;
+        if (referenceLimitReached(kinds, kind, maxRefsOf(target.data))) return false;
         kinds.push(kind);
         return true;
       });
-      if (linked.length !== ids.length) notify(`图和视频加起来最多 ${MAX_REFS} 个参考，多出来的素材放在画布上没连。`);
+      if (linked.length !== ids.length) notify(`图和视频加起来最多 ${maxRefsOf(target.data)} 个参考，多出来的素材放在画布上没连。`);
       setEdges((edges) => [...edges, ...linked.map((id) => ({ id: linkId(id, targetId), source: id, target: targetId }))]);
     },
     [flow, notify, uploadFiles, pickWork, addAssets, setEdges]
@@ -118,7 +121,7 @@ export function useCards({ setNodes, setEdges, takeNumber, notify, pickWork, onB
   const connect = useCallback(
     (source: string, target: string) => {
       const targetData = flow.getNode(target)?.data;
-      const check = checkLink({ edges: flow.getEdges(), source, target, targetSource: targetData?.source,
+      const check = checkLink({ edges: flow.getEdges(), source, target, targetSource: targetData?.source, maxRefs: maxRefsOf(targetData),
         sourceKind: flow.getNode(source)?.data.kind, targetKind: targetData?.kind,
         referenceKinds: refSources(flow.getEdges(), target).map(id => flow.getNode(id)?.data.kind ?? "image") });
       if (!check.ok) {
@@ -126,8 +129,13 @@ export function useCards({ setNodes, setEdges, takeNumber, notify, pickWork, onB
         return;
       }
       setEdges((edges) => [...edges, { id: linkId(source, target), source, target }]);
+      // 11-13 线就是开关：「不出图，用文字」的背景卡又连回视频卡 = 改回用图（字留着）。
+      const sourceData = flow.getNode(source)?.data;
+      if (sourceData && usesSceneText(sourceData) && targetData?.kind === "video") {
+        setNodes((nodes) => nodes.map((n) => (n.id === source ? { ...n, data: patchCard(n.data, { rewriteTextOn: false }) } : n)));
+      }
     },
-    [flow, notify, setEdges]
+    [flow, notify, setEdges, setNodes]
   );
 
   const onConnect = useCallback((connection: Connection) => {
@@ -155,6 +163,7 @@ export function useCards({ setNodes, setEdges, takeNumber, notify, pickWork, onB
         targetSource: target ? flow.getNode(target)?.data.source : undefined,
         sourceKind: flow.getNode(state.fromNode.id)?.data.kind,
         targetKind: target ? flow.getNode(target)?.data.kind : undefined,
+        maxRefs: target ? maxRefsOf(flow.getNode(target)?.data) : undefined,
         referenceKinds: target ? refSources(flow.getEdges(), target).map(id => flow.getNode(id)?.data.kind ?? "image") : []
       });
       if (hint) notify(hint);
@@ -197,8 +206,8 @@ export function useCards({ setNodes, setEdges, takeNumber, notify, pickWork, onB
         addAssets("upload", await uploadFiles(await pickFiles(MEDIA_ACCEPT)), at);
       },
       workAt: async (at: Point) => {
-        const work = await pickWork(true);
-        if (work) addAssets("work", [workRef(work)], at);
+        const picked = await pickWork(true), asset = picked && pickedAsset(picked);
+        if (asset) addAssets(asset.source, [asset.ref], at);
       },
       addDownstream,
       addUpstream,

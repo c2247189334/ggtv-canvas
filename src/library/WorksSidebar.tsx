@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, workDownloadUrl } from "@/api";
 import { Confirm } from "@/common/Confirm";
 import type { Notify } from "@/common/Toast";
@@ -7,55 +7,45 @@ import { filterWorks, workTitle, type WorkKindFilter } from "@/domain/works";
 import { WorksGrid } from "@/library/WorksGrid";
 import { markWorkDeleted, useWorksVersion } from "@/library/worksEvents";
 import type { MediaWorkView } from "@/types";
+import { useLibraryData } from './useLibraryData';
+import { CharactersPanel } from './CharactersPanel';
+import { UploadsPanel } from './UploadsPanel';
+import { loadWorkDeletion } from './workDeletion';
 
-const WORKS_REFRESH_INTERVAL_MS = 5000;
-
-// 用户 10-30 定：默认看图片，「全部」放最后。
-const KINDS: Array<{ id: WorkKindFilter; label: string }> = [
+type LibraryFilter = WorkKindFilter | 'character' | 'uploads';
+const KINDS: Array<{ id: LibraryFilter; label: string }> = [
+  { id: 'character', label: '人物' },
   { id: "image", label: "图片" },
   { id: "video", label: "视频" },
   { id: "audio", label: "声音" },
-  { id: "all", label: "全部" }
+  { id: "all", label: "全部" },
+  { id: 'uploads', label: '我上传的' }
 ];
 
 type Props = { canvasId: string; onClose: () => void; openViewer: (url: string, title: string, media?: "image" | "video" | "audio") => void; notify: Notify };
 
 /**
- * 作品库 = 推开画布的左侧栏：图片、视频和提取的声音可筛选、拖入、下载、删除和预览。
+ * 作品库 = 推开画布的左侧栏：图片、视频和提取的声音可筛选、拖入、下载、删除和预览；「我上传的」放从电脑传过的素材。
  */
 export function WorksSidebar({ canvasId, onClose, openViewer, notify }: Props) {
   const version = useWorksVersion();
-  const [works, setWorks] = useState<MediaWorkView[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [kind, setKind] = useState<WorkKindFilter>("image");
+  const library = useLibraryData(version);
+  const { works, workError } = library;
+  const [kind, setKind] = useState<LibraryFilter>('character');
   const [onlyHere, setOnlyHere] = useState(false);
-  const [deleting, setDeleting] = useState<MediaWorkView | null>(null);
+  const [deleting, setDeleting] = useState<{ work: MediaWorkView; text: string } | null>(null);
+  const alive = useRef(true), deletionRequest = useRef(0);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
 
-  useEffect(() => {
-    let alive = true;
-    let loading = false;
-    const refresh = async (silent: boolean) => {
-      if (loading) return;
-      loading = true;
-      try {
-        const list = await api.listMediaWorks();
-        if (alive) {
-          setWorks((current) => JSON.stringify(current) === JSON.stringify(list) ? current : list);
-          setError(null);
-        }
-      } catch (err) {
-        if (alive && !silent) setError((err as Error).message);
-      } finally {
-        loading = false;
-      }
-    };
-    void refresh(false);
-    const timer = window.setInterval(() => void refresh(true), WORKS_REFRESH_INTERVAL_MS);
-    return () => {
-      alive = false;
-      window.clearInterval(timer);
-    };
-  }, [version]);
+  const requestDelete = async (work: MediaWorkView) => {
+    const request = ++deletionRequest.current;
+    try {
+      const confirmation = await loadWorkDeletion(work);
+      if (alive.current && request === deletionRequest.current) setDeleting(confirmation);
+    } catch (reason) {
+      if (alive.current && request === deletionRequest.current) notify((reason as Error).message);
+    }
+  };
 
   const remove = async (work: MediaWorkView) => {
     setDeleting(null);
@@ -67,7 +57,7 @@ export function WorksSidebar({ canvasId, onClose, openViewer, notify }: Props) {
     }
   };
 
-  const shown = works ? filterWorks(works, kind, onlyHere ? canvasId : null) : [];
+  const shown = works && kind !== 'character' && kind !== 'uploads' ? filterWorks(works, kind, onlyHere ? canvasId : null) : [];
 
   return (
     <aside className="works">
@@ -81,13 +71,16 @@ export function WorksSidebar({ canvasId, onClose, openViewer, notify }: Props) {
             {k.label}
           </button>
         ))}
-        <label>
+        {kind !== 'character' ? <label>
           <input type="checkbox" checked={onlyHere} onChange={(event) => setOnlyHere(event.target.checked)} />
           只看这张画布的
-        </label>
+        </label> : null}
       </div>
-      {error ? (
-        <p className="works__error">{error}</p>
+      {kind === 'character' ? <CharactersPanel characters={library.characters} error={library.characterError} notify={notify}
+        onUpdate={library.updateCharacter} onRemove={library.removeCharacter} /> : kind === 'uploads' ? (
+        <UploadsPanel canvasId={onlyHere ? canvasId : null} openViewer={openViewer} notify={notify} />
+      ) : workError ? (
+        <p className="works__error">{workError}</p>
       ) : works === null ? (
         <p className="works__empty">读取中…</p>
       ) : (
@@ -98,7 +91,7 @@ export function WorksSidebar({ canvasId, onClose, openViewer, notify }: Props) {
           actions={(work) => (
             <>
               <a href={workDownloadUrl(work.id)} download>下载</a>
-              <button type="button" onClick={() => setDeleting(work)}>删除</button>
+              <button type="button" onClick={() => void requestDelete(work)}>删除</button>
             </>
           )}
         />
@@ -106,9 +99,9 @@ export function WorksSidebar({ canvasId, onClose, openViewer, notify }: Props) {
       <p className="works__tip">把图片、视频或声音拖进画布就能接着用。</p>
       {deleting ? (
         <Confirm
-          text="删掉这件作品？硬盘上的文件会一起删掉，画布上用到它的卡片会显示「作品已删除」。"
+          text={deleting.text}
           okLabel="删除"
-          onOk={() => void remove(deleting)}
+          onOk={() => void remove(deleting.work)}
           onCancel={() => setDeleting(null)}
         />
       ) : null}

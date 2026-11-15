@@ -34,6 +34,16 @@ test('静态文件流被中断时由HTTP统一接住，不产生未处理拒绝'
   assert.equal(res.destroyed, true);
 });
 
+test('请求路径解析不了（比如 //）回 400，不挂着不回、也不记成服务出错', async () => {
+  const errors = [], sent = {};
+  const res = { headersSent: false, writeHead(status) { sent.status = status; this.headersSent = true; }, end(body) { sent.body = String(body); } };
+  const handler = createHandler({ router: createRouter(), distDir: tempDir(), allowedPorts: [], logError: (tag, err) => errors.push({ tag, err }) });
+  await assert.doesNotReject(handler({ url: '//', method: 'GET', headers: { host: '127.0.0.1' } }, res));
+  assert.equal(sent.status, 400);
+  assert.match(sent.body, /地址/);
+  assert.deepEqual(errors, []);
+});
+
 test('流式发视频支持闭区间、开放区间、后缀区间；非法和越界回 416', async (t) => {
   const file = join(tempDir(), 'video.mp4');
   writeFileSync(file, Buffer.from('0123456789'));

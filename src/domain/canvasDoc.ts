@@ -9,7 +9,10 @@ import { linkId } from "@/domain/refs";
 import { DEFAULT_VIDEO_SETTINGS, normalizeVideoSettings } from "./videoModels";
 import { validAssetId } from "./videoPanel";
 import { readRewriteItem, readRewriteStatus, readRewriteChangeSeconds, readRewritePlan, readRewriteMotionReference } from './videoRewriteDoc';
-import type { AssetRef, CanvasDoc, CardData, CardNode, CardSource } from "@/types";
+import { readProductPlan, readProductRole } from './productRemakeDoc';
+import type { AssetRef, CanvasDoc, CardData, CardGroup, CardNode, CardSource } from "@/types";
+import { readSentInputs } from './staleInputs';
+import { MAX_SCENE_TEXT, readSceneReads } from './rewriteTextScene';
 
 export type CanvasMeta = { id: string; name: string };
 
@@ -19,7 +22,9 @@ export function toDoc(meta: CanvasMeta, nodes: readonly CardNode[], edges: reado
     name: meta.name,
     nodes: nodes.map((n) => {
       const { phase: _phase, jobWarning: _jobWarning, rewriteBusy: _rewriteBusy, ...data } = n.data;
-      return { id: n.id, x: Math.round(n.position.x), y: Math.round(n.position.y), data };
+      const saved = data.kind === 'video' && data.productAutoPosition ? { ...data, productAutoPosition: {
+        x: Math.round(data.productAutoPosition.x), y: Math.round(data.productAutoPosition.y) } } : data;
+      return { id: n.id, x: Math.round(n.position.x), y: Math.round(n.position.y), data: saved };
     }),
     edges: edges.map((e) => ({ id: e.id, source: e.source, target: e.target }))
   };
@@ -27,6 +32,15 @@ export function toDoc(meta: CanvasMeta, nodes: readonly CardNode[], edges: reado
 
 const SOURCES: readonly CardSource[] = ["upload", "work", "generate", "extracted", "depth", "mesh"];
 const isInt = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v);
+
+function readGroup(raw: unknown): CardGroup | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const { id, name, characterId, productId, videoId } = raw as Record<string, unknown>;
+  if (typeof id !== 'string' || !id.trim() || typeof name !== 'string' || !name.trim()) return undefined;
+  if (characterId !== undefined && (typeof characterId !== 'string' || !characterId.trim())) return undefined;
+  return { id, name, ...(characterId === undefined ? {} : { characterId }),
+    ...(typeof productId === 'string' && /^[A-Z]+$/.test(productId) && typeof videoId === 'string' && videoId ? { productId, videoId } : {}) };
+}
 
 // 下面都先取成局部变量再判断：对「unknown 对象的属性」直接判断，类型收窄不一定生效。
 function readRef(raw: unknown): AssetRef | null {
@@ -47,9 +61,10 @@ export function readCard(raw: unknown): CardData | null {
   const source = d.source;
   if (!SOURCES.includes(source as CardSource)) return null;
   const { number: cardNumber, page, prompt, note } = d;
-  const unnumbered = source === "upload" && typeof d.title === "string" && Boolean(d.title) && cardNumber === 0;
+  const unnumbered = (source === 'upload' || source === 'work') && typeof d.title === 'string' && Boolean(d.title) && cardNumber === 0;
   const results = Array.isArray(d.results) ? d.results.map(readRef).filter((r): r is AssetRef => r !== null) : [];
   const common = {
+    ...(readGroup(d.group) ? { group: readGroup(d.group) } : {}),
     source: source as CardSource,
     number: unnumbered ? 0 : isInt(cardNumber) && cardNumber > 0 ? cardNumber : 1,
     ...(typeof d.title === "string" && d.title ? { title: d.title } : {}),
@@ -60,14 +75,22 @@ export function readCard(raw: unknown): CardData | null {
     note: typeof note === "string" ? note : null,
     ...(typeof d.depthJobId === "string" ? { depthJobId: d.depthJobId } : {}),
     ...(typeof d.startedAt === "string" ? { startedAt: d.startedAt } : {}),
+    ...(d.rewriteTask === 'product' ? { rewriteTask: 'product' as const } : {}),
     ...(readRef(d.mediaSource)?.media === "video" ? { mediaSource: readRef(d.mediaSource)! } : {}),
-    ...(Array.isArray(d.blocked) ? { blocked: d.blocked.filter((n): n is number => isInt(n) && n >= 1) } : {})
+    ...(Array.isArray(d.blocked) ? { blocked: d.blocked.filter((n): n is number => isInt(n) && n >= 1) } : {}),
+    ...(readSentInputs(d.sentInputs) ? { sentInputs: readSentInputs(d.sentInputs) } : {})
   };
   if (d.kind === "audio") return { ...common, kind: "audio" };
   if (d.kind === "video") {
     const settings = d.video && typeof d.video === "object" ? d.video as Record<string, unknown> : {};
     const input = { ...DEFAULT_VIDEO_SETTINGS, ...settings };
     return { ...common, kind: "video", ...(typeof d.rewriteId === 'string' ? { rewriteId: d.rewriteId, rewriteMotionReference: readRewriteMotionReference(d.rewriteMotionReference) } : {}),
+      ...(d.rewriteKeepClothes === true ? { rewriteKeepClothes: true as const } : {}),
+      ...(readSceneReads(d.rewriteSceneReads) ? { rewriteSceneReads: readSceneReads(d.rewriteSceneReads) } : {}),
+      ...(d.rewriteKind === 'product' ? { rewriteKind: 'product' as const, ...(readProductPlan(d.productPlan) ? { productPlan: readProductPlan(d.productPlan) } : {}) } : {}),
+      ...(d.productAutoPosition && typeof d.productAutoPosition === 'object' &&
+        Number.isFinite((d.productAutoPosition as { x: number }).x) && Number.isFinite((d.productAutoPosition as { y: number }).y)
+        ? { productAutoPosition: { ...(d.productAutoPosition as { x: number; y: number }) } } : {}),
       ...(readRewritePlan(d.rewritePlan) ? { rewritePlan: readRewritePlan(d.rewritePlan) } : {}),
       ...(typeof d.rewriteUserText === 'string' ? { rewriteUserText: d.rewriteUserText } : {}),
       ...(Array.isArray(d.rewriteWarnings) ? { rewriteWarnings: d.rewriteWarnings.filter((value): value is string => typeof value === 'string') } : {}),
@@ -84,10 +107,15 @@ export function readCard(raw: unknown): CardData | null {
       ...(readRef(d.rewriteSource)?.media === 'video' ? { rewriteSource: readRef(d.rewriteSource)! } : {}) };
   }
   return { ...common, kind: "image", gen: normalizeGen(d.gen),
+    ...(readProductRole(d.productRole) ? { productRole: readProductRole(d.productRole) } : {}),
     ...(typeof d.rewriteId === "string" ? { rewriteId: d.rewriteId } : {}),
     ...(typeof d.rewriteItemId === "string" ? { rewriteItemId: d.rewriteItemId } : {}),
     ...(readRewriteItem(d.rewriteItem) ? { rewriteItem: readRewriteItem(d.rewriteItem) } : {}),
     ...(d.rewriteNewScene === true ? { rewriteNewScene: true as const } : {}),
+    ...(typeof d.rewriteSceneId === "string" ? { rewriteSceneId: d.rewriteSceneId } : {}),
+    ...(d.rewriteTextOn === true ? { rewriteTextOn: true } : {}),
+    ...(typeof d.rewriteSceneText === "string" ? { rewriteSceneText: d.rewriteSceneText.slice(0, MAX_SCENE_TEXT) } : {}),
+    ...(typeof d.emptyAspect === "number" && d.emptyAspect >= 0.1 && d.emptyAspect <= 10 ? { emptyAspect: d.emptyAspect } : {}),
     ...(source !== "generate" && typeof d.assetId === "string" && validAssetId(d.assetId) ? { assetId: d.assetId } : {}) };
 }
 

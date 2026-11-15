@@ -24,7 +24,7 @@ it('改写预检一次列出全部缺项；真模式齐全才放行，假模式�
   const ready = { filled: true, found: true };
   const health = { ok: true, fake: false, keyReady: false, tosReady: false, todayYuan: 0, uncertainToday: 0 };
   const missing = rewriteStartProblem(health, 'depth');
-  for (const name of ['ARK_API_KEY', 'TOS_ACCESS_KEY_ID', 'TOS_SECRET_ACCESS_KEY', 'TOS_BUCKET', 'DEPTH_PYTHON', 'DEPTH_MODEL_DIR', 'ffmpeg', 'ffprobe', '.env.local', '没花钱']) expect(missing).toContain(name);
+  for (const name of ['ARK_API_KEY', 'TOS_ACCESS_KEY_ID', 'TOS_SECRET_ACCESS_KEY', 'TOS_BUCKET', 'DEPTH_PYTHON', 'DEPTH_MODEL_DIR', 'ffmpeg', 'ffprobe', '.env.local', '没交单']) expect(missing).toContain(name);
   expect(rewriteStartProblem({ ...health, fake: true }, 'mesh')).toBeNull();
   const complete = { ...health, keyReady: true, tosReady: true, ffmpegFound: true, ffprobeFound: true };
   expect(rewriteStartProblem({ ...complete, depth: { python: ready, modelDir: ready, extraPackages: { filled: false, found: false } } }, 'depth')).toBeNull();
@@ -58,13 +58,13 @@ describe('一键改写普通卡', () => {
   it('短片先拒绝，长片同样拒绝', () => {
     for (const seconds of [3.99, 30.01]) expect(() => startVideoRewrite({ source: node('bad', newVideoCard('upload', 1, [{ ...asset, seconds }])), nodes: [], edges: [], takeNumber: cardCounter(), makeId, userText: '换人' })).toThrow('4');
   });
-  it('两轮分析后能生成完整素材表并铺第三列图片和第四列视频，顺序固定，视频卡存改写快照、默认关生成音频', () => {
+  it('两轮分析后能生成完整素材表并铺第四列图片和第五列视频（11-11 起截图占第 3 列），顺序固定，视频卡存改写快照、默认关生成音频', () => {
     const graph = start(); const state = { ...graph.state, plan };
     expect(replacementItems(plan).map(item => item.id)).toEqual(['person', 'early', 'late']);
     expect(rewriteMaterials(state).map(item => item.tag)).toEqual(['@图片1', '@图片2', '@图片3', '@视频1']);
     const next = prepareRewriteCards({ state, nodes: graph.nodes, edges: graph.edges, takeNumber: cardCounter(), makeId });
     const video = next.nodes.find(n => n.id === next.videoId)!;
-    expect(video.position.x).toBe(1140);
+    expect(video.position.x).toBe(1520);
     expect(video.data).toMatchObject({ kind: 'video', rewriteId: graph.batchId, rewriteSource: asset, rewriteSourceId: 's', rewriteChangeSeconds: [5], rewritePlan: plan, rewriteUserText: '换人换衣', prompt: '',
       video: { model: 'doubao-seedance-2-5-260628', mode: 'reference', ratio: '9:16', resolution: '480p', duration: 15, audio: false } });
     expect(next.nodes.find(n => n.id === next.imageIds.person)?.data).toMatchObject({ kind: 'image', rewriteItemId: 'person', rewriteItem: plan.items[2] });
@@ -74,15 +74,17 @@ describe('一键改写普通卡', () => {
     expect(videoRewriteMaterials(next.nodes, [...next.edges].reverse(), next.videoId).filter(value => value.itemId).map(value => [value.itemId, value.tag]))
       .toEqual([['late', '@图片1'], ['early', '@图片2'], ['person', '@图片3']]);
   });
-  it('第一帧背景：第 2 列放第一帧卡、第 3 列最上面放背景卡并连线；背景排 @图片1、第一个连视频；人物衣服卡在背景下面、尺寸跟视频比例', () => {
+  it('第一帧背景（11-11 起）：第 3 列放第一帧卡、第 4 列最上面放背景卡，同一行连线；背景排 @图片1、第一个连视频；人物衣服卡在背景下面、尺寸跟视频比例', () => {
     const graph = start(); const frame: AssetRef = { type: 'upload', id: 'frame' };
     const added = addRewriteBackground({ state: graph.state, frame, nodes: graph.nodes, edges: graph.edges, takeNumber: cardCounter(), makeId });
     const frameCard = added.nodes.find(n => n.id === added.frameId)!, back = added.nodes.find(n => n.id === added.backgroundId)!;
     expect(frameCard.data).toMatchObject({ kind: 'image', source: 'upload', number: 0, title: '原视频第一帧', results: [frame] });
-    expect(frameCard.position.x).toBe(380); expect(frameCard.position.y).toBeGreaterThan(added.nodes.find(n => n.id === graph.depthId)!.position.y);
+    expect(frameCard.position).toEqual({ x: 760, y: 0 });
     expect(back.data).toMatchObject({ kind: 'image', source: 'generate', title: '背景', rewriteId: graph.batchId, prompt: REWRITE_BACKGROUND_PROMPT, gen: { sizeFrom: 1 } });
     expect(back.data).not.toHaveProperty('rewriteItem');
-    expect(back.position).toEqual({ x: 760, y: 0 });
+    expect(back.position).toEqual({ x: 1140, y: 0 });
+    expect(back.data).toMatchObject({ emptyAspect: asset.width! / asset.height! });
+    expect(added.row).toEqual({ left: frameCard.id, right: back.id });
     expect(added.edges).toEqual([...graph.edges, { id: `link:${frameCard.id}>${back.id}`, source: frameCard.id, target: back.id }]);
     expect(added.state).toMatchObject({ frameId: frameCard.id, backgroundId: back.id });
     const state = { ...added.state, plan };
@@ -93,7 +95,9 @@ describe('一键改写普通卡', () => {
     const next = prepareRewriteCards({ state, nodes: added.nodes, edges: added.edges, takeNumber: cardCounter(), makeId });
     const items = Object.values(next.imageIds);
     expect(next.edges.filter(e => e.target === next.videoId).map(e => e.source)).toEqual([back.id, ...items, graph.depthId]);
-    expect(next.imageColumn).toEqual({ ids: [back.id, ...items], movableIds: items, origin: { x: 760, y: 0 } });
+    const rows = [{ right: back.id }, ...items.map(right => ({ right }))];
+    expect(next.imageColumn).toEqual({ ids: [back.id, ...items], movableIds: [back.id, ...items], origin: { x: 760, y: 0 }, rows });
+    expect(prepareRewriteCards({ state, nodes: added.nodes, edges: added.edges, takeNumber: cardCounter(), makeId, backgroundRows: [added.row] }).imageColumn.rows![0]).toEqual(added.row);
     for (const id of items) {
       const card = next.nodes.find(n => n.id === id)!;
       expect(card.position.y).toBeGreaterThan(back.position.y);
@@ -103,13 +107,33 @@ describe('一键改写普通卡', () => {
     const reloaded = fromDoc(toDoc({ id: 'c', name: 'n' }, next.nodes, next.edges));
     expect(videoRewriteMaterials(reloaded.nodes, reloaded.edges, next.videoId)).toEqual(materials);
   });
-  it('不勾「背景和原片一致」：第一帧照截只当构图参考，背景卡填新场景模板、标记新场景、尺寸跟原片；素材表写新场景，存档读回不丢', () => {
+  it('11-06 截图没人：截图直接放进背景卡，不要第一帧卡、不连线、提示词留空', () => {
     const graph = start(); const frame: AssetRef = { type: 'upload', id: 'frame' };
-    const args = { state: graph.state, frame, nodes: graph.nodes, edges: graph.edges, takeNumber: cardCounter(), makeId };
-    const added = addRewriteBackground({ ...args, newScene: true });
+    const added = addRewriteBackground({ state: graph.state, frame, empty: true, nodes: graph.nodes, edges: graph.edges, takeNumber: cardCounter(), makeId });
     const back = added.nodes.find(n => n.id === added.backgroundId)!;
-    expect(back.data).toMatchObject({ kind: 'image', source: 'generate', title: '背景', prompt: REWRITE_NEW_SCENE_PROMPT, rewriteNewScene: true, gen: { sizeFrom: 1, aspect: '9:16' } });
-    expect(added.edges.at(-1)).toMatchObject({ source: added.frameId, target: back.id });
+    expect(back.data).toMatchObject({ kind: 'image', source: 'generate', title: '背景', prompt: '', results: [frame], rewriteId: graph.batchId });
+    expect(back.data).not.toHaveProperty('rewriteNewScene');
+    expect(added.frameId).toBeUndefined(); expect(added.state.frameId).toBeUndefined();
+    expect(added.nodes).toHaveLength(graph.nodes.length + 1); expect(added.edges).toEqual(graph.edges);
+    const state = { ...added.state, plan };
+    expect(rewriteMaterials(state)[0]).toEqual({ tag: '@图片1', purpose: REWRITE_BACKGROUND_PURPOSE });
+  });
+  it('11-06 截图卡标题写实际秒数：第 0 秒才叫第一帧', () => {
+    const graph = start(); const frame: AssetRef = { type: 'upload', id: 'frame' };
+    const title = (second: number) => {
+      const added = addRewriteBackground({ state: graph.state, frame, second, nodes: graph.nodes, edges: graph.edges, takeNumber: cardCounter(), makeId });
+      return added.nodes.find(n => n.id === added.frameId)!.data.title;
+    };
+    expect(title(0)).toBe('原视频第一帧'); expect(title(1.84)).toBe('原视频 1.8 秒');
+  });
+  it('11-06 不勾「背景和原片一致」：没有第一帧卡和连线，背景卡填新场景模板、标记新场景、尺寸跟原片；素材表写新场景，存档读回不丢', () => {
+    const graph = start(); const frame: AssetRef = { type: 'upload', id: 'frame' };
+    const args = { state: graph.state, nodes: graph.nodes, edges: graph.edges, takeNumber: cardCounter(), makeId };
+    const added = addRewriteBackground({ ...args, frame: null });
+    const back = added.nodes.find(n => n.id === added.backgroundId)!;
+    expect(back.data).toMatchObject({ kind: 'image', source: 'generate', title: '背景', prompt: REWRITE_NEW_SCENE_PROMPT, rewriteNewScene: true, results: [], gen: { sizeFrom: 1, aspect: '9:16' } });
+    expect(added.frameId).toBeUndefined(); expect(added.edges).toEqual(graph.edges); expect(added.nodes).toHaveLength(graph.nodes.length + 1);
+    expect(REWRITE_NEW_SCENE_PROMPT).not.toContain('这张图');
     const state = { ...added.state, plan };
     expect(state.newScene).toBe(true);
     expect(rewriteMaterials(state)[0]).toEqual({ tag: '@图片1', purpose: REWRITE_NEW_SCENE_PURPOSE });
@@ -119,17 +143,17 @@ describe('一键改写普通卡', () => {
     const reloaded = fromDoc(toDoc({ id: 'c', name: 'n' }, next.nodes, next.edges));
     expect(reloaded.nodes.find(n => n.id === back.id)!.data).toMatchObject({ rewriteNewScene: true, prompt: REWRITE_NEW_SCENE_PROMPT });
     expect(videoRewriteMaterials(reloaded.nodes, reloaded.edges, next.videoId)).toEqual(rewriteMaterials(state));
-    const kept = addRewriteBackground(args), keptBack = kept.nodes.find(n => n.id === kept.backgroundId)!;
+    const kept = addRewriteBackground({ ...args, frame }), keptBack = kept.nodes.find(n => n.id === kept.backgroundId)!;
     expect(keptBack.data).toMatchObject({ prompt: REWRITE_BACKGROUND_PROMPT, gen: { sizeFrom: 1, aspect: '9:16' } });
     expect(keptBack.data).not.toHaveProperty('rewriteNewScene'); expect(kept.state.newScene).toBeUndefined();
   });
-  it('来源删除后仍能从快照铺卡；超八个参考先拒绝不铺卡', () => {
+  it('来源删除后仍能从快照铺卡；超过 2.5 的图片上限先拒绝不铺卡', () => {
     const graph = start(); const state = { ...graph.state, plan };
     const remaining = graph.nodes.filter(n => n.id !== source.id);
     const next = prepareRewriteCards({ state, nodes: remaining, edges: [], takeNumber: cardCounter(), makeId });
     expect(next.nodes.find(n => n.id === next.videoId)?.data).toMatchObject({ rewriteSource: asset });
-    const many = { ...plan, items: Array.from({ length: 8 }, (_, i) => ({ ...plan.items[2], id: `p${i}` })), replace: Array.from({ length: 8 }, (_, i) => `p${i}`) };
-    expect(() => prepareRewriteCards({ state: { ...state, plan: many }, nodes: graph.nodes, edges: [], takeNumber: cardCounter(), makeId })).toThrow('图和视频加起来最多 8 个参考');
+    const many = { ...plan, items: Array.from({ length: 31 }, (_, i) => ({ ...plan.items[2], id: `p${i}` })), replace: Array.from({ length: 31 }, (_, i) => `p${i}`) };
+    expect(() => prepareRewriteCards({ state: { ...state, plan: many }, nodes: graph.nodes, edges: [], takeNumber: cardCounter(), makeId })).toThrow('参考图最多 30 张');
   });
   it('衣服标题最多一位小数，单项描述和证据保持原值', () => {
     const graph = start(); const item = { ...plan.items[0], from: 3.58804, to: 4.983389 };
@@ -178,7 +202,7 @@ describe('存档和中断恢复', () => {
     expect(doc.nodes[0].data).not.toHaveProperty('rewriteBusy');
     expect(doc.nodes[0].data).toMatchObject({ rewriteStatus: { status: 'pending' } });
     expect(fromDoc(doc).nodes[0].data).toMatchObject({ rewriteStatus: { status: 'interrupted' } });
-    const failed = { ...source.data, rewriteStatus: { status: 'failed', error: '第二轮断线', yuan: 0.05, costUnknown: true } };
+    const failed = { ...source.data, rewriteStatus: { status: 'failed', error: '第二轮断线' } };
     expect(readCard(failed)).toMatchObject({ rewriteStatus: failed.rewriteStatus });
     expect(readCard(source.data)).not.toHaveProperty('rewriteStatus');
   });

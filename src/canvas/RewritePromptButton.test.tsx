@@ -10,12 +10,10 @@ it('10-30 起提示词由代码拼：按钮写明免费、不读估价；缺图�
   expect(ready).toContain('生成提示词（免费）'); expect(ready).not.toContain('disabled=""'); expect(ready).not.toContain('¥');
 });
 
-it('连了要换的人物图：按钮写看图估价、看图中写「正在看图…」；估价没读到时不能点', () => {
-  const paid = renderToStaticMarkup(<RewritePromptButtonView reason={null} loading={false} paid estimate={0.03} onRun={vi.fn()} />);
-  expect(paid).toContain('生成提示词 约 ¥0.03'); expect(paid).not.toContain('disabled=""'); expect(paid).not.toContain('免费');
-  const reading = renderToStaticMarkup(<RewritePromptButtonView reason={null} loading={false} paid estimate={null} onRun={vi.fn()} />);
-  expect(reading).toContain('生成提示词 估价读取中…'); expect(reading).toContain('disabled=""');
-  const looking = renderToStaticMarkup(<RewritePromptButtonView reason="正在生成提示词，请稍等。" loading paid estimate={0.03} onRun={vi.fn()} />);
+it('连了要换的人物图：11-15 起看图也走本机 agent，按钮照样写免费、不用等估价；看图中写「正在看图…」', () => {
+  const paid = renderToStaticMarkup(<RewritePromptButtonView reason={null} loading={false} paid onRun={vi.fn()} />);
+  expect(paid).toContain('>生成提示词（免费）<'); expect(paid).not.toContain('¥'); expect(paid).not.toContain('disabled=""');
+  const looking = renderToStaticMarkup(<RewritePromptButtonView reason="正在生成提示词，请稍等。" loading paid onRun={vi.fn()} />);
   expect(looking).toContain('正在看图…'); expect(looking).toContain('disabled=""');
 });
 

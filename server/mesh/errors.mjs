@@ -26,5 +26,5 @@ export function meshError(error) {
   else if (/清理失败/.test(raw)) reason = '白模临时文件清理失败，请检查可用磁盘空间，详情见小服务日志。';
   else if (/ENOENT|ffmpeg/i.test(raw)) reason = '本机视频处理失败，请检查 ffmpeg 和来源视频，详情见小服务日志。';
   else reason = '白模处理失败，请检查 ComfyUI 的节点、模型和运行状态，详情见小服务日志。';
-  return `本地处理失败，没有自动重跑，花费 0。\n${reason}`;
+  return `本地处理失败，没有自动重跑。\n${reason}`;
 }

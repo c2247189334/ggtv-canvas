@@ -1,4 +1,3 @@
-import { formatSpent } from "./pricing";
 import type { RewriteResult } from "@/types";
 
 export type RewriteRefs = { images: number; videos: number; audios: number };
@@ -52,7 +51,7 @@ export function createRewriteAction(options: RewriteOptions) {
       }
       options.apply(result.text);
       const deadline = now() + 10000;
-      options.notify(`已改写，花费 ${formatSpent(result.yuan)}`, { label: "撤销", run: () => {
+      options.notify("已改写", { label: "撤销", run: () => {
         if (now() < deadline && options.getPrompt() === result.text) options.apply(input.prompt);
       } }, 10000);
     } catch (error) {

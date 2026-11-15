@@ -1,4 +1,4 @@
-// 收拾硬盘：传的图片和视频不进作品库；按画布、未完成单子的引用保留素材。
+// 收拾硬盘：「我上传的」清单里的一律留着（用户自己删）；截图、片段、改写对照图等按画布、人物、未完成单子的引用保留。
 // 小服务每次启动时跑一次（这时页面还没连上，不会删掉刚传、还没来得及存进画布的图）。
 import { isId } from './store/files.mjs';
 import { existsSync, lstatSync, readdirSync, realpathSync, rmSync } from 'node:fs';
@@ -37,14 +37,18 @@ export function uploadIdsIn(value, found = new Set()) {
 }
 
 /**
- * 真删掉没人用的上传素材：哪张画布都没用、也没有排队中 / 生成中的单子要用。
- * 有画布存档读不出来时一张都不删（skipped: true），宁可留着。
+ * 真删掉没人用的上传素材：不在「我上传的」清单、哪张画布都没用、也没有排队中 / 生成中的单子要用。
+ * 有画布存档或清单读不出来时一张都不删（skipped: true），宁可留着。
  */
-export function pruneUploads({ canvases, uploads, jobs, works }) {
+export function pruneUploads({ canvases, uploads, uploadRecords, jobs, works, characters }) {
   uploads.pruneParts();
   const docs = canvases.docs();
-  if (docs === null) return { removed: 0, skipped: true };
+  const people = characters?.docs() ?? (characters ? null : []);
+  const kept = uploadRecords?.ids() ?? (uploadRecords ? null : []);
+  if (docs === null || people === null || kept === null) return { removed: 0, skipped: true };
   const used = uploadIdsIn(docs);
+  for (const id of kept) used.add(id);
+  uploadIdsIn(people, used);
   for (const job of jobs.list()) {
     if (job.status === 'queued' || job.status === 'running') {
       uploadIdsIn(job.refs, used); uploadIdsIn(job.source, used);

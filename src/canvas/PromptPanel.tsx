@@ -7,26 +7,34 @@ import { api } from "@/api";
 import { FloatingPanel } from "./FloatingPanel";
 import { MentionMenu } from "./MentionMenu";
 import { usePromptRewrite } from "./usePromptRewrite";
-import { assetUrl, cardTitle, currentResult } from "@/domain/cards";
+import { assetUrl, cardTitle } from "@/domain/cards";
 import { appendToken, refToken } from "@/domain/prompt";
 import { refSources } from "@/domain/refs";
 import { insertMention, mentionTrigger, numberMediaRefs, type RefMedia } from "@/domain/mention";
 import { durationLabel, videoProblems } from "@/domain/videoPanel";
 import { shortcutAction } from "@/domain/shortcuts";
+import { sendGuard, sendRepeatBlocked } from "@/domain/sendGuard";
 import { toVideoPrompt } from "@/domain/videoPrompt";
 import { rewriteVideoHints } from "@/domain/videoRewrite";
 import { useRewritePromptCheck } from "./useRewritePromptCheck";
 import { RewriteImageUpload } from "./RewriteImageUpload";
-import { RewritePromptButton } from './RewritePromptButton';
-import { rewriteOutputProblem } from '@/domain/rewriteProgress';
+import { RewritePromptButtonView, useRewritePrompt } from './RewritePromptButton';
+import { rewriteOutputProblem, rewriteWaiting } from '@/domain/rewriteProgress';
 import type { AssetRef, CardData, CardNode, Health, ImageCardData, VideoCardData } from "@/types";
+import { productReference } from '@/domain/productPrompt';
+import { usePanelFit } from './usePanelFit';
+import { mergeTagIssues } from '@/domain/panelNotes';
+import { HelpTip } from '@/common/HelpTip';
+import { sceneTextStaleNotes, usesSceneText } from '@/domain/rewriteTextScene';
+import { SceneReads, SceneTextPanel, SceneTextToggle } from './SceneTextPanel';
 
 /**
  * 选中生成卡时，卡片正下方浮出的提示词面板：
- * 一排小按钮（＋参考）→ 连进来的参考图缩略图（左上角编号，点一下把 @图片N 写进提示词，× 断开）
- * → 提示词框 → 底行选项和发送。
+ * 一排小按钮（＋参考；普通卡加「帮我改写」；改写视频卡只加「生成提示词」，11-08 起它连看图定稿一起做）→ 连进来的参考图缩略图（左上角编号，点一下把 @图片N 写进提示词，× 断开）
+ * → 提示词框 → 出错（同一句只写一次）→ 底行选项和发送；灰字提醒收进小按钮那排末尾的「N 条提醒 ?」，鼠标移上去才看。
  */
 export function PromptPanel({ id, data }: { id: string; data: CardData }) {
+  if (data.kind === "image" && usesSceneText(data)) return <SceneTextPanel key={id} id={id} data={data} />;
   return data.kind === "audio" ? null : <GenerationPromptPanel key={id} id={id} data={data} />;
 }
 
@@ -38,8 +46,9 @@ function GenerationPromptPanel({ id, data }: { id: string; data: ImageCardData |
   const [error, setError] = useState<string | null>(null);
   const [mentionAt, setMentionAt] = useState<number | null>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  usePanelFit(panel);
   const beforeInput = useRef<{ start: number; end: number } | undefined>(undefined);
-  const sendingLock = useRef(false);
   const [health, setHealth] = useState<Health | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
 
@@ -61,7 +70,7 @@ function GenerationPromptPanel({ id, data }: { id: string; data: ImageCardData |
 
   const refs = refSources(edges, id).map((sourceId, index) => {
     const node = nodes.find((n) => n.id === sourceId);
-    const ref = node ? currentResult(node.data) : null;
+    const ref = node ? productReference(node, data) : null;
     const media: RefMedia = ref?.media === "audio" || node?.data.kind === "audio" ? "audio" :
       ref?.media === "video" || node?.data.kind === "video" ? "video" : "image";
     return { sourceId, number: index + 1, url: ref ? assetUrl(ref) : null, title: node ? cardTitle(node.data) : "", media, seconds: ref?.seconds,
@@ -74,7 +83,11 @@ function GenerationPromptPanel({ id, data }: { id: string; data: ImageCardData |
   const hasVideo = refs.some(ref => ref.media === "video");
   const problems = data.kind === "video" ? videoProblems(data.video, assets, health) : [];
   const outputProblem = data.kind === 'video' ? rewriteOutputProblem(data) : null;
+  const waiting = data.kind === 'video' && rewriteWaiting(data);
   if (outputProblem) problems.push(outputProblem);
+  const lookPrompt = useRewritePrompt(id, data, nodes, edges, board);
+  // 写词按钮灰着的原因：和上面拆解状态是同一句就不再写一遍。
+  const lookReason = lookPrompt && !lookPrompt.view.loading && lookPrompt.view.reason !== outputProblem ? lookPrompt.view.reason : null;
   const ruleIssues = useRewritePromptCheck(id, data, nodes, edges);
   const hints = data.kind === "video" ? rewriteVideoHints(data, nodes, edges, id) : [];
   // 改写的提示词十几行，面板加宽、写好词后输入框加高（用户 10-30）。
@@ -88,18 +101,27 @@ function GenerationPromptPanel({ id, data }: { id: string; data: ImageCardData |
     if (healthError) problems.push(healthError);
     else if (!health) problems.push("正在检查参考视频的存储设置…");
   }
+  // 11-13：背景卡的字在生成提示词之后改过 / 切换过，红字提醒再生成一次，不拦发送。
+  const issues = mergeTagIssues([...ruleIssues, ...hints, ...(data.kind === "video" ? sceneTextStaleNotes(nodes, data) : [])]);
+  const warnings = data.kind === 'video' ? mergeTagIssues(data.rewriteWarnings ?? []) : [];
+  // 11-08 用户定：灰字的说明 / 提醒（写词按钮为什么灰、拆解提醒、等待中）收进「N 条提醒 ?」，鼠标移上去才看；红字出错照旧露在面板里。
+  const waitingNote = waiting && outputProblem && problems.includes(outputProblem) ? outputProblem : null;
+  const tips = [...(lookReason ? [lookReason] : []), ...(waitingNote ? [waitingNote] : []), ...warnings];
+  const errors = [error, rewrite.error, lookPrompt?.error, ...problems.filter(problem => problem !== waitingNote), ...issues]
+    .filter((text): text is string => Boolean(text));
 
   const send = async () => {
-    if (sendingLock.current || problems.length || ruleIssues.length) return;
-    sendingLock.current = true;
+    if (problems.length || ruleIssues.length || !sendGuard.begin(id)) return;
     setSending(true);
     setError(null);
+    let sent = false;
     try {
       await board.send(id);
+      sent = true;
     } catch (err) {
       setError((err as Error).message);
     } finally {
-      sendingLock.current = false;
+      sendGuard.end(id, sent);
       setSending(false);
     }
   };
@@ -117,15 +139,20 @@ function GenerationPromptPanel({ id, data }: { id: string; data: ImageCardData |
   };
 
   return (
-    <div className={`panel${rewriteCard ? " panel--rewrite" : ""} nodrag nowheel nopan`}>
+    <div ref={panel} className={`panel${rewriteCard ? " panel--rewrite" : data.kind === "video" ? " panel--video" : ""} nodrag nowheel nopan`}
+      data-focus-ready={data.kind !== 'video' || health !== null || healthError !== null}>
       <div className="panel__tools">
-        {data.kind === "image" ? <RewriteImageUpload id={id} data={data} /> : null}
+        {data.kind === "image" ? <><RewriteImageUpload id={id} data={data} /><SceneTextToggle id={id} data={data} /></> : null}
         <button type="button" title="在当前画布中添加参考" onClick={() => board.startRefPick(id)}>＋参考</button>
-        <button type="button" title="约 ¥0.02 / 次" disabled={!data.prompt.trim() || rewrite.loading} onClick={() => void rewrite.run()}>
+        {/* 11-08 用户定：改写视频卡的提示词只走「生成提示词」一步（拼底稿 + 看图定稿），不再放「帮我改写」。 */}
+        {!rewriteCard ? <button type="button" disabled={!data.prompt.trim() || rewrite.loading} onClick={() => void rewrite.run()}>
           {rewrite.loading ? "改写中…" : "帮我改写"}
-        </button>
+        </button> : null}
+        {lookPrompt ? <RewritePromptButtonView {...lookPrompt.view} /> : null}
+        {tips.length ? <HelpTip label={`${tips.length} 条提醒`} name="提醒">
+          {tips.map((tip, index) => <span className="help-tip__line" key={index}>{tip}</span>)}
+        </HelpTip> : null}
       </div>
-      {data.kind === 'video' && data.rewriteId ? <RewritePromptButton id={id} data={data} nodes={nodes} edges={edges} board={board} /> : null}
       {refs.length ? (
         <div className="panel__refs">
           {numberedRefs.map((ref) => {
@@ -168,7 +195,7 @@ function GenerationPromptPanel({ id, data }: { id: string; data: ImageCardData |
           if (shortcutAction({ ...event, isComposing: event.nativeEvent.isComposing }, { editable: true, prompt: true }) === "send") {
             event.preventDefault();
             event.stopPropagation();
-            if (!sending) void send();
+            if (!sending && !sendRepeatBlocked(event)) void send();
           }
         }}
       />
@@ -177,11 +204,11 @@ function GenerationPromptPanel({ id, data }: { id: string; data: ImageCardData |
           <MentionMenu refs={numberedRefs} grouped={data.kind === "video"} onSelect={selectMention} />
         </FloatingPanel>
       ) : null}
-      {error ? <div className="panel__error">{error}</div> : null}
-      {rewrite.error ? <div className="panel__error">{rewrite.error}</div> : null}
-      {data.kind === 'video' ? data.rewriteWarnings?.map((warning, index) => <div className="panel__hint" role="note" key={`warning-${index}`}>{warning}</div>) : null}
-      {problems.map(problem => <div className="panel__error" key={problem}>{problem}</div>)}
-      {[...ruleIssues, ...hints].map((issue, index) => <div className="panel__error" key={`rewrite-${index}`}>{issue}</div>)}
+      {data.kind === "video" ? <SceneReads reads={data.rewriteSceneReads} /> : null}
+      {/* 11-08 用户定：出错收进一个区，太多就在区里滚动，只差素材编号的同一句合成一句，发送那一行不被挤出屏。 */}
+      {errors.length ? <div className="panel__notes">
+        {errors.map((text, index) => <div className="panel__error" key={index}>{text}</div>)}
+      </div> : null}
       {data.kind === "video" ? <VideoOptions video={data.video} refs={assets} sending={sending} disabled={problems.length > 0 || ruleIssues.length > 0}
         onChange={video => board.updateCard(id, { video })} onSend={() => void send()} /> :
         <GenOptions gen={data.gen} refCount={refs.length} sending={sending} onChange={(gen) => board.updateCard(id, { gen })} onSend={() => void send()} />}

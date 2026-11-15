@@ -23,7 +23,7 @@ test('一次问完：列出编号、关思考、附同样多张图；回话转�
   };
   const looks = await lookPeople({ materials: [person], images: [image] }, { ask });
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].round, 'look'); assert.equal(calls[0].think, false); assert.deepEqual(calls[0].images, [image]);
+  assert.equal(calls[0].round, 'look'); assert.deepEqual(calls[0].images, [image]);
   assert.deepEqual(calls[0].context, { tags: ['@图片2'] });
   for (const word of ['@图片2', 'views', 'plainClothes', 'clothes', 'hair', '纯色打底']) assert.ok(calls[0].text.includes(word), word);
   assert.deepEqual(looks, { '@图片2': { views: 3, plainClothes: false, clothes: '橙色长袖工作服和橙色长裤', hair: '灰白色短发' } });

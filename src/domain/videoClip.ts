@@ -5,6 +5,8 @@ import { rightOf } from './placement';
 import { linkId } from './refs';
 
 export type ClipRange = { start: number; end: number };
+/** 改选区后播放器跳到哪：开头、选区最后一帧，或不动。 */
+export type ClipJump = 'start' | 'end' | null;
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const precise = (value: number) => Math.round(value * 1e8) / 1e8;
 
@@ -43,6 +45,11 @@ export function clipTicks(duration: number, preciseMode: boolean): number[] {
 
 export function clipPlaybackTime(time: number, range: ClipRange, loop: boolean): number {
   return loop && time >= range.end ? range.start : time;
+}
+
+/** 拖右把手时预览停在出点前1毫秒：显示选区里的最后一帧，而不是选区后面那一帧。 */
+export function clipEndFrameTime(range: ClipRange): number {
+  return precise(range.end - 0.001);
 }
 
 /** 截出的媒体按上传卡保存；来源线和新卡由调用方在同一批更新中加入。 */

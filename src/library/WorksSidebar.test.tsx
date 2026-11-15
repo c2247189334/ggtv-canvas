@@ -12,10 +12,12 @@ it("作品库有声音筛选并提示图片视频声音都能拖入画布", () =
   expect(html).toContain("把图片、视频或声音拖进画布就能接着用。");
 });
 
-it("作品库筛选按 图片 / 视频 / 声音 / 全部 排，默认选中图片", () => {
+it("作品库筛选按 人物 / 图片 / 视频 / 声音 / 全部 / 我上传的 排，默认人物并可创建", () => {
   const html = renderToStaticMarkup(<WorksSidebar canvasId="c" onClose={() => {}} openViewer={() => {}} notify={() => {}} />);
   const buttons = [...html.matchAll(/<button type="button" class="(is-on)?">([^<]+)<\/button>/g)].map(([, on, label]) => on ? `[${label}]` : label);
-  expect(buttons).toEqual(["[图片]", "视频", "声音", "全部"]);
+  expect(buttons).toEqual(["[人物]", "图片", "视频", "声音", "全部", "我上传的"]);
+  expect(html).toContain("创建新人物");
+  expect(html).not.toContain("只看这张画布的");
 });
 
 it("作品库空时说图视频和声音都会进来", () => {

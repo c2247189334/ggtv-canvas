@@ -27,7 +27,7 @@ test('上传和作品图按素材顺序读真实文件，真ffmpeg缩至长边10
   assert.deepEqual(readFileSync(uploads.path(upload.id)), png, '不改原图');
 });
 
-test('缺失、视频冒充图片、缩图失败和过多图片均在模型请求前给出没花钱的人话', async () => {
+test('缺失、视频冒充图片、缩图失败均在模型请求前给出没发出去的人话', async () => {
   const uploads = createUploadStore(tempDir()), works = createWorkStore(tempDir());
   const video = uploads.save(readFileSync(new URL('../fixtures/audio-video.mp4', import.meta.url)));
   const image = uploads.save(solidPng(10, 10, [100, 120, 140])); let calls = 0;
@@ -35,11 +35,9 @@ test('缺失、视频冒充图片、缩图失败和过多图片均在模型请�
   const material = asset => ({ tag: '@图片1', asset });
   for (const asset of [undefined, { type: 'upload', id: '00000000-0000-0000-0000-000000000000' },
     { type: 'work', id: image.id }, { type: 'upload', id: video.id }]) {
-    await assert.rejects(images.prepare([material(asset)]), /@图片1.*没花钱/);
+    await assert.rejects(images.prepare([material(asset)]), /@图片1.*没发出去/);
   }
   assert.equal(calls, 0);
-  await assert.rejects(images.prepare(Array.from({ length: 13 }, (_, i) => ({ tag: `@图片${i + 1}`, asset: { type: 'upload', id: image.id } }))), /最多12.*没花钱/);
-  assert.equal(calls, 0);
-  await assert.rejects(images.prepare([material({ type: 'upload', id: image.id })]), /@图片1.*缩图.*没花钱/);
+  await assert.rejects(images.prepare([material({ type: 'upload', id: image.id })]), /@图片1.*缩图.*没发出去/);
   assert.equal(calls, 1);
 });

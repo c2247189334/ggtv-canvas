@@ -3,12 +3,10 @@ export type VideoMode = 'reference' | 'first_frame';
 export type VideoResolution = '480p' | '720p' | '1080p';
 export type VideoRatio = '16:9' | '4:3' | '1:1' | '3:4' | '9:16' | '21:9' | 'adaptive';
 export type VideoSettings = { model: VideoModelId; mode: VideoMode; ratio: VideoRatio; resolution: VideoResolution; duration: number; audio: boolean };
-export type VideoEstimateInput = { model: string; resolution: string; ratio: string; duration: number; refVideoSeconds?: number };
-export type VideoEstimate = { yuan: number; tokens: number; withVideo: boolean; note: string };
-export type VideoModel = { id: VideoModelId; name: string; resolutions: string[]; prices: Record<string, number[]>; pixels: Record<string, number[][]>; minDuration: number; maxDuration: number; maxImages: number; maxVideos: number; minVideoSeconds: number; maxVideoSeconds: number; maxVideoTotal: number; minAudioSeconds: number; maxAudioSeconds: number; maxAudios: number; maxAudioTotal: number; allowAudioOnly: boolean };
+export type VideoModel = { id: VideoModelId; name: string; resolutions: string[]; pixels: Record<string, number[][]>; minDuration: number; maxDuration: number; maxImages: number; maxVideos: number; minVideoSeconds: number; maxVideoSeconds: number; maxVideoTotal: number; minAudioSeconds: number; maxAudioSeconds: number; maxAudios: number; maxAudioTotal: number; allowAudioOnly: boolean; maxRefs: number };
 export type VideoRefInput = { model: string; mode: string; images: number; videos: number[]; audios?: number[] };
 
-// 视频目录、价格和限制与 server/videoModels.mjs 保持一致。
+// 视频目录和限制与 server/videoModels.mjs 保持一致。
 export const VIDEO_RATIOS = ['16:9', '4:3', '1:1', '3:4', '9:16', '21:9', 'adaptive'];
 const pixels: Record<string, number[][]> = {
   '480p': [[864, 496], [752, 560], [640, 640], [560, 752], [496, 864], [992, 432]],
@@ -17,33 +15,18 @@ const pixels: Record<string, number[][]> = {
 };
 const pixels25 = { ...pixels, '480p': [[854, 480], [752, 560], [640, 640], [560, 752], [480, 854], [992, 432]] };
 const limits = { minDuration: 4, maxDuration: 15, maxImages: 9, maxVideos: 3, minVideoSeconds: 2, maxVideoSeconds: 15, maxVideoTotal: 15,
-  minAudioSeconds: 2, maxAudioSeconds: 15, maxAudios: 3, maxAudioTotal: 15, allowAudioOnly: false };
+  minAudioSeconds: 2, maxAudioSeconds: 15, maxAudios: 3, maxAudioTotal: 15, allowAudioOnly: false, maxRefs: 8 };
 export const VIDEO_MODELS: VideoModel[] = [
-  { id: 'doubao-seedance-2-0-mini-260615', name: 'Seedance 2.0 Mini', resolutions: ['480p', '720p'], prices: { '480p': [23, 14], '720p': [23, 14] }, pixels, ...limits },
-  { id: 'doubao-seedance-2-0-fast-260128', name: 'Seedance 2.0 Fast', resolutions: ['480p', '720p'], prices: { '480p': [37, 22], '720p': [37, 22] }, pixels, ...limits },
-  { id: 'doubao-seedance-2-0-260128', name: 'Seedance 2.0', resolutions: ['480p', '720p', '1080p'], prices: { '480p': [46, 28], '720p': [46, 28], '1080p': [51, 31] }, pixels, ...limits },
-  { id: 'doubao-seedance-2-5-260628', name: 'Seedance 2.5', resolutions: ['480p', '720p', '1080p'], prices: { '480p': [70, 42], '720p': [70, 42], '1080p': [77, 46] }, pixels: pixels25, ...limits,
-    maxDuration: 30, maxImages: 30, maxVideos: 10, maxVideoSeconds: 30, maxVideoTotal: 30, maxAudioSeconds: 30, maxAudios: 10, maxAudioTotal: 30, allowAudioOnly: true }
+  { id: 'doubao-seedance-2-0-mini-260615', name: 'Seedance 2.0 Mini', resolutions: ['480p', '720p'], pixels, ...limits },
+  { id: 'doubao-seedance-2-0-fast-260128', name: 'Seedance 2.0 Fast', resolutions: ['480p', '720p'], pixels, ...limits },
+  { id: 'doubao-seedance-2-0-260128', name: 'Seedance 2.0', resolutions: ['480p', '720p', '1080p'], pixels, ...limits },
+  { id: 'doubao-seedance-2-5-260628', name: 'Seedance 2.5', resolutions: ['480p', '720p', '1080p'], pixels: pixels25, ...limits,
+    maxDuration: 30, maxImages: 30, maxVideos: 10, maxVideoSeconds: 30, maxVideoTotal: 30, maxAudioSeconds: 30, maxAudios: 10, maxAudioTotal: 30, allowAudioOnly: true, maxRefs: 40 }
 ];
 export const DEFAULT_VIDEO_SETTINGS: VideoSettings = { model: 'doubao-seedance-2-0-mini-260615', mode: 'reference', ratio: '16:9', resolution: '480p', duration: 5, audio: true };
 
 export function videoModelOf(id: string) {
   return VIDEO_MODELS.find((model) => model.id === id);
-}
-export function videoPrice(model: string, resolution: string, withVideo = false) {
-  const price = videoModelOf(model)?.prices[resolution];
-  if (!price) throw new Error('视频模型或清晰度不支持。');
-  return price[withVideo ? 1 : 0];
-}
-export function estimateVideo({ model, resolution, ratio, duration, refVideoSeconds = 0 }: VideoEstimateInput): VideoEstimate {
-  const info = videoModelOf(model);
-  if (!info || !info.resolutions.includes(resolution) || !VIDEO_RATIOS.includes(ratio)) throw new Error('视频模型、清晰度或比例不支持。');
-  if (!Number.isInteger(duration) || duration < info.minDuration || duration > info.maxDuration || !Number.isFinite(refVideoSeconds) || refVideoSeconds < 0) throw new Error('视频秒数不合规。');
-  const sizes = info.pixels[resolution];
-  const area = ratio === 'adaptive' ? Math.max(...sizes.map(([w, h]) => w * h)) : sizes[VIDEO_RATIOS.indexOf(ratio)].reduce((a, b) => a * b);
-  const tokens = (duration + refVideoSeconds) * area * 24 / 1024;
-  const withVideo = refVideoSeconds > 0;
-  return { yuan: tokens * videoPrice(model, resolution, withVideo) / 1e6, tokens, withVideo, note: withVideo ? '带参考视频时火山还有最低 token 用量，估出来可能偏低；实收以火山查询结果为准。' : '按官方公式估算，实收以火山查询结果为准。' };
 }
 export function normalizeVideoSettings(settings: { model?: string; mode?: string; ratio?: string; resolution?: string; duration?: number; audio?: boolean }): VideoSettings {
   const model = videoModelOf(settings.model ?? '') ?? VIDEO_MODELS[0];
@@ -62,7 +45,7 @@ export function checkVideoRefs({ model, mode, images, videos, audios = [] }: Vid
   if (mode === 'first_frame' && images !== 1) problems.push('首帧模式要正好 1 张参考图。');
   if (mode === 'first_frame' && videos.length) problems.push('首帧模式不能带视频。');
   if (mode === 'first_frame' && audios.length) problems.push('首帧模式不能带音频。');
-  if (images + videos.length > 8) problems.push('图和视频加起来最多 8 个参考。');
+  if (images + videos.length > info.maxRefs) problems.push('图和视频加起来最多 ' + info.maxRefs + ' 个参考。');
   if (images > info.maxImages) problems.push('参考图最多 ' + info.maxImages + ' 张。');
   if (videos.length > info.maxVideos) problems.push('参考视频最多 ' + info.maxVideos + ' 段。');
   if (videos.some((seconds) => !Number.isFinite(seconds) || seconds < info.minVideoSeconds || seconds > info.maxVideoSeconds)) problems.push('每段参考视频要在 ' + info.minVideoSeconds + ' 到 ' + info.maxVideoSeconds + ' 秒之间。');

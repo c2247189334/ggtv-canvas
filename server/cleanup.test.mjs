@@ -124,3 +124,17 @@ test('启动清理崩溃遗留part，即使画布读坏也清临时文件、保�
     assert.ok(s.uploads.path(saved.id));
   }
 });
+
+test('「我上传的」清单里的素材没画布用也留着；截图照旧清；清单读坏了一张不删', async () => {
+  const { createUploadRecords } = await import('./store/uploadRecords.mjs');
+  const s = setup(), uploadRecords = createUploadRecords(s.root);
+  const kept = s.uploads.save(solidPng(2, 2, [1, 1, 1])), shot = s.uploads.save(solidPng(2, 2, [2, 2, 2]));
+  uploadRecords.add(kept.id, { name: '留着.png', sha256: 'a', kind: 'image', bytes: 1 });
+  assert.deepEqual(pruneUploads({ ...s, uploadRecords }), { removed: 1, skipped: false });
+  assert.ok(s.uploads.path(kept.id));
+  assert.equal(s.uploads.path(shot.id), null);
+  const another = s.uploads.save(solidPng(2, 2, [3, 3, 3]));
+  writeFileSync(join(s.root, '上传记录.json'), '{坏');
+  assert.deepEqual(pruneUploads({ ...s, uploadRecords }), { removed: 0, skipped: true });
+  assert.ok(s.uploads.path(another.id));
+});

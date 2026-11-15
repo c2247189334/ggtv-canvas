@@ -79,12 +79,23 @@ test('等超时抛 EDIT_TIMEOUT', async () => {
   await assert.rejects(generateOne(request, { env, fetch: doFetch }), /EDIT_TIMEOUT/);
 });
 
-test('连不上抛 EDIT_UNREACHABLE，黑窗口里的话把 Key 打码', async () => {
+// 11-11 体检：net.mjs 给「请求没发完就断」的错标 notSent；只有带这个标记的才算没发出去。
+test('请求没发出去（网络层标了 notSent）抛 EDIT_UNREACHABLE，黑窗口里的话把 Key 打码', async () => {
   const logs = [];
   const doFetch = fakeFetch(() => {
-    throw new Error('connect failed test-key-123');
+    throw Object.assign(new Error('connect failed test-key-123'), { notSent: true });
   });
   await assert.rejects(generateOne(request, { env, fetch: doFetch, log: (m) => logs.push(m) }), /EDIT_UNREACHABLE/);
+  assert.equal(logs.length, 1);
+  assert.doesNotMatch(logs[0], /test-key-123/);
+});
+
+test('请求发出去之后才断（没标 notSent）抛 EDIT_INTERRUPTED，不能说成没发出去；Key 照样打码', async () => {
+  const logs = [];
+  const doFetch = fakeFetch(() => {
+    throw new Error('RESPONSE_INTERRUPTED test-key-123');
+  });
+  await assert.rejects(generateOne(request, { env, fetch: doFetch, log: (m) => logs.push(m) }), /EDIT_INTERRUPTED/);
   assert.equal(logs.length, 1);
   assert.doesNotMatch(logs[0], /test-key-123/);
 });

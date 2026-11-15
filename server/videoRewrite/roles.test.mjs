@@ -100,7 +100,8 @@ test('真素材顺序：代码在时间轴前拼每份职责，采用和不采�
   }
   assert.equal((prefix.match(/不采用图中的人台、模特和背景/g) ?? []).length, 4);
   assert.match(prefix, /不采用图中人物/);
-  assert.match(prefix, /@视频1只采用人物的动作、姿态、位置、机位，以及画面里东西的位置、动静和出现时机，不采用其中的灰度画面、发型和衣服轮廓/);
+  // 11-10 用户定统一按官方 2.5：先写编号和用途，再用官方示例「严格参考…顺序与视频保持一致」。
+  assert.match(prefix, /@视频1是动作参考：严格参考其中人物的动作、姿态、位置和机位，顺序和节奏与视频保持一致，并采用画面里东西的位置、动静和出现时机；不采用其中的灰度画面、发型和衣服轮廓/);
   assert.match(prefix, /@视频1里的人就是@图片2/);
   assert.match(prefix, /@音频1是背景音乐，动作和换装节奏跟随它/);
   for (const item of items) assert.ok(!prefix.includes(item.desc));

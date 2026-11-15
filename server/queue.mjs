@@ -30,15 +30,16 @@ export function nextToStart(jobs, runningIds, limit) {
 
 /** 错误码翻成人话。每句都说清楚「花没花钱」。 */
 export function humanError(code) {
-  if (code === 'ARK_KEY_MISSING') return '.env.local 里没填 ARK_API_KEY，这单没发出去，没花钱。';
-  if (code === 'EDIT_TIMEOUT') return '等了 5 分钟火山没回音。可能已经出图并扣费（只是没传回来），没有自动重发。';
-  if (code === 'EDIT_UNREACHABLE') return '这台电脑连不上火山，检查一下网络。这单多半没发出去。';
-  if (code === 'REF_MISSING') return '有一张参考图找不到了（可能被删了），这单没发出去，没花钱。';
-  if (code === 'SERVER_RESTARTED') return '生成时小服务被关了，结果不明（可能已出图并扣费），没有自动重发。';
+  if (code === 'ARK_KEY_MISSING') return '.env.local 里没填 ARK_API_KEY，这单没发出去。';
+  if (code === 'EDIT_TIMEOUT') return '等了 5 分钟火山没回音。可能已经出图（只是没传回来），没有自动重发。';
+  if (code === 'EDIT_UNREACHABLE') return '这台电脑连不上火山，检查一下网络。这单没发出去。';
+  if (code === 'EDIT_INTERRUPTED') return '请求已经发给火山，回话传到一半断了。可能已经出图并扣费，没有自动重发；先去火山控制台看一眼，别急着再发。';
+  if (code === 'REF_MISSING') return '有一张参考图找不到了（可能被删了），这单没发出去。';
+  if (code === 'SERVER_RESTARTED') return '生成时小服务被关了，结果不明（可能已出图），没有自动重发。';
   return '出了意外，没出成。详情看黑窗口。';
 }
 
-export function createQueue({ jobs, works, uploads, spend, generate, concurrency = DEFAULT_CONCURRENCY, logError = () => {}, log = () => {} }) {
+export function createQueue({ jobs, works, uploads, spend, generate, concurrency = DEFAULT_CONCURRENCY, retryMs = 5000, logError = () => {}, log = () => {} }) {
   const running = new Set();
 
   function submit(input) {
@@ -58,15 +59,17 @@ export function createQueue({ jobs, works, uploads, spend, generate, concurrency
     }
     for (const id of nextToStart(all, [...running], concurrency)) {
       running.add(id); // 必须在下一轮 nextToStart 之前占上位子
+      let stuck = false;
+      const release = () => { running.delete(id); pump(); };
       run(id)
         .catch((err) => {
           logError(`出图任务 ${id.slice(0, 8)} 出意外`, err);
-          finish(id, { status: 'failed', error: humanError('UNKNOWN'), errorCode: 'UNKNOWN' });
+          // 连「失败」都写不进硬盘（盘满、文件被占）：先占着位子，隔一会儿再放。马上放的话这单还是「排队中」，
+          // 会在同一拍里被无限重挑，整个小服务卡死。
+          try { finish(id, { status: 'failed', error: humanError('UNKNOWN'), errorCode: 'UNKNOWN' }); }
+          catch (writeError) { stuck = true; logError(`出图任务 ${id.slice(0, 8)} 的状态写不进硬盘，过一会儿再试`, writeError); }
         })
-        .finally(() => {
-          running.delete(id);
-          pump();
-        });
+        .finally(() => (stuck ? void setTimeout(release, retryMs).unref?.() : release()));
     }
   }
 

@@ -80,3 +80,15 @@ test('原视频被删了：不调用配声，照存无声成片并说明找不�
   assert.equal(done.status, 'succeeded');
   assert.match(done.error, /找不到原视频/);
 });
+
+test('配声吐出来的不是能读的视频：照存无声成片并写原因，不把单子弄成结果不明', async () => {
+  const t = setup(async () => Buffer.from('这不是视频'));
+  const job = t.queue.submit(input({ soundtrack: { type: 'work', id: t.source.id } }));
+  await waitFor(finished(t, job.id));
+  const done = t.jobs.read(job.id);
+  assert.equal(done.status, 'succeeded');
+  assert.match(done.error, /配回原声失败/);
+  assert.ok(t.works.read(done.works[0]).buffer.equals(silent));
+  assert.equal(t.calls.download, 1);
+  assert.equal(t.calls.submit, 1);
+});

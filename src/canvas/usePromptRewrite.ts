@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { api } from "@/api";
+import { agentReadyOrAsk } from "@/common/agentNeeded";
 import { countRewriteRefs, createRewriteAction } from "@/domain/rewrite";
 import type { BoardApi } from "./boardContext";
 import type { ImageCardData, VideoCardData } from "@/types";
@@ -22,5 +23,6 @@ export function usePromptRewrite(id: string, data: ImageCardData | VideoCardData
     onLoading: setLoading,
     onError: setError
   }));
-  return { loading, error, run };
+  // 11-15：帮我改写走本机 agent，没配好先弹说明框、不发请求。
+  return { loading, error, run: async () => { if (await agentReadyOrAsk()) await run(); } };
 }

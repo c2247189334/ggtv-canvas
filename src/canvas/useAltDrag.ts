@@ -25,7 +25,7 @@ export function useAltDrag(doc: ReturnType<typeof useBoardDoc>) {
     suppressClick.current = true;
     const pointerId = event.pointerId;
     const origin = { ...original.position };
-    const source = copySelection([{ ...original, selected: true }], event.ctrlKey ? flow.getEdges() : [], event.ctrlKey);
+    const source = copySelection(flow.getNodes().map(n => ({ ...n, selected: n.id === original.id })), event.ctrlKey ? flow.getEdges() : [], event.ctrlKey);
     let createdId: string | null = null;
     const move = (next: globalThis.PointerEvent) => {
       if (next.pointerId !== pointerId) return;

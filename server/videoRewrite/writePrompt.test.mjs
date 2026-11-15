@@ -16,7 +16,7 @@ const materials = [{ tag: '@图片1', purpose: '背景' },
   ...plan.replace.map((itemId, index) => ({ tag: `@图片${index + 2}`, itemId, purpose: itemId, originalDesc: plan.items.find(item => item.id === itemId).desc })),
   { tag: '@视频1', purpose: '深度，参考机位、动作、空间和遮挡节奏' }, { tag: '@音频1', purpose: '原声，作为背景音乐和节奏参考' }];
 const input = { cardId: 'card-1', plan, materials, duration: 15, sourceDuration: 15.047, ratio: '9:16', userText: '将视频中的人物还有每套衣服都换成我的' };
-const clothesRole = '只采用衣服的款式、长短、颜色和材质，不采用图中的人台、模特和背景。';
+const clothesRole = '采用衣服和配饰的款式、长短、颜色、花纹和材质，图里的帽子、鞋袜、手套照图穿戴，不采用图中的人台、模特和背景。';
 
 test('10-30 提示词由代码按模板拼：素材职责、换装时间轴、结尾（不写「画面里还有」）；同样输入每次一字不差，免费检查零问题', () => {
   const result = writePrompt(input);
@@ -25,12 +25,12 @@ test('10-30 提示词由代码按模板拼：素材职责、换装时间轴、�
     '@图片2是人物：只采用脸、发型和身材，不采用图中的衣服和背景。',
     `@图片3是第1套衣服（0-5.8秒穿）：${clothesRole}`, `@图片4是第2套衣服（5.8-9.2秒穿）：${clothesRole}`,
     `@图片5是第3套衣服（9.2-12.6秒穿）：${clothesRole}`, `@图片6是第4套衣服（12.6-15秒穿）：${clothesRole}`,
-    '@视频1只采用人物的动作、姿态、位置、机位，以及画面里东西的位置、动静和出现时机，不采用其中的灰度画面、发型和衣服轮廓；@视频1里的人就是@图片2。',
+    '@视频1是动作参考：严格参考其中人物的动作、姿态、位置和机位，顺序和节奏与视频保持一致，并采用画面里东西的位置、动静和出现时机；不采用其中的灰度画面、发型和衣服轮廓；@视频1里的人就是@图片2。',
     '@音频1是背景音乐，动作和换装节奏跟随它。',
     '0-5秒：人物身穿@图片3的衣服。', '5-6秒：人物身穿@图片3的衣服，随后身穿@图片4的衣服，换装时机跟随@视频1。',
     '6-9秒：人物身穿@图片4的衣服。', '9-10秒：人物身穿@图片4的衣服，随后身穿@图片5的衣服，换装时机跟随@视频1。',
     '10-12秒：人物身穿@图片5的衣服。', '12-13秒：人物身穿@图片5的衣服，随后身穿@图片6的衣服，换装时机跟随@视频1。',
-    '13-15秒：人物身穿@图片6的衣服。', '全程同一个人、同一个场景和光线，不要字幕。'].join('\n'));
+    '13-15秒：人物身穿@图片6的衣服。', '全程同一个人，不要字幕。'].join('\n'));
   assert.equal(writePrompt(input).videoPrompt, result.videoPrompt);
   assert.deepEqual(checkRules({ ...input, ...result }), []);
 });
@@ -51,13 +51,13 @@ test('只有一套衣服：声音那句不提换装，时间轴一段到底；�
   assert.deepEqual(checkRules({ ...input, plan: one, ...result, materials: [materials[0], materials[1], { ...materials[2], itemId: 'C1' }, ...materials.slice(-2)] }), []);
 });
 
-test('画面里还有的东西不写进提示词（10-30 两条真成片都被这句带偏），只在提醒里列没换的道具 / 遮挡物 / 其他的名字', () => {
+test('画面里还有的东西不写进底稿（10-30 两条真成片都被这句带偏），只在提醒里列没换的道具 / 遮挡物 / 其他的名字；11-10 不再说交给深度视频（定稿按原片补）', () => {
   const old = { ...plan, items: [...plan.items, { id: 'S1', kind: '场景', desc: '客厅，米色沙发', from: 0, to: 15, frame: 0 },
     { id: 'O1', kind: '遮挡物', desc: '木板', from: 0, to: 15, frame: 0 }, { id: 'X1', kind: '其他', desc: '气球，红色', from: 0, to: 15, frame: 0 }],
     replace: [...plan.replace, 'D1'], actions: [{ from: 0, to: 15, desc: '躺着' }], summary: '旧单子' };
   const result = writePrompt({ ...input, plan: old, materials: [...materials.slice(0, 6), { tag: '@图片7', itemId: 'D1', purpose: '道具' }, ...materials.slice(-2)] });
   for (const word of ['画面里还有', '吊扇叶片', '木板', '气球']) assert.ok(!result.videoPrompt.includes(word), word);
-  assert.deepEqual(result.warnings, ['拆解认出画面里还有吊扇叶片、木板、气球：提示词没写，交给背景图和深度视频；成片里少了或摆错，再自己补一句。']);
+  assert.deepEqual(result.warnings, ['拆解认出画面里还有吊扇叶片、木板、气球：程序底稿没写；成片里少了或摆错，再自己补一句。']);
   assert.match(result.videoPrompt, /@图片7是道具：只采用它的外形、颜色和材质/);
 });
 
@@ -96,7 +96,7 @@ test('同一秒里换两次装：并成一段写到最后一套，时间轴不�
 
 test('提醒：拆解没把握的照列；画面里有东西时列出名字；都没有就空', () => {
   assert.deepEqual(writePrompt({ ...input, plan: { ...plan, unsure: ['柜子上那团灰的看不清'] } }).warnings,
-    ['拆解没把握：柜子上那团灰的看不清', '拆解认出画面里还有遥控器、吊扇叶片：提示词没写，交给背景图和深度视频；成片里少了或摆错，再自己补一句。']);
+    ['拆解没把握：柜子上那团灰的看不清', '拆解认出画面里还有遥控器、吊扇叶片：程序底稿没写；成片里少了或摆错，再自己补一句。']);
   const bare = { ...plan, items: plan.items.filter(item => item.kind !== '道具') };
   assert.deepEqual(writePrompt({ ...input, plan: bare }).warnings, []);
 });

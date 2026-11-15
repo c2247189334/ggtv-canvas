@@ -1,11 +1,14 @@
 import { memo, useEffect, useRef, useState, type Ref } from "react";
 import { NodeToolbar, Position, useStore, type NodeProps } from "@xyflow/react";
 import { CardHandle, LineEnd } from "./CardHandle";
+import { CardHead } from "./CardHead";
 import { CardTools } from "./CardTools";
 import { BusyOverlay } from "./BusyOverlay";
 import { PromptPanel } from "./PromptPanel";
 import { RewriteProgress } from "./RewriteProgress";
 import { RewriteInput } from "./RewriteInput";
+import { ProductInput } from './ProductInput';
+import { ProductTools } from './ProductTools';
 import { VideoClipBar } from './VideoClipBar';
 import { useBoard } from "./boardContext";
 import { isOnlySelectedCard } from "@/domain/boardControls";
@@ -39,7 +42,7 @@ export function VideoFrame({ url, title, seconds, playing, videoRef, failure, mi
 }
 
 /** 按结果地址挂载，翻页时销毁播放器；404 显示删除且不出上方工具条，其它加载故障自动重试。点「预览」先停掉卡里的播放。 */
-function CardVideo({ asset, url, title, seconds, missingText, cardId }: { asset: AssetRef; url: string; title: string; seconds?: number; missingText: string; cardId?: string }) {
+function CardVideo({ asset, url, title, seconds, missingText, cardId, nodeId, product, panelBelow }: { asset: AssetRef; url: string; title: string; seconds?: number; missingText: string; cardId?: string; nodeId: string; product?: boolean; panelBelow?: boolean }) {
   const board = useBoard();
   const activeClip = board.videoClip?.session;
   const clip = activeClip && activeClip.cardId === cardId ? activeClip : null;
@@ -73,7 +76,8 @@ function CardVideo({ asset, url, title, seconds, missingText, cardId }: { asset:
         setPlaying(true);
         void video.current?.play().catch(() => { setPlaying(false); setError("视频没播起来，请再点播放按钮试一次。"); });
       }} />
-    {failure !== "missing" && !clip ? <CardTools asset={asset} title={title} media="video" cardId={cardId} onOpen={() => video.current?.pause()} /> : null}
+    {failure !== "missing" && !clip ? <CardTools asset={asset} title={title} media="video" cardId={cardId} product={product} panelBelow={panelBelow} onOpen={() => video.current?.pause()}
+      frame={{ cardId: nodeId, playhead: () => ({ time: video.current?.currentTime ?? 0, duration: video.current?.duration ?? Number.NaN }) }} /> : null}
     {clip ? <NodeToolbar position={Position.Bottom} offset={8} isVisible><VideoClipBar session={clip} video={video} playerVersion={attempt} /></NodeToolbar> : null}
   </>;
 }
@@ -91,7 +95,7 @@ function VideoCardView({ id, data, selected }: NodeProps<CardNode>) {
   const title = cardTitle(data);
   const current = clipping ? clipSession.asset : currentResult(data);
   const url = current ? assetUrl(current) : null;
-  const missing = Boolean(current?.type === "work" && deletedWorks.has(current.id));
+  const missing = Boolean(current && deletedWorks.has(current.id));
   const isGenerate = data.source === "generate";
   const handles = handleVisibility(selected, connecting, isGenerate, fromType);
   const localBusy = Boolean(data.depthJobId || (data.source === "depth" || data.source === 'mesh') && data.startedAt && !data.note && !current);
@@ -99,13 +103,18 @@ function VideoCardView({ id, data, selected }: NodeProps<CardNode>) {
   const rewriteBusy = isGenerate && Boolean(data.rewriteBusy);
   const total = data.results.length;
   const page = total ? Math.min(Math.max(0, data.page), total - 1) : 0;
+  const productInput = onlySelected && board.productRemake?.inputId === id, rewriteInput = onlySelected && board.videoRewrite?.inputId === id;
+  // 卡下面挂着面板（拆解 / 改写输入框、提示词面板）：工具条贴屏幕上边时不能往下放（11-09 用户截图被改写面板盖住）。
+  const panelBelow = !clipping && (productInput || rewriteInput || isGenerate);
   return <div className={`card card--video${selected ? " is-selected" : ""}`}>
-    <div className="card__title">{title}</div>
+    <CardHead id={id} title={title} size={current?.width && current.height && !missing ? { width: current.width, height: current.height } : null} />
     <div className="card__body" style={{ aspectRatio: videoAspect(data.video, current) }}>
-      {current && url && !missing ? <CardVideo key={url} asset={current} url={url} title={title} seconds={current.seconds} cardId={data.source === "depth" || data.source === 'mesh' ? undefined : id}
+      {current && url && !missing ? <CardVideo key={url} asset={current} url={url} title={title} seconds={current.seconds} cardId={data.source === "depth" || data.source === 'mesh' ? undefined : id} nodeId={id}
+        product={data.rewriteKind === 'product'} panelBelow={panelBelow}
         missingText={current?.type === "work" ? "作品已删除" : "这段视频找不到了"} /> :
-        <div className="card__empty">{missing ? "作品已删除" : isGenerate ? "写提示词生成视频，或连图片 / 视频当参考" : "没有视频"}</div>}
-      {rewriteBusy ? <RewriteProgress data={data} overlay /> : localBusy ? <BusyOverlay text="正在生成中…" local onStop={data.depthJobId ? () => void board.stopLocal([id]) : undefined} /> : busy ? <BusyOverlay text={data.jobWarning ?? `${phaseLabel(data.phase)}${data.jobs.length > 1 ? `（${data.jobs.length} 单）` : ""}`} /> : null}
+        <div className="card__empty">{missing ? current?.type === "work" ? "作品已删除" : "这段视频找不到了" : busy || rewriteBusy ? "" : isGenerate ? "写提示词生成视频，或连图片 / 视频当参考" : "没有视频"}</div>}
+      {rewriteBusy ? <RewriteProgress data={data} overlay /> : localBusy ? <BusyOverlay text="正在生成中…" local onStop={data.depthJobId ? () => void board.stopLocal([id]) : undefined} /> :
+        busy ? <BusyOverlay text={data.jobWarning ?? `${phaseLabel(data.phase)}${data.jobs.length > 1 ? `（${data.jobs.length} 单）` : ""}`} /> : null}
       {!busy && data.note ? <div className="card__note nodrag nowheel nopan">{data.note}</div> : null}
       {total > 1 ? <div className="card__pager nodrag nowheel nopan">
         <button type="button" aria-label="上一段" disabled={clipping || page === 0} onClick={() => board.turnPage(id, -1)}>◀</button>
@@ -114,10 +123,12 @@ function VideoCardView({ id, data, selected }: NodeProps<CardNode>) {
       </div> : null}
     </div>
     {!rewriteBusy ? <RewriteProgress data={data} /> : null}
+    {data.rewriteKind === 'product' && !current ? <ProductTools id={id} panelBelow={panelBelow} /> : null}
     {isGenerate ? <CardHandle type="target" visible={handles.target} showPlus={onlySelected} onClick={anchor => board.openRefMenu(id, anchor)} />
       : data.source === "depth" || data.source === 'mesh' || data.mediaSource ? <LineEnd /> : null}
     <CardHandle type="source" visible={handles.source} showPlus={onlySelected} onClick={anchor => board.openNextMenu(id, anchor)} />
-    {clipping ? null : onlySelected && board.videoRewrite?.inputId === id ? <NodeToolbar position={Position.Bottom} offset={14}><RewriteInput key={`${id}:${current?.type}:${current?.id}`} id={id} /></NodeToolbar> :
+    {clipping ? null : productInput ? <NodeToolbar position={Position.Bottom} offset={14}><ProductInput key={`${id}:${current?.type}:${current?.id}`} id={id} /></NodeToolbar> :
+      rewriteInput ? <NodeToolbar position={Position.Bottom} offset={14}><RewriteInput key={`${id}:${current?.type}:${current?.id}`} id={id} /></NodeToolbar> :
       // 面板不随缩放、比卡宽，居中会盖住左边那列；改写卡从卡左边往右展开（用户 10-30）。
       isGenerate ? <NodeToolbar position={Position.Bottom} offset={14} align={data.rewriteId ? "start" : "center"}><PromptPanel id={id} data={data} /></NodeToolbar> : null}
   </div>;

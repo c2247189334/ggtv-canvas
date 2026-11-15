@@ -74,20 +74,26 @@ for %%t in (ffmpeg ffprobe) do (
 rem MEDIA_CHECK_END
 
 echo   [3/4] 检查端口 5290 ...
+rem 不看 netstat 的 LISTENING：有的 Windows 更新后它会把正在监听的端口显示成别的状态，
+rem 还会把已经退出的程序留下的残影显示成"进程号 0 在监听"。直接试着占一下端口，占得上就是空的。
+node -e "var s=require('net').createServer();s.once('error',function(){process.exit(1)});s.listen(5290,'127.0.0.1',function(){s.close(function(){process.exit(0)})})" >nul 2>nul
+if not errorlevel 1 goto port_free
 set PORT_PID=
-for /f "tokens=5" %%p in ('netstat -ano ^| findstr /c:":5290 " ^| findstr "LISTENING"') do set PORT_PID=%%p
+for /f "delims=" %%p in ('powershell -NoProfile -Command "(Get-NetTCPConnection -LocalPort 5290 -ErrorAction SilentlyContinue | Where-Object { $_.RemotePort -eq 0 -and $_.OwningProcess -ne 0 } | Select-Object -First 1).OwningProcess" 2^>nul') do set PORT_PID=%%p
+echo.
+echo   [!] 端口 5290 已经被占用了
 if defined PORT_PID (
-    echo.
-    echo   [!] 端口 5290 已经被占用了，占用它的进程号是 %PORT_PID%
-    echo.
+    echo       占用它的进程号是 %PORT_PID%
     for /f "tokens=1" %%n in ('tasklist /fi "PID eq %PORT_PID%" /nh 2^>nul') do echo       进程名: %%n
-    echo.
-    echo   如果那是上一次没关干净的本工具，先双击「停止.bat」再来。
-    echo   如果是别的程序，别乱关，先看看是什么。
-    echo.
-    pause
-    exit /b 1
 )
+if not defined PORT_PID echo       查不到是哪个程序占的。等一分钟再双击试试，还不行就重启电脑。
+echo.
+echo   如果那是上一次没关干净的本工具，先双击「停止.bat」再来。
+echo   如果是别的程序，别乱关，先看看是什么。
+echo.
+pause
+exit /b 1
+:port_free
 echo       端口空着  OK
 
 echo   [4/4] 打包页面 ...

@@ -1,6 +1,6 @@
 import { HttpError, readJson, sendJson } from '../http.mjs';
 import { isId } from '../store/files.mjs';
-import { depthGeometry, frameStart } from '../depth/local.mjs';
+import { depthGeometry, FRAME_REGIONS, frameStart } from '../depth/local.mjs';
 import { clipRange } from '../depth/videoClip.mjs';
 
 function input(body) {
@@ -56,8 +56,9 @@ export function localMediaRoutes(router, { media, depthQueue }) {
   });
   router.add('POST', '/api/frame-extractions', async ({ req, res }) => {
     const body = await readJson(req), clean = input(body);
+    if (body?.region !== undefined && !Object.hasOwn(FRAME_REGIONS, body.region)) throw new HttpError(400, '截帧区域不对。');
     try { frameStart(media.checkSource(clean.source), body?.second); } catch (error) { throw new HttpError(400, error.message); }
-    try { sendJson(res, 200, await media.frame({ ...clean, second: body.second })); }
+    try { sendJson(res, 200, await media.frame({ ...clean, second: body.second, ...(body.region ? { region: body.region } : {}) })); }
     catch (error) { throw new HttpError(500, error.message); }
   });
 }

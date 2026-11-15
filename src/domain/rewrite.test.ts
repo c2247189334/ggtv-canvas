@@ -29,7 +29,7 @@ describe("帮我改写", () => {
     expect(referenceDiff("@图片1 @视频1 @音频1", "@图片2 @视频1 @音频2")).toEqual({ removed: ["@图片1", "@音频1"], added: ["@图片2", "@音频2"] });
     expect(referenceDiff("@图片1", "@图片10")).toEqual({ removed: ["@图片1"], added: ["@图片10"] });
   });
-  it("空提示词不请求，loading锁防连点，成功替换并显示实际四位费用，10秒内撤销", async () => {
+  it("空提示词不请求，loading锁防连点，成功替换、提示不写金额，10秒内撤销", async () => {
     const empty = setup("   "); await empty.run(); expect(empty.request).not.toHaveBeenCalled();
     const s = setup(); const pending = s.run(); await s.run();
     expect(s.request).toHaveBeenCalledExactlyOnceWith({ prompt: s.prompt(), kind: "video", refs: { images: 1, videos: 1, audios: 1 } });
@@ -37,7 +37,7 @@ describe("帮我改写", () => {
     s.resolve(result("让@图片1模仿@视频1，配合@音频1移动。")); await pending;
     expect(s.prompt()).toContain("模仿");
     const [message, action, ms] = s.notify.mock.calls[0];
-    expect(message).toBe("已改写，花费 ¥0.0112"); expect(action.label).toBe("撤销"); expect(ms).toBe(10000);
+    expect(message).toBe("已改写"); expect(action.label).toBe("撤销"); expect(ms).toBe(10000);
     s.time(9999); action.run(); expect(s.prompt()).toBe("让@图片1按@视频1和@音频1移动");
     expect(s.onLoading).toHaveBeenLastCalledWith(false);
   });

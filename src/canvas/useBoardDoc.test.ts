@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { api } from '@/api';
 import { newVideoCard } from '@/domain/cards';
 import { useBoardDoc } from './useBoardDoc';
+import { hasSaveConflict } from '@/domain/saveConflicts';
 import type { CanvasDoc, LocalJobView } from '@/types';
 
 // 无DOM环境下的确定性hook驱动；真正的读档、恢复、保存控制器均直接执行。
@@ -38,7 +39,7 @@ vi.mock('@xyflow/react', () => ({
   useNodesState: (initial: unknown) => [...hooks.state(initial), vi.fn()],
   useEdgesState: (initial: unknown) => [...hooks.state(initial), vi.fn()]
 }));
-vi.mock('@/api', () => ({ api: { getCanvas: vi.fn(), saveCanvas: vi.fn(), findLocalJobs: vi.fn() } }));
+vi.mock('@/api', () => ({ api: { getCanvas: vi.fn(), saveCanvas: vi.fn(), findLocalJobs: vi.fn(), findOrphanJobs: vi.fn() } }));
 const notify = vi.fn(); let beforeUnload: (() => void) | undefined;
 function render(id = 'canvas') {
   hooks.start(); const board = useBoardDoc(id, '测试画布', notify);
@@ -54,7 +55,15 @@ beforeEach(() => {
   hooks.unmount(); vi.clearAllMocks(); vi.useFakeTimers(); beforeUnload = undefined;
   vi.stubGlobal('window', { setTimeout, clearTimeout, addEventListener: (name: string, fn: () => void) => { if (name === 'beforeunload') beforeUnload = fn; }, removeEventListener: vi.fn() });
   vi.mocked(api.getCanvas).mockResolvedValue(empty()); vi.mocked(api.saveCanvas).mockResolvedValue({ ok: true, updatedAt: '', version: 1 });
-  vi.mocked(api.findLocalJobs).mockResolvedValue([]);
+  vi.mocked(api.findLocalJobs).mockResolvedValue([]); vi.mocked(api.findOrphanJobs).mockResolvedValue([]);
+});
+it('11-15 读档时把丢的付费单接回卡片（不重新交单），接回的单号自动存进画布', async () => {
+  vi.mocked(api.getCanvas).mockResolvedValue({ ...empty(), nodes: [{ id: 'video', x: 0, y: 0, data: newVideoCard('generate', 1) }] });
+  vi.mocked(api.findOrphanJobs).mockResolvedValue([{ id: 'lost', cardId: 'video', kind: 'video' }]);
+  const board = await loaded(); expect(board.ready).toBe(true);
+  expect(api.findOrphanJobs).toHaveBeenCalledWith('canvas', ['video']); expect(board.nodes[0].data.jobs).toEqual(['lost']);
+  await vi.advanceTimersByTimeAsync(800); expect(api.saveCanvas).toHaveBeenCalledWith(expect.objectContaining({ baseVersion: 0,
+    nodes: [expect.objectContaining({ data: expect.objectContaining({ jobs: ['lost'] }) })] }), undefined);
 });
 afterEach(() => { hooks.unmount(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
@@ -74,6 +83,8 @@ it('409后停止自动及离开保存，切走再回到这张画布仍须先刷�
   let board = await loaded(id); board.setNodes(() => [{ id: 'child', type: 'card', position: { x: 0, y: 0 }, data: newVideoCard('generate', 1) }]);
   render(id); await vi.advanceTimersByTimeAsync(800);
   expect(notify).toHaveBeenCalledWith('这张画布在别的标签页改过了，刷新页面后再继续改');
+  // 11-11 体检：4 秒提示一闪就没，之后不存档用户不知道；冲突要登记给常驻提醒（SaveConflictBanner）。
+  expect(hasSaveConflict(id)).toBe(true); expect(hasSaveConflict('canvas')).toBe(false);
   beforeUnload?.(); expect(api.saveCanvas).toHaveBeenCalledTimes(1);
   hooks.unmount(); board = await loaded(id);
   board.setNodes(() => [{ id: 'later', type: 'card', position: { x: 0, y: 0 }, data: newVideoCard('generate', 2) }]);

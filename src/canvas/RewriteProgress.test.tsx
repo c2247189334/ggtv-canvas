@@ -10,9 +10,9 @@ it('原视频运行时只有状态行，不拦拖卡；完成消失', () => {
   expect(pending).not.toContain('nodrag');
   expect(renderToStaticMarkup(<RewriteProgress data={{ ...data, rewriteBusy: undefined, rewriteStatus: undefined }} />)).toBe('');
 });
-it('失败保留原话与已花金额，未知费用明确标示，未结束存档说明重来', () => {
-  const data = { ...newVideoCard('upload', 1), rewriteStatus: { status: 'failed' as const, error: '第二轮断线', yuan: 0.012, costUnknown: true } };
+it('失败保留原话、不写金额，未结束存档说明重来', () => {
+  const data = { ...newVideoCard('upload', 1), rewriteStatus: { status: 'failed' as const, error: '第二轮断线' } };
   const html = renderToStaticMarkup(<RewriteProgress data={data} />);
-  expect(html).toContain('第二轮断线'); expect(html).toContain('已花 ¥0.012'); expect(html).toContain('另有费用待确认');
+  expect(html).toContain('第二轮断线'); expect(html).not.toContain('已花'); expect(html).not.toContain('¥');
   expect(renderToStaticMarkup(<RewriteProgress data={{ ...data, rewriteStatus: { status: 'interrupted' } }} />)).toContain('上次没做完，再点一次「视频改写」重来');
 });

@@ -3,7 +3,8 @@ import { useSyncExternalStore } from "react";
 /**
  * 作品库的两个小广播，省得一层层传 props：
  *   · 删掉的作品：画布上用到它的卡片立刻显示「作品已删除」（刷新以后靠图片读不出来判断，见 ImageCard）；
- *   · 作品有变化（出了新图 / 删了图）：作品库侧栏重新拉一次清单。
+ *   · 作品有变化（出了新图 / 删了图）：作品库侧栏重新拉一次清单；
+ *   · 「我上传的」删了一个：和删作品共用一个集合（编号都是 uuid 不会撞），用到它的卡立刻显示找不到了；传了新的也让清单重拉。
  */
 let deleted: ReadonlySet<string> = new Set();
 let version = 0;
@@ -24,6 +25,10 @@ export function markWorkDeleted(id: string): void {
   deleted = new Set(deleted).add(id);
   version += 1;
   emit();
+}
+
+export function markUploadDeleted(id: string): void {
+  markWorkDeleted(id);
 }
 
 export function bumpWorks(): void {

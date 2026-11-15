@@ -21,9 +21,11 @@ Thanks for helping out. Bug reports, ideas and pull requests are all welcome. En
 git clone https://github.com/c2247189334/ggtv-canvas.git
 cd ggtv-canvas
 npm ci
-npm run dev     # 页面，端口 5280
-npm start       # 小服务，端口 5290；或 npm run fake 用假火山、不花钱
+npm run dev     # 页面，端口 5280（/api 转给 5290 的小服务）
+npm start       # 小服务，端口 5290
 ```
+
+不想花钱就单独跑 `npm run fake`（假火山，自己打包页面并起在 5291），直接打开 `http://127.0.0.1:5291`；它不和 `npm run dev` 搭配。
 
 提交前请确认：
 
@@ -46,7 +48,7 @@ npm start       # 小服务，端口 5290；或 npm run fake 用假火山、不�
 ## English summary
 
 - Open an issue before large changes. Use the issue template for bugs; include console output and logs with keys, accounts and personal paths removed.
-- Run from source with `npm ci`, `npm run dev` (web, 5280) and `npm start` (server, 5290) or `npm run fake` (free fake mode).
+- Run from source with `npm ci`, `npm run dev` (web, 5280) and `npm start` (server, 5290). For a free fake mode run `npm run fake` on its own and open `http://127.0.0.1:5291`; it does not pair with `npm run dev`.
 - Before a PR: `npm run typecheck` and `npm test` must pass; add tests for new behaviour; keep files under ~300 lines; no local paths or secrets in code; UI text is Chinese, identifiers are English; `server/` uses Node built-ins only; one topic per PR.
 - By contributing, you confirm you have the right to submit your work and agree that the author may release it under this project's license, change that license later, or grant commercial licenses.
 - Be respectful. Do not generate content from another person's likeness without their consent.

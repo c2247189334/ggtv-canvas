@@ -2,7 +2,7 @@ import type { NodeChange } from "@xyflow/react";
 import type { CardNode } from "@/types";
 import type { Graph } from "@/domain/history";
 import { cardTitle } from "@/domain/cards";
-import { checkLink, linkId, type LinkEdge } from "@/domain/refs";
+import { checkLink, linkId, maxRefsOf, type LinkEdge } from "@/domain/refs";
 
 export const boardKeyboardControls = {
   disableKeyboardA11y: true, nodesFocusable: false, edgesFocusable: false,
@@ -20,7 +20,7 @@ export function selectionLink(order: readonly string[], nodes: readonly CardNode
   if (order.length !== 2) return { edge: null, message: "不符合连线规则" };
   const [source, target] = order;
   const targetData = nodes.find(n => n.id === target)?.data;
-  const check = checkLink({ source, target, edges, targetSource: targetData?.source,
+  const check = checkLink({ source, target, edges, targetSource: targetData?.source, maxRefs: maxRefsOf(targetData),
     sourceKind: nodes.find(n => n.id === source)?.data.kind, targetKind: targetData?.kind,
     referenceKinds: edges.filter(edge => edge.target === target).map(edge => nodes.find(n => n.id === edge.source)?.data.kind ?? "image") });
   return check.ok ? { edge: { id: linkId(source, target), source, target }, message: "已连接2个节点" } : { edge: null, message: check.reason };

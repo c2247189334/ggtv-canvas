@@ -33,5 +33,13 @@ export function createSpendLog(dataRoot) {
     return Math.round(sum * 100) / 100;
   }
 
-  return { add, totalOn };
+  /** 这一单记没记过账（坏行跳过）。 */
+  function has(jobId) {
+    if (!existsSync(file)) return false;
+    return readFileSync(file, 'utf8').split('\n').some((line) => {
+      try { return JSON.parse(line).jobId === jobId; } catch { return false; }
+    });
+  }
+
+  return { add, has, totalOn };
 }

@@ -6,7 +6,7 @@ import type { CardNode } from '@/types';
 const source = { type: 'upload' as const, id: 'u', media: 'video' as const, seconds: 6, hasAudio: true };
 function fixture() {
   const original: CardNode = { id: 's', type: 'card', position: { x: 0, y: 0 },
-    data: { ...newVideoCard('upload', 0, [source]), rewriteStatus: { status: 'failed', error: '断线', yuan: 0.02, costUnknown: false } } };
+    data: { ...newVideoCard('upload', 0, [source]), rewriteStatus: { status: 'failed', error: '断线' } } };
   const args = { source: original, nodes: [original], edges: [], takeNumber: () => 2, makeId: () => crypto.randomUUID(), userText: '换人' };
   const graph = startVideoRewrite(args);
   const state = { ...graph.state, plan: { summary: '人物', items: [{ id: 'p', kind: '人物' as const, desc: '人物', from: 0, to: 6, frame: 0 },

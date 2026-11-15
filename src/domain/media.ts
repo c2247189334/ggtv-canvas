@@ -35,10 +35,25 @@ export function readWorkDrag(text: string): AssetRef | null {
   try {
     const value: unknown = JSON.parse(text);
     if (!value || typeof value !== "object") return null;
-    const work = value as MediaWorkView;
+    const work = value as MediaWorkView & { from?: unknown };
     if (typeof work.id !== "string" || (work.kind !== "image" && work.kind !== "video" && work.kind !== "audio")) return null;
-    return workRef(work);
+    if (work.from !== "upload") return workRef(work);
+    if (work.kind === "audio") return null;
+    // 「我上传的」拖出来的：还是上传素材，不带深度 / 白模标记。
+    const { depth: _depth, mesh: _mesh, ...upload } = workRef(work);
+    return { ...upload, type: "upload" };
   } catch {
     return null;
+  }
+}
+
+/** 「我上传的」拖出来时带的原文件名（新卡标题用）；作品没有。 */
+export function readDragName(text: string): string | undefined {
+  if (!text.startsWith("{")) return undefined;
+  try {
+    const value = JSON.parse(text) as { from?: unknown; name?: unknown };
+    return value.from === "upload" && typeof value.name === "string" ? value.name : undefined;
+  } catch {
+    return undefined;
   }
 }

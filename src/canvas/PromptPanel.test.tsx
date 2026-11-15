@@ -16,17 +16,24 @@ describe("共享提示词面板", () => {
     graph.nodes = []; graph.edges = []; graph.ruleIssues = [];
     const html = renderToStaticMarkup(<PromptPanel id="pending" data={{ ...newVideoCard('generate', 1),
       rewriteId: 'r', rewriteSourceId: 's', rewriteBusy: 'analyzing', rewriteStatus: { status: 'pending' }, prompt: '手填词' }} />);
-    expect(html).toContain('正在拆解视频，图片卡铺好后再补图');
+    // 11-04 面板理顺：等待只说一次、不算出错，写词按钮和「＋参考」同一排；11-08 用户定：灰字收进「N 条提醒 ?」，平时藏着。
+    expect(html.match(/>正在拆解视频，图片卡铺好后再补图</g)).toHaveLength(1);
+    expect(html).toMatch(/class="panel__tools">.*aria-label="1 条提醒，提醒".*hidden=""><span class="help-tip__line">正在拆解视频，图片卡铺好后再补图<\/span>/);
+    expect(html).not.toContain('panel__hint');
     expect(html).toMatch(/class="gen__send" disabled=""/);
     expect(html).toMatch(/disabled=""[^>]*>生成提示词/);
+    expect(html).toMatch(/class="panel__tools">(?:(?!<\/div>).)*>生成提示词（免费）<\/button>/);
   });
   it('改写卡有生成提示词按钮，旧卡说明缺拆解结果；普通卡不显示', () => {
     graph.nodes = []; graph.edges = []; graph.ruleIssues = [];
     const html = renderToStaticMarkup(<PromptPanel id="rewrite" data={{ ...newVideoCard('generate', 1), rewriteId: 'old' }} />);
     expect(html).toContain('生成提示词');
-    expect(html).toContain('这张卡是旧版做的，没存拆解结果，请重新做一次视频改写');
+    expect(html).toContain('<span class="help-tip__line">这张卡是旧版做的，没存拆解结果，请重新做一次视频改写</span>');
     expect(html).toMatch(/disabled=""[^>]*>生成提示词/);
-    expect(renderToStaticMarkup(<PromptPanel id="ordinary" data={newVideoCard('generate', 1)} />)).not.toContain('生成提示词');
+    // 11-08 用户定：改写卡只留「生成提示词」一步，不放「帮我改写」和「让 Claude 看一遍」；普通卡照旧有「帮我改写」。
+    expect(html).not.toContain('帮我改写'); expect(html).not.toContain('看一遍');
+    const ordinary = renderToStaticMarkup(<PromptPanel id="ordinary" data={newVideoCard('generate', 1)} />);
+    expect(ordinary).not.toContain('生成提示词'); expect(ordinary).toContain('帮我改写');
   });
   it('改写视频卡面板加宽；生成提示词后输入框加高；普通卡和空词照旧（用户 10-30）', () => {
     graph.nodes = []; graph.edges = []; graph.ruleIssues = [];
@@ -37,11 +44,11 @@ describe("共享提示词面板", () => {
     const ordinary = renderToStaticMarkup(<PromptPanel id="o" data={{ ...newVideoCard('generate', 1), prompt: '跳舞' }} />);
     expect(ordinary).not.toContain('panel--rewrite'); expect(ordinary).not.toContain('panel__prompt--long');
   });
-  it('豆包提醒显示在面板，但不作为规则错误禁发', () => {
+  it('拆解提醒收进「?」（鼠标移上去才看），不作为规则错误禁发', () => {
     graph.nodes = []; graph.edges = []; graph.ruleIssues = [];
     const html = renderToStaticMarkup(<PromptPanel id="target" data={{ ...newVideoCard('generate', 1),
       rewriteWarnings: ['深度可能把短裙拉长'], prompt: '人物站立' }} />);
-    expect(html).toContain('role="note">深度可能把短裙拉长');
+    expect(html).toContain('<span class="help-tip__line">深度可能把短裙拉长</span>');
     expect(html).not.toContain('panel__error'); expect(html).not.toMatch(/class="gen__send" disabled/);
   });
   it('免费规则问题标红并禁发，不能只显示提醒', () => {
@@ -52,6 +59,27 @@ describe("共享提示词面板", () => {
     expect(html).toMatch(/class="gen__send" disabled=""/);
     graph.ruleIssues = [];
   });
+  it('11-08 出错合并、收进单独的出错区（可滚动），在发送那一行上面；灰字提醒在上面那排「?」里', () => {
+    const duty = (tag: string) => `${tag}的素材职责要放在时间轴前，请在第一个时间区间前写明它采用什么、不采用什么。`;
+    graph.nodes = []; graph.edges = [];
+    graph.ruleIssues = [duty('@图片1'), duty('@图片2'), '@图片1还写着原视频的原描述「金发」，请删掉这段。', duty('@视频1')];
+    const html = renderToStaticMarkup(<PromptPanel id="target" data={{ ...newVideoCard('generate', 1), rewriteId: 'r', prompt: '0-5秒跳舞。',
+      rewriteWarnings: ['深度可能把短裙拉长'] }} />);
+    expect(html.match(/素材职责要放在时间轴前/g)).toHaveLength(1);
+    expect(html).toContain('>@图片1、@图片2、@视频1的素材职责要放在时间轴前');
+    expect(html).toContain('原描述「金发」');
+    const notes = html.indexOf('class="panel__notes"');
+    expect(notes).toBeGreaterThan(html.indexOf('class="panel__prompt'));
+    expect(html.indexOf('深度可能把短裙拉长')).toBeLessThan(html.indexOf('class="panel__prompt'));
+    expect(html.indexOf('深度可能把短裙拉长')).toBeGreaterThan(html.indexOf('class="help-tip"'));
+    expect(html.indexOf('素材职责')).toBeGreaterThan(notes);
+    expect(html).not.toMatch(/panel__error">深度可能把短裙拉长/);
+    expect(html.indexOf('class="gen"')).toBeGreaterThan(html.indexOf('素材职责'));
+    expect(html).toMatch(/class="gen__send" disabled=""/);
+    graph.ruleIssues = [];
+    const clean = renderToStaticMarkup(<PromptPanel id="o" data={{ ...newVideoCard('generate', 1), prompt: '跳舞' }} />);
+    expect(clean).not.toContain('panel__notes'); expect(clean).not.toContain('help-tip');
+  });
   it("图片卡仍显示原占位字、张数和图片模型", () => {
     graph.nodes = []; graph.edges = [];
     const html = renderToStaticMarkup(<PromptPanel id="image" data={newCard("generate", 1)} />);
@@ -59,7 +87,7 @@ describe("共享提示词面板", () => {
     expect(html).toContain("Seedream 5.0 Flash");
     expect(html).toContain("1张");
     expect(html).not.toContain("文生视频");
-    expect(html).toContain('title="约 ¥0.02 / 次" disabled="">帮我改写</button>');
+    expect(html).toContain('disabled="">帮我改写</button>'); expect(html).not.toContain('¥');
   });
   it("图片、视频分别编号，按原线序标红，未出结果的视频保留种类", () => {
     graph.nodes = [
@@ -85,7 +113,7 @@ describe("共享提示词面板", () => {
   it("非空提示词可改写，声音卡不显示生成面板", () => {
     graph.nodes = []; graph.edges = [];
     const html = renderToStaticMarkup(<PromptPanel id="image" data={{ ...newCard("generate", 1), prompt: "猫" }} />);
-    expect(html).toContain('title="约 ¥0.02 / 次">帮我改写</button>');
+    expect(html).toContain('<button type="button">帮我改写</button>'); expect(html).not.toContain('¥');
     expect(renderToStaticMarkup(<PromptPanel id="audio" data={newAudioCard("work", 2)} />)).toBe("");
   });
   it("音频引用有音符和时长，三种素材独立编号，标红仍按原线序", () => {

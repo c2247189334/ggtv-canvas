@@ -13,14 +13,14 @@ function setup() {
     target: { closest: () => handle ? { getAttribute: () => handle } : null } } as unknown as PointerEvent<HTMLDivElement>);
   return { onRange, onSeek, tree, event };
 }
-it('拖左侧和中间跳开头、拖右侧不跳；点选区外只移动播放头', () => {
+it('拖左侧和中间跳开头、拖右侧跳结尾；点选区外只移动播放头', () => {
   const h = setup();
   h.tree.props.onPointerDown(h.event(2, 'start')); h.tree.props.onPointerMove(h.event(3)); h.tree.props.onPointerUp(h.event(3));
-  expect(h.onRange).toHaveBeenLastCalledWith({ start: 3, end: 6 }, true);
+  expect(h.onRange).toHaveBeenLastCalledWith({ start: 3, end: 6 }, 'start');
   h.tree.props.onPointerDown(h.event(6, 'end')); h.tree.props.onPointerMove(h.event(8)); h.tree.props.onPointerUp(h.event(8));
-  expect(h.onRange).toHaveBeenLastCalledWith({ start: 2, end: 8 }, false);
+  expect(h.onRange).toHaveBeenLastCalledWith({ start: 2, end: 8 }, 'end');
   h.tree.props.onPointerDown(h.event(4)); h.tree.props.onPointerMove(h.event(5)); h.tree.props.onPointerUp(h.event(5));
-  expect(h.onRange).toHaveBeenLastCalledWith({ start: 3, end: 7 }, true);
+  expect(h.onRange).toHaveBeenLastCalledWith({ start: 3, end: 7 }, 'start');
   h.onRange.mockClear(); h.tree.props.onPointerDown(h.event(10));
   expect(h.onSeek).toHaveBeenCalledWith(10); expect(h.onRange).not.toHaveBeenCalled();
 });

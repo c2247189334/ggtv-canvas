@@ -34,6 +34,18 @@ it('普通网络错误不锁标签，手动再次触发能保存未成功内容'
   await saver.save({ keepalive: true }); expect(save.mock.calls[1][0].baseVersion).toBe(0);
 });
 
+it('在途保存网络失败时，期间排队的新改动照样接着存，不被一起清掉', async () => {
+  let fail!: (error: Error) => void, notify = vi.fn();
+  const first = new Promise<{ version: number }>((_resolve, reject) => { fail = reject; });
+  const save = vi.fn().mockReturnValueOnce(first).mockResolvedValue({ version: 1 });
+  const saver = createCanvasSaver({ initial: doc('最初'), version: 0, save, notify });
+  saver.update(doc('第一次')); const running = saver.save();
+  saver.update(doc('失败期间的新改动')); const queued = saver.save({ keepalive: true, silent: true });
+  fail(Error('离线')); await Promise.all([running, queued]);
+  expect(notify).toHaveBeenCalledWith('画布没存上：离线');
+  expect(save).toHaveBeenCalledTimes(2); expect(save.mock.calls[1]).toEqual([{ ...doc('失败期间的新改动'), baseVersion: 0 }, true]);
+});
+
 it('API抛错保留HTTP409，保存请求确实带baseVersion', async () => {
   const fetchMock = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ error: '冲突' }), { status: 409 }));
   vi.stubGlobal('fetch', fetchMock);

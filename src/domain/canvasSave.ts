@@ -18,7 +18,7 @@ export function createCanvasSaver({ initial, version, save, notify }: Deps) {
         const result = await save({ ...snapshot, baseVersion: version }, options.keepalive);
         version = result.version; saved = text;
       } catch (error) {
-        pending = null;
+        // 失败的这次不自动重试；但在途期间排进来的新改动（pending）留着接着存，别一起丢掉。
         if ((error as { status?: number }).status === 409) { blocked = true; notify(CANVAS_CONFLICT); }
         else if (!options.silent) notify(`画布没存上：${(error as Error).message}`);
       }

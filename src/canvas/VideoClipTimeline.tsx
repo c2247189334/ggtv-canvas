@@ -1,8 +1,8 @@
 import { useRef, type PointerEvent } from 'react';
-import { clipTicks, moveClipHandle, translateClipRange, type ClipRange } from '@/domain/videoClip';
+import { clipTicks, moveClipHandle, translateClipRange, type ClipJump, type ClipRange } from '@/domain/videoClip';
 
 export type ClipTimelineProps = { duration: number; range: ClipRange; time: number; thumbnails: string[]; precise: boolean;
-  snap: boolean; busy: boolean; onRange: (range: ClipRange, seek: boolean) => void; onSeek: (time: number) => void };
+  snap: boolean; busy: boolean; onRange: (range: ClipRange, jump: ClipJump) => void; onSeek: (time: number) => void };
 
 export function VideoClipTimeline({ duration, range, time, thumbnails, precise, snap, busy, onRange, onSeek }: ClipTimelineProps) {
   const drag = useRef<{ pointerId: number; x: number; width: number; range: ClipRange; side: 'start' | 'end' | 'move' } | null>(null);
@@ -25,7 +25,7 @@ export function VideoClipTimeline({ duration, range, time, thumbnails, precise, 
     const delta = (event.clientX - origin.x) / origin.width * duration;
     const next = origin.side === 'move' ? translateClipRange(origin.range, delta, duration)
       : moveClipHandle(origin.range, origin.side, origin.range[origin.side] + delta, duration, snap);
-    onRange(next, origin.side !== 'end');
+    onRange(next, origin.side === 'end' ? 'end' : 'start');
   };
   const up = (event: PointerEvent<HTMLDivElement>) => {
     move(event); drag.current = null;

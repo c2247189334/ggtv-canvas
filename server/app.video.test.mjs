@@ -66,7 +66,7 @@ test('视频整条：上传 → 交单 → 成功 → 作品 → Range → mp4�
   } finally { await s.close(); }
 });
 
-test('假被拦返回failed和blocked[1]；假超时不明；假任务失败不收费', async () => {
+test('假被拦返回failed和blocked[1]；假超时不明；假任务失败', async () => {
   const s = await boot();
   try {
     const canvas = (await post(s.port, '/api/canvases', { name: 'c' })).json;
@@ -78,7 +78,7 @@ test('假被拦返回failed和blocked[1]；假超时不明；假任务失败不�
       assert.equal(view.status, status);
       if (prompt === '假被拦') {
         assert.deepEqual(view.blocked, [1]);
-        assert.match(view.error, /参考 1.*真人.*没扣钱/);
+        assert.match(view.error, /参考 1.*真人.*没建任务/);
       }
     }
     assert.equal((await call(s.port, { path: '/api/health' })).json.todayYuan, 0);

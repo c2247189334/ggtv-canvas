@@ -7,13 +7,13 @@ const pixels = {
 };
 const pixels25 = { ...pixels, '480p': [[854, 480], [752, 560], [640, 640], [560, 752], [480, 854], [992, 432]] };
 const limits = { minDuration: 4, maxDuration: 15, maxImages: 9, maxVideos: 3, minVideoSeconds: 2, maxVideoSeconds: 15, maxVideoTotal: 15,
-  minAudioSeconds: 2, maxAudioSeconds: 15, maxAudios: 3, maxAudioTotal: 15, allowAudioOnly: false };
+  minAudioSeconds: 2, maxAudioSeconds: 15, maxAudios: 3, maxAudioTotal: 15, allowAudioOnly: false, maxRefs: 8 };
 export const VIDEO_MODELS = [
   { id: 'doubao-seedance-2-0-mini-260615', name: 'Seedance 2.0 Mini', resolutions: ['480p', '720p'], prices: { '480p': [23, 14], '720p': [23, 14] }, pixels, ...limits },
   { id: 'doubao-seedance-2-0-fast-260128', name: 'Seedance 2.0 Fast', resolutions: ['480p', '720p'], prices: { '480p': [37, 22], '720p': [37, 22] }, pixels, ...limits },
   { id: 'doubao-seedance-2-0-260128', name: 'Seedance 2.0', resolutions: ['480p', '720p', '1080p'], prices: { '480p': [46, 28], '720p': [46, 28], '1080p': [51, 31] }, pixels, ...limits },
   { id: 'doubao-seedance-2-5-260628', name: 'Seedance 2.5', resolutions: ['480p', '720p', '1080p'], prices: { '480p': [70, 42], '720p': [70, 42], '1080p': [77, 46] }, pixels: pixels25, ...limits,
-    maxDuration: 30, maxImages: 30, maxVideos: 10, maxVideoSeconds: 30, maxVideoTotal: 30, maxAudioSeconds: 30, maxAudios: 10, maxAudioTotal: 30, allowAudioOnly: true }
+    maxDuration: 30, maxImages: 30, maxVideos: 10, maxVideoSeconds: 30, maxVideoTotal: 30, maxAudioSeconds: 30, maxAudios: 10, maxAudioTotal: 30, allowAudioOnly: true, maxRefs: 40 }
 ];
 export const DEFAULT_VIDEO_SETTINGS = { model: 'doubao-seedance-2-0-mini-260615', mode: 'reference', ratio: '16:9', resolution: '480p', duration: 5, audio: true };
 
@@ -52,7 +52,7 @@ export function checkVideoRefs({ model, mode, images, videos, audios = [] }) {
   if (mode === 'first_frame' && images !== 1) problems.push('首帧模式要正好 1 张参考图。');
   if (mode === 'first_frame' && videos.length) problems.push('首帧模式不能带视频。');
   if (mode === 'first_frame' && audios.length) problems.push('首帧模式不能带音频。');
-  if (images + videos.length > 8) problems.push('图和视频加起来最多 8 个参考。');
+  if (images + videos.length > info.maxRefs) problems.push('图和视频加起来最多 ' + info.maxRefs + ' 个参考。');
   if (images > info.maxImages) problems.push('参考图最多 ' + info.maxImages + ' 张。');
   if (videos.length > info.maxVideos) problems.push('参考视频最多 ' + info.maxVideos + ' 段。');
   if (videos.some((seconds) => !Number.isFinite(seconds) || seconds < info.minVideoSeconds || seconds > info.maxVideoSeconds)) problems.push('每段参考视频要在 ' + info.minVideoSeconds + ' 到 ' + info.maxVideoSeconds + ' 秒之间。');

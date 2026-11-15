@@ -17,25 +17,23 @@ describe("GenOptions", () => {
     expect(html).toContain('aria-haspopup="menu"');
     expect(html).toContain('class="model-icon"');
     expect(html).toContain("Seedream 5.0 Flash");
-    expect(html).toContain("约 ¥0.12");
+    expect(html).not.toContain("¥");
   });
   it("旧存档3张照常显示，跟图尺寸显示实际引用编号", () => {
     expect(render({ ...gen, aspect: "1:1", count: 3 })).toContain("1:1 · 2K · 3张");
     expect(render({ ...gen, sizeFrom: 2 }, 2)).toContain("跟图片2 · 2K · 1张");
   });
-  it("2 张估价翻倍，发送中锁住发送按钮", () => {
+  it("发送中锁住发送按钮", () => {
     const html = renderToStaticMarkup(<GenOptions gen={{ ...gen, count: 2 }} refCount={0} sending onChange={() => {}} onSend={() => {}} />);
-    expect(html).toContain("约 ¥0.24");
     expect(html).toMatch(/class="gen__send" disabled=""/);
     expect(html).toContain("发送中…");
   });
-  it("模型菜单带图标、提示块，当前行选中", () => {
+  it("模型菜单带图标、不写价格，当前行选中", () => {
     const html = renderToStaticMarkup(<ModelMenu gen={gen} onChange={() => {}} onClose={() => {}} />);
     expect(html).toContain('role="menu"');
     expect(html.match(/class="model-icon"/g)).toHaveLength(2);
     expect(html).toContain('aria-checked="true"');
-    expect(html).toContain('class="model-menu__hint">¥0.12');
-    expect(html).toContain('class="model-menu__hint">¥0.22');
+    expect(html).not.toContain('¥');
     expect(html).not.toContain('20s');
     expect(html).toContain("Seedream 5.0 Lite");
   });

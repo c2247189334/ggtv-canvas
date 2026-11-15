@@ -5,8 +5,8 @@ import { checkLink } from "./refs";
 import { addMenuItems } from "./menus";
 import { insertMention, numberMediaRefs } from "./mention";
 import { toVideoPrompt } from "./videoPrompt";
-import { videoSummary, videoEstimate, videoProblems, validAssetId, videoAspect, phaseLabel, durationLabel } from "./videoPanel";
-import { DEFAULT_VIDEO_SETTINGS, estimateVideo } from "./videoModels";
+import { videoSummary, videoProblems, validAssetId, videoAspect, phaseLabel, durationLabel } from "./videoPanel";
+import { DEFAULT_VIDEO_SETTINGS } from "./videoModels";
 import type { CardNode, JobView } from "@/types";
 
 describe("视频数据与收单", () => {
@@ -91,10 +91,6 @@ describe("视频面板纯逻辑", () => {
   it("摘要含Auto、大写P、时长和数量", () => {
     expect(videoSummary(settings)).toBe("16:9 · 480P · 5s · 2个");
     expect(videoSummary({ ...settings, ratio: "adaptive", count: 4 })).toBe("Auto · 480P · 5s · 4个");
-  });
-  it("估价乘数量且保留原note，参考视频秒数参与", () => {
-    const estimate = estimateVideo({ ...settings, refVideoSeconds: 3 });
-    expect(videoEstimate(settings, [{ type: "work", id: "v", media: "video", seconds: 3 }])).toEqual({ ...estimate, yuan: estimate.yuan * 2 });
   });
   it("发送前检查首帧与TOS，假模式无需TOS", () => {
     const refs = [{ type: "work" as const, id: "v", media: "video" as const, seconds: 3 }];

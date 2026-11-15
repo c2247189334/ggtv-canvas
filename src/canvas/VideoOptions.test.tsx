@@ -2,18 +2,17 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { VideoOptions, VideoOptionChoices, VideoModelMenu, VideoModeMenu } from "./VideoOptions";
 import { DEFAULT_VIDEO_SETTINGS, VIDEO_MODELS } from "@/domain/videoModels";
-import { videoEstimate } from "@/domain/videoPanel";
 import type { VideoGenSettings } from "@/types";
 
 const settings: VideoGenSettings = { ...DEFAULT_VIDEO_SETTINGS, count: 1 };
 describe("视频选项", () => {
-  it("底行短模型名、文生视频、合并设置和总估价，问题会锁发送", () => {
+  it("底行短模型名、文生视频、合并设置、不写价格，问题会锁发送", () => {
     const video = { ...settings, ratio: "adaptive" as const, count: 4 as const };
     const html = renderToStaticMarkup(<VideoOptions video={video} refs={[]} sending={false} disabled onChange={() => {}} onSend={() => {}} />);
     expect(html).toContain("2.0 Mini");
     expect(html).toContain("文生视频");
     expect(html).toContain("Auto · 480P · 5s · 4个");
-    expect(html).toContain(`¥${videoEstimate(video, []).yuan.toFixed(2)}`);
+    expect(html).not.toContain("¥");
     expect(html).toMatch(/class="gen__send" disabled=""/);
   });
   it("设置按比例、清晰度、时长、音频、数量排序，2.5 首帧只可 Auto", () => {

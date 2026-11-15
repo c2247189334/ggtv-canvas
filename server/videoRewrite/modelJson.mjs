@@ -1,4 +1,4 @@
-/** 只修格式：取完整外层对象、转义字符串里的真实控制字符；不补括号、不猜缺失内容。 */
+/** 只修格式：取完整外层对象、转义字符串里的真实控制字符、字符串外的中文逗号当逗号；不补括号、不猜缺失内容。 */
 export function parseModelJson(text) {
   try { return JSON.parse(text); }
   catch (strictError) {
@@ -17,6 +17,8 @@ export function parseModelJson(text) {
         else if (char === '\\') escaped = true;
         else if (char === '"') quoted = false;
       } else if (char === '"') quoted = true;
+      // 11-12 本机 Claude 把字段之间的逗号写成中文「，」（4 次里 1 次）：字符串外面的「，」只可能是写错的逗号。
+      else if (char === '，') { fixed += ','; continue; }
       else if (char === '{') depth++;
       else if (char === '}') depth--;
       fixed += char;

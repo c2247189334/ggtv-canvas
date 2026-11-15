@@ -56,7 +56,8 @@ describe("uploadMedia", () => {
     vi.mocked(api.upload).mockResolvedValue({ id: "i", kind: "image" });
     const notify = vi.fn();
     expect(await uploadMedia([file, new File(["v"], "v.mp4")], false, notify)).toEqual([{ type: "upload", id: "i", fileName: "x.png" }]);
-    expect(api.upload).toHaveBeenCalledExactlyOnceWith(prepared);
+    // 11-12：带原文件名上传 = 进「我上传的」。
+    expect(api.upload).toHaveBeenCalledExactlyOnceWith(prepared, "x.png");
     expect(notify).toHaveBeenCalledWith(expect.stringContaining("只收"));
     vi.mocked(api.upload).mockRejectedValue(new Error("服务原话"));
     expect(await uploadMedia([file], false, notify)).toEqual([]);

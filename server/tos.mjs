@@ -11,7 +11,7 @@ export function tosConfig(env = {}) {
     const value = String(env[name] ?? '').trim();
     if (!value || /^请/.test(value)) {
       const code = `${name}_MISSING`;
-      throw Object.assign(Error(`.env.local 里没填 ${name}（存参考视频要用），这单没发出去，没花钱。`), { code, notSent: true });
+      throw Object.assign(Error(`.env.local 里没填 ${name}（存参考视频要用），这单没发出去。`), { code, notSent: true });
     }
     config[name] = value;
   }
@@ -79,7 +79,7 @@ export function createTos({ env = {}, fetch: suppliedFetch, now = () => new Date
       } catch (error) {
         const allowed = ['TOS_VIDEO_SIZE_INVALID', 'TOS_UPLOAD_FAILED', 'TOS_UPLOAD_TIMEOUT', 'TOS_REFERENCE_NOT_READABLE', 'TOS_REFERENCE_HASH_MISMATCH'];
         const code = allowed.includes(error?.code) ? error.code : 'TOS_TRANSFER_FAILED';
-        throw Object.assign(Error(`参考视频传到 TOS 失败（${code}），这单没发出去，没花钱。`), { code, notSent: true });
+        throw Object.assign(Error(`参考视频传到 TOS 失败（${code}），这单没发出去。`), { code, notSent: true });
       }
     }
   };

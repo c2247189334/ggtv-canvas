@@ -40,7 +40,7 @@ it('原视频网络重试重建后，选区保持，Space和循环监听转接�
   };
   const key = (key: string) => target.dispatchEvent(Object.assign(new Event('keydown', { cancelable: true }), { key, code: key === ' ' ? 'Space' : key }));
   try {
-    render(); controls.onRange({ start: 1, end: 4 }, true); render();
+    render(); controls.onRange({ start: 1, end: 4 }, 'start'); render();
     video.current = fresh as unknown as HTMLVideoElement; version++; render();
     key(' '); expect(fresh.play).toHaveBeenCalledTimes(1); expect(old.play).not.toHaveBeenCalled();
     expect(controls.range).toEqual({ start: 1, end: 4 });

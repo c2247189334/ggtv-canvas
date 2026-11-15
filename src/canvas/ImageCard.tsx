@@ -1,7 +1,8 @@
 import { memo, useEffect, useState } from "react";
 import { NodeToolbar, Position, useStore, type NodeProps } from "@xyflow/react";
 import { BusyOverlay } from "./BusyOverlay";
-import { CardHandle } from "./CardHandle";
+import { CardHandle, LineEnd } from "./CardHandle";
+import { CardHead } from "./CardHead";
 import { CardTools } from "./CardTools";
 import { api } from "@/api";
 import { useBoard } from "@/canvas/boardContext";
@@ -11,11 +12,14 @@ import { handleVisibility } from "@/domain/selection";
 import { assetUrl, cardTitle, currentResult, imageFailure } from "@/domain/cards";
 import { useDeletedWorks } from "@/library/worksEvents";
 import type { AssetRef, CardNode } from "@/types";
+import { productEmptyText, productOriginalLook } from '@/domain/productRemake';
+import { usesSceneText } from '@/domain/rewriteTextScene';
 
 const IMAGE_RETRY_INTERVAL_MS = 3000;
 
 /** key 用原图地址：翻页、换图时连同旧探测和重试计时器一起销毁。确定找不到（404）就不出上方工具条。 */
-function CardImage({ asset, url, title, missingText }: { asset: AssetRef; url: string; title: string; missingText: string }) {
+function CardImage({ asset, url, title, missingText, onSize, panelBelow }: { asset: AssetRef; url: string; title: string; missingText: string;
+  onSize: (width: number, height: number) => void; panelBelow?: boolean }) {
   const [failed, setFailed] = useState(false);
   const [failure, setFailure] = useState<"missing" | "retry" | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -54,13 +58,13 @@ function CardImage({ asset, url, title, missingText }: { asset: AssetRef; url: s
           style={failure === "retry" ? { display: "none" } : undefined}
           draggable={false}
           onError={() => setFailed(true)}
-          onLoad={() => setFailure(null)}
+          onLoad={event => { setFailure(null); onSize(event.currentTarget.naturalWidth, event.currentTarget.naturalHeight); }}
         />
       ) : null}
       {failed || failure ? (
         <div className="card__empty">{failure === "missing" ? missingText : "图片没加载出来，正在重试…"}</div>
       ) : null}
-      {failure !== "missing" ? <CardTools asset={asset} title={title} media="image" /> : null}
+      {failure !== "missing" ? <CardTools asset={asset} title={title} media="image" panelBelow={panelBelow} /> : null}
     </>
   );
 }
@@ -78,7 +82,7 @@ function ImageCardView({ id, data, selected }: NodeProps<CardNode>) {
   const title = cardTitle(data);
   const current = currentResult(data);
   const url = current ? assetUrl(current) : null;
-  const missing = Boolean(current?.type === "work" && deletedWorks.has(current.id));
+  const missing = Boolean(current && deletedWorks.has(current.id));
   const isGenerate = data.source === "generate";
   const connecting = useStore(state => state.connection.inProgress);
   const fromType = useStore(state => state.connection.fromHandle?.type);
@@ -86,21 +90,32 @@ function ImageCardView({ id, data, selected }: NodeProps<CardNode>) {
   const busy = data.jobs.length > 0;
   const total = data.results.length;
   const page = total ? Math.min(Math.max(0, data.page), total - 1) : 0;
+  const productLook = useStore(state => data.kind === 'image' ? productOriginalLook(state.nodes as CardNode[], data.productRole) : '');
+  // 有图时卡框跟着图的比例（11-08 用户定）；尺寸只在页面里量，不进存档。商品卡仍固定 3:4（一组里要对齐）。
+  const [natural, setNatural] = useState<{ url: string; width: number; height: number } | null>(null);
+  const size = natural && natural.url === url && !missing ? natural : null;
+  const product = data.kind === "image" && data.productRole?.role === "product";
+  // 11-11：改写卡还没图时按 emptyAspect 画框，和左边原片截图一样大、一行对齐。
+  const frame = product ? null : size ? `${size.width} / ${size.height}` : data.kind === "image" && data.emptyAspect ? String(data.emptyAspect) : null;
 
   let empty = "没有图";
-  if (missing) empty = "作品已删除";
+  if (missing) empty = current?.type === "work" ? "作品已删除" : "这张图找不到了";
   else if (isGenerate) empty = "写好提示词，点发送出图";
   if (data.kind === 'image' && data.rewriteItem) empty = `传：${data.rewriteItem.desc}`;
+  if (data.kind === 'image' && data.productRole) empty = productEmptyText(data, productLook)!;
+  // 11-13 背景卡「不出图，用文字」：卡面只显示写的字；原来有图也留着不删，改回用图时还在。
+  const sceneText = usesSceneText(data);
+  if (sceneText) empty = `用文字：${data.rewriteSceneText?.trim() || '（还没写）'}`;
 
   return (
-    <div className={selected ? "card is-selected" : "card"}>
-      <div className="card__title">{title}{data.kind === "image" && data.assetId ? <span className="card__asset">真人素材</span> : null}</div>
-      <div className="card__body">
-        {current && url && !missing ? (
-          <CardImage key={url} asset={current} url={url} title={title}
+    <div className={`card${selected ? " is-selected" : ""}${product ? " card--product" : ""}`}>
+      <CardHead id={id} title={title} size={size}>{data.kind === "image" && data.assetId ? <span className="card__asset">真人素材</span> : null}</CardHead>
+      <div className={`card__body${frame ? " card__body--fit" : ""}`} style={frame ? { aspectRatio: frame } : undefined}>
+        {current && url && !missing && !sceneText ? (
+          <CardImage key={url} asset={current} url={url} title={title} onSize={(width, height) => setNatural({ url, width, height })} panelBelow={isGenerate}
             missingText={current?.type === "work" ? "作品已删除" : "这张图找不到了"} />
         ) : (
-          <div className={`card__empty${data.kind === 'image' && data.rewriteItem ? ' card__replacement' : ''}`} title={empty}>{empty}</div>
+          <div className={`card__empty${data.kind === 'image' && (data.rewriteItem || data.productRole || sceneText) ? ' card__replacement' : ''}`} title={empty}>{empty}</div>
         )}
         {busy ? <BusyOverlay text={`正在生成中…${data.jobs.length > 1 ? `（${data.jobs.length} 单）` : ""}`} /> : null}
         {!busy && data.note ? <div className="card__note">{data.note}</div> : null}
@@ -113,7 +128,7 @@ function ImageCardView({ id, data, selected }: NodeProps<CardNode>) {
         ) : null}
       </div>
       {isGenerate ? <CardHandle type="target" visible={handles.target} showPlus={onlySelected}
-        onClick={anchor => board.openRefMenu(id, anchor)} /> : null}
+        onClick={anchor => board.openRefMenu(id, anchor)} /> : data.mediaSource ? <LineEnd /> : null}
       <CardHandle type="source" visible={handles.source} showPlus={onlySelected}
         onClick={anchor => board.openNextMenu(id, anchor)} />
       {isGenerate ? (

@@ -1,8 +1,10 @@
 import { expect, it } from 'vitest';
 import { newAudioCard, newCard, newVideoCard } from './cards';
-import { rewriteDropHighlight, rewriteDropPlan } from './rewriteDrop';
+import { rewriteCharacterDrop, rewriteDropHighlight, rewriteDropPlan } from './rewriteDrop';
 import { WORK_IMAGE_DRAG_TYPE } from './media';
 import { WorksGrid, WORK_DRAG_TYPE } from '@/library/WorksGrid';
+import { CharacterCard } from '@/library/CharacterCard';
+import type { CharacterView } from '@/characterTypes';
 import type { CardNode } from '@/types';
 
 const target: CardNode = { id: 'replace', type: 'card', position: { x: 0, y: 0 },
@@ -67,4 +69,41 @@ it('拖动途中只高亮可接收目标，离开、取消或松手（无目标/
   for (const type of ['video/mp4', 'audio/wav', 'text/plain', '']) {
     expect(rewriteDropHighlight([target], target.id, { types: ['Files'], items: [{ kind: 'file', type }, ...imagePreview.items] })).toBeNull();
   }
+});
+
+const person: CharacterView = { id: 'p', name: '阿青', description: '', createdAt: '', updatedAt: '', status: 'ready', images: [
+  { ref: { type: 'work', id: 'first' }, label: '设定图', video: { status: 'trusted', days: 30 } },
+  { ref: { type: 'upload', id: 'second' }, label: '图 2', video: { status: 'photo' } }] };
+
+it('11-06 人物拖到改写图片卡：填人物第一张图，不新建卡', () => {
+  expect(rewriteCharacterDrop([target], target.id, person)).toEqual({ kind: 'fill', id: target.id, asset: { type: 'work', id: 'first' }, lostAsset: false });
+});
+
+it('11-06 人物第一张图有真人素材编号：照样填，标出编号带不过去', () => {
+  const coded = { ...person, images: [{ ...person.images[0], assetId: 'asset-1' }] };
+  expect(rewriteCharacterDrop([target], target.id, coded)).toMatchObject({ kind: 'fill', lostAsset: true });
+});
+
+it('11-06 人物拖到正在生成的改写卡被拒，不退回新建', () => {
+  const busy = { ...target, data: { ...target.data, jobs: ['job'] } };
+  expect(rewriteCharacterDrop([busy], busy.id, person)).toEqual({ kind: 'reject', message: '这张卡正在生成，请等生成结束后再放图片。' });
+});
+
+it('11-06 人物拖到空白、普通卡、视频卡走新建；目标不见了也走新建', () => {
+  const nodes: CardNode[] = [target, { ...target, id: 'ordinary', data: newCard('generate', 2) },
+    { ...target, id: 'video', data: { ...newVideoCard('generate', 3), rewriteId: 'r' } }];
+  for (const id of [null, 'ordinary', 'video', 'removed']) expect(rewriteCharacterDrop(nodes, id, person)).toEqual({ kind: 'new' });
+});
+
+it('11-06 人物没有图：拖到改写卡给说明', () => {
+  expect(rewriteCharacterDrop([target], target.id, { ...person, images: [] })).toEqual({ kind: 'reject', message: '人物还没有可添加的图片。' });
+});
+
+it('11-06 拖人物经过改写图片卡会高亮，经过普通卡不亮', () => {
+  const writes: Record<string, string> = {};
+  const tree = CharacterCard({ character: person, busy: false, onOpen: () => {}, onRetry: () => {}, onDelete: () => {} });
+  tree.props.onDragStart({ dataTransfer: { setData: (type: string, value: string) => { writes[type] = value; } } });
+  const preview = { types: Object.keys(writes), items: [] };
+  expect(rewriteDropHighlight([target], target.id, preview)).toBe(target.id);
+  expect(rewriteDropHighlight([{ ...target, data: newCard('generate', 1) }], target.id, preview)).toBeNull();
 });

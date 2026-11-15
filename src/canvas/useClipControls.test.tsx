@@ -52,6 +52,18 @@ it('播到选区结尾回到开头，结束事件恢复播放；播放失败提�
   h.key(' '); await Promise.resolve(); await Promise.resolve();
   expect(h.notify).toHaveBeenCalledWith('视频没播起来，请再点播放按钮试一次。');
 });
+it('拖右把手：正在播也先停，停在选区最后一帧；拖到视频末尾不算播完，不会被循环拉回重播', async () => {
+  const h = setup(); h.element.paused = false;
+  h.controls.onRange({ start: 0, end: 5 }, 'end');
+  expect(h.element.paused).toBe(true); expect(h.element.currentTime).toBeCloseTo(4.999, 9);
+  h.controls.onRange({ start: 3, end: 9 }, 'end'); expect(h.element.currentTime).toBeCloseTo(8.999, 9);
+  // Chrome实测：暂停时跳到最后一帧 ended 就是 true，再跳一次会读到整条时长、还发 ended 事件
+  h.element.ended = true; h.element.currentTime = 9;
+  for (const name of ['timeupdate', 'seeked', 'ended']) h.element.dispatchEvent(new Event(name));
+  expect(h.element.currentTime).toBe(9); expect(h.element.play).not.toHaveBeenCalled();
+  h.element.currentTime = 8.999; h.key(' '); await Promise.resolve();
+  expect(h.element.currentTime).toBe(3); expect(h.element.play).toHaveBeenCalledTimes(1);
+});
 it('暂停时点选区以外只挪播放头，不被循环拉回；只有正在播放才循环', () => {
   const h = setup(); h.element.currentTime = 7; h.element.dispatchEvent(new Event('seeking'));
   expect(h.element.currentTime).toBe(7);

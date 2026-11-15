@@ -16,19 +16,30 @@ export function originalDescriptionMatch(text, desc) {
 /**
  * 换装点：除最早一套外每套衣服开始处（start）。10-29：动作、道具、遮挡物的变化不单独占一秒段，交给深度视频（10-26 真跑把扇叶写进了 1-2 秒动作段）。
  * 衣服起止常比换装晚一点（10-29 真跑衣服2写 6 秒开始、换装写 5.8）：上一套结束前 0.3 秒到这一套开始之间有 changes，就用离开始最近的那个当秒数（second）。
+ * 11-06 真拆两个人：第一套常差零点几秒才开始（0.2 和 0.4），那不是换装，所以「最早一套」按人算。没记 person 的旧单子算一个人。
  */
 export function outfitChangePoints(plan) {
   const clothes = (plan?.items ?? []).filter(item => item?.kind === '衣服' && Number.isFinite(item.from) && Number.isFinite(item.to));
-  const first = Math.min(...clothes.map(item => item.from));
   const marks = (plan?.changes ?? []).map(change => change?.second).filter(Number.isFinite);
-  const starts = [...new Set(clothes.map(item => item.from).filter(start => start > first))].sort((a, b) => a - b);
-  const points = starts.map(start => {
-    const low = Math.min(start, Math.max(...clothes.filter(item => item.from < start).map(item => item.to))) - 0.3;
-    return { second: marks.filter(mark => mark >= low && mark <= start).sort((a, b) => b - a)[0] ?? start, start };
-  });
+  const points = [...new Set(clothes.map(item => item.person ?? ''))].flatMap(owner => {
+    const worn = clothes.filter(item => (item.person ?? '') === owner), first = Math.min(...worn.map(item => item.from));
+    return [...new Set(worn.map(item => item.from).filter(start => start > first))].map(start => {
+      const low = Math.min(start, Math.max(...worn.filter(item => item.from < start).map(item => item.to))) - 0.3;
+      return { second: marks.filter(mark => mark >= low && mark <= start).sort((a, b) => b - a)[0] ?? start, start };
+    });
+  }).sort((a, b) => a.start - b.start);
   return points.filter((point, index) => points.findIndex(other => other.second === point.second) === index);
 }
 export const outfitChangeSeconds = plan => outfitChangePoints(plan).map(point => point.second).sort((a, b) => a - b);
+
+/** 11-06：原片换了地方时拆解才带场景项（至少两个），按时间排好；只有一个地方就没有。 */
+export function sceneItems(plan) {
+  const scenes = (plan?.items ?? []).filter(item => item?.kind === '场景' && Number.isFinite(item.from)).sort((a, b) => a.from - b.from);
+  return scenes.length > 1 ? scenes : [];
+}
+export const sceneChangePoints = plan => sceneItems(plan).slice(1).map(item => ({ second: item.from, start: item.from }));
+/** 要单独占一秒段的秒数：换装点 + 换场点（和 src/domain/videoRewrite.ts 两边一起改）。 */
+export const planChangeSeconds = plan => [...new Set([...outfitChangeSeconds(plan), ...sceneChangePoints(plan).map(point => point.second)])].sort((a, b) => a - b);
 
 /** 区间统一写成“0-6秒”；源视频小数时长四舍五入为生成时长（源已限 4~30 秒，结果仍在 2.5 的 4~30 秒内）。 */
 export function checkRules({ videoPrompt, materials = [], duration, changeSeconds, plan }) {
@@ -37,6 +48,8 @@ export function checkRules({ videoPrompt, materials = [], duration, changeSecond
   if (!text.trim()) issues.push('请填写视频提示词。');
   if (text.length > MAX_PROMPT) issues.push(`提示词太长，最多 ${MAX_PROMPT} 字。`);
   for (const word of EDIT_WORDS) if (text.includes(word)) issues.push(`提示词含有「${word}」，请用画面和动作直接描述。`);
+  // 11-13 背景卡用文字：底稿里的占位（writePrompt 的 sceneTextMark）必须换成这一段的画面描述。
+  for (const mark of new Set(text.match(/【[^【】\n]{1,40}用文字】/g) ?? [])) issues.push(`提示词里还有占位「${mark}」，要写成这一段的画面描述。`);
   // 仅排除完整括号内的穿着时段；正文“0-5秒穿…”仍是时间轴。
   const matches = [...text.matchAll(/(\d+(?:\.\d+)?)\s*(?:秒)?\s*[-—–~～至到]\s*(\d+(?:\.\d+)?)\s*秒/g)]
     .filter(match => !(/[（(]\s*$/.test(text.slice(0, match.index)) && /^\s*穿[）)]/.test(text.slice(match.index + match[0].length))));
@@ -47,8 +60,11 @@ export function checkRules({ videoPrompt, materials = [], duration, changeSecond
   if (intervals.length && intervals[0][0] !== 0) issues.push('时间轴必须从0秒开始。');
   if (intervals.some(([from, to]) => to <= from)) issues.push('时间轴每段的结束秒数必须大于开始秒数。');
   if (intervals.some(([from], i) => i > 0 && from !== intervals[i - 1][1])) issues.push('时间轴各段必须首尾相接，不能断开或重叠。');
-  if (intervals.length && intervals.at(-1)[1] !== targetDuration(duration)) issues.push(`时间轴最后一段必须到${targetDuration(duration)}秒（源时长四舍五入）。`);
-  for (const second of changeSeconds ?? outfitChangeSeconds(plan)) {
+  // 11-15：对照的是面板里设的视频时长（页面传 video.duration），用户改了时长、时间轴还按旧时长写最常见，原话说清怎么办。
+  if (intervals.length && intervals.at(-1)[1] !== targetDuration(duration)) {
+    issues.push(`时间轴写到了${intervals.at(-1)[1]}秒，视频时长设的是${targetDuration(duration)}秒：改过时长就重新点「生成提示词」，或者手动把最后一段改成到${targetDuration(duration)}秒。`);
+  }
+  for (const second of changeSeconds ?? planChangeSeconds(plan)) {
     const from = Math.floor(second);
     if (from + 1 > targetDuration(duration)) continue;
     if (!intervals.some(([start, end]) => start === from && end === from + 1)) {

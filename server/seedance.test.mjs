@@ -55,7 +55,7 @@ test('建任务等 10 分钟（10-26 真测本机上传约 45KB/秒，8MB 请求
   assert.deepEqual(waits, { submit: 600000, query: 60000, download: 60000 });
 });
 
-test('400拒收带回所有参考序号、真人说明、没扣钱且脱敏', async () => {
+test('400拒收带回所有参考序号、真人说明、没建任务且脱敏', async () => {
   const c = client(async () => response({ error: { code: 'InputImageSensitiveContentDetected.PrivacyInformation',
     message: 'content[1] and content[3] fake-private-key fake-tos-secret' } }, 400));
   const result = await c.submit(input);
@@ -63,7 +63,7 @@ test('400拒收带回所有参考序号、真人说明、没扣钱且脱敏', as
   assert.deepEqual(result.blocked, [1, 3]);
   assert.match(result.message, /参考 1、参考 3/);
   assert.match(result.message, /真人素材编号/);
-  assert.match(result.message, /没建任务，没扣钱/);
+  assert.match(result.message, /没建任务/);
   assert.doesNotMatch(JSON.stringify(result), /fake-private-key|fake-tos-secret/);
 });
 
@@ -73,7 +73,7 @@ test('普通审核、普通400、5xx、notSent、提交断开分类明确', asyn
   for (const [status, outcome] of [[400, 'rejected'], [500, 'uncertain']]) {
     const result = await client(async () => response({ error: { message: '拒绝' } }, status)).submit(input);
     assert.equal(result.outcome, outcome);
-    assert.match(result.message, status === 400 ? /没扣钱/ : /可能已建任务并扣费/);
+    assert.match(result.message, status === 400 ? /没建任务/ : /可能已建任务/);
   }
   for (const notSent of [true, false]) {
     const result = await client(async () => { throw Object.assign(Error(env.ARK_API_KEY), { notSent }); }).submit(input);

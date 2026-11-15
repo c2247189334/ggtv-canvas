@@ -5,7 +5,8 @@ release/
 runtime/
 *.log
 
-# 密钥：只在本机，绝不进版本
+# 密钥：只在本机，绝不进版本（本项目只读 .env.local；.env 也忽略，免得有人顺手建了带密钥的 .env 被提交）
+.env
 .env.local
 .env*.local
 

@@ -10,6 +10,26 @@
 .board:not(.board--multi-selection) .react-flow__nodesselection { display: none; }
 .board .react-flow__edge-path { stroke: #5a5a66; stroke-width: 2px; }
 .board .react-flow__edge { pointer-events: visibleStroke; cursor: pointer; }
+.board--group-selected .react-flow__node-toolbar,
+.board--group-selected .react-flow__handle { display: none; }
+.group-frame { position: absolute; z-index: -1; border: 1px solid #47474f; border-radius: 14px; background: #25252b; pointer-events: all; cursor: grab; }
+.group-frame.is-selected { border-color: #b5b5cc; }
+/* 组名、组工具条屏幕上始终 13 像素（GroupFrames 按 1/缩放 反向放大），组名在框外左上离框 8。 */
+.group-frame__name { position: absolute; left: 0; bottom: calc(100% + 8px); color: #9a9aa6; font-size: 13px; line-height: 20px; white-space: nowrap; transform-origin: left bottom; }
+.group-frame__tools { position: absolute; left: 0; top: 0; z-index: 1100; flex-wrap: nowrap; pointer-events: all; transform-origin: 0 0; }
+.group-frame__tools button { white-space: nowrap; }
+.group-frame__tools button:disabled { opacity: 0.45; cursor: default; }
+.group-frame__tools .is-on { color: var(--accent); }
+.group-frame__arrange { position: relative; display: inline-flex; }
+.group-frame__arrange > summary { list-style: none; cursor: pointer; }
+.group-frame__arrange > summary::-webkit-details-marker { display: none; }
+.group-frame__menu { position: absolute; top: calc(100% + 8px); left: 0; display: grid; min-width: 112px; padding: 4px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); box-shadow: var(--shadow); }
+.group-frame__menu button { text-align: left; }
+.group-frame__corner { position: absolute; width: 7px; height: 7px; border: 1px solid #d9d9e5; background: #3e3e49; pointer-events: none; }
+.group-frame__corner.tl { left: -4px; top: -4px; }
+.group-frame__corner.tr { right: -4px; top: -4px; }
+.group-frame__corner.bl { left: -4px; bottom: -4px; }
+.group-frame__corner.br { right: -4px; bottom: -4px; }
 .cut-edge__highlight { fill: none; stroke: var(--accent); stroke-width: 2px; stroke-dasharray: 8 12; pointer-events: none; animation: edge-cut-flow 1.8s linear infinite; }
 @keyframes edge-cut-flow { to { stroke-dashoffset: -20; } }
 .cut-edge__button { position: absolute; transform-origin: 0 0; width: 32px; height: 32px; padding: 6px; border: 1px solid #62626d; border-radius: 50%; background: #303037; color: #ededf2; pointer-events: all; cursor: pointer; display: grid; place-items: center; }

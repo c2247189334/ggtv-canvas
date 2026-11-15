@@ -14,10 +14,10 @@ const output = (nodes: CardNode[]) => nodes.find(node => node.data.kind === 'vid
 const plan = { summary: '换人', items: [{ id: 'p', kind: '人物' as const, desc: '人物', from: 0, to: 6, frame: 1 }],
   replace: ['p'], changes: [], actions: [], unsure: [] };
 
-it('开跑即在第四列建最终视频，分析成功只填同一id，位置和视频设置不变', () => {
+it('开跑即在第五列建最终视频（11-11 起截图占第 3 列），分析成功只填同一id，位置和视频设置不变', () => {
   const options = args(), started = startVideoRewrite(options), early = output(started.nodes);
   expect(early).toBeDefined();
-  expect(early.position).toEqual({ x: 1140, y: 0 });
+  expect(early.position).toEqual({ x: 1520, y: 0 });
   expect(early.data).toMatchObject({ prompt: '', rewriteSourceId: 'source', rewriteSource: source.data.results[0], rewriteStatus: { status: 'pending' },
     video: { model: 'doubao-seedance-2-5-260628', mode: 'reference', ratio: '9:16', resolution: '480p', duration: 6, audio: false, count: 1 } });
   const prepared = prepareRewriteCards({ ...options, ...started, state: { ...started.state, plan } });

@@ -9,6 +9,7 @@ import { useLocalStop } from "@/canvas/useLocalStop";
 import { Confirm } from "@/common/Confirm";
 import { stopConfirmText } from "@/domain/localMedia";
 import { useVideoClip } from './useVideoClip';
+import { useFrameCapture } from './useFrameCapture';
 import { AssetIdDialog } from "@/common/AssetIdDialog";
 import { handleCanvasDrop } from './RewriteImageUpload';
 import { rewriteDropHighlight } from '@/domain/rewriteDrop';
@@ -36,10 +37,17 @@ import { WORK_DRAG_TYPE } from "@/library/WorksGrid";
 import { WorksPicker } from "@/library/WorksPicker";
 import { CanvasMenu } from "@/shell/CanvasMenu";
 import { BrandCredit, BrandMark } from "@/shell/BrandMark";
-import type { CanvasSummary, CardNode, MediaWorkView } from "@/types";
+import type { CanvasSummary, CardNode } from "@/types"; import type { PickedMedia } from "@/uploadTypes";
 import { useVideoRewrite } from "./useVideoRewrite";
 import { useMeasuredRewriteLayout } from "./useMeasuredRewriteLayout";
-import { useRewriteFocus } from "./useRewriteFocus";
+import { useCardFocus, useRewriteFocus } from "./useRewriteFocus";
+import { useBoardGroups } from './useBoardGroups';
+import { GroupFrames } from './GroupFrames';
+import { cardAtPointer } from './useBoardActions';
+import { useBoardCharacters } from './useBoardCharacters';
+import { SaveCharacterDialog } from '@/library/SaveCharacterDialog';
+import { CHARACTER_DRAG_TYPE } from '@/library/characterEvents';
+import { useProductRemake } from './useProductRemake';
 
 function CardView(props: NodeProps<CardNode>) {
   return props.data.kind === "audio" ? <AudioCard {...props} /> : props.data.kind === "video" ? <VideoCard {...props} /> : <ImageCard {...props} />;
@@ -77,16 +85,18 @@ function Board(props: BoardProps) {
   const flow = useReactFlow<CardNode, Edge>();
   const doc = useBoardDoc(canvas.id, canvas.name, notify);
   const rewriteLayout = useMeasuredRewriteLayout(doc.nodes, doc.setNodes);
-  const rewriteFocus = useRewriteFocus();
+  const rewriteFocus = useRewriteFocus(), cardFocus = useCardFocus();
   const send = useSend(canvas.id, doc.setNodes);
   const videoRewrite = useVideoRewrite({ canvasId: canvas.id, nodes: doc.nodes, setNodes: doc.setNodes, setEdges: doc.setEdges,
-    takeNumber: doc.takeNumber, notify, layout: rewriteLayout, focus: id => void rewriteFocus(id), send });
+    takeNumber: doc.takeNumber, notify, layout: rewriteLayout, focus: id => void rewriteFocus(id) });
+  const productRemake = useProductRemake({ canvasId: canvas.id, nodes: doc.nodes, setNodes: doc.setNodes, setEdges: doc.setEdges,
+    takeNumber: doc.takeNumber, notify, layout: rewriteLayout, focus: id => void rewriteFocus(id) });
   const [pending, setPending] = useState<PendingLink | null>(null);
   const [dropHighlight, setDropHighlight] = useState<string | null>(null);
   const closeMenu = useRef(() => {});
-  const [picking, setPicking] = useState<{ resolve: (work: MediaWorkView | null) => void; includeVideo: boolean } | null>(null);
+  const [picking, setPicking] = useState<{ resolve: (picked: PickedMedia | null) => void; includeVideo: boolean } | null>(null);
 
-  const pickWork = useCallback((includeVideo = true) => new Promise<MediaWorkView | null>((resolve) => setPicking({ resolve, includeVideo })), []);
+  const pickWork = useCallback((includeVideo = true) => new Promise<PickedMedia | null>((resolve) => setPicking({ resolve, includeVideo })), []);
   const cards = useCards({ setNodes: doc.setNodes, setEdges: doc.setEdges, takeNumber: doc.takeNumber, notify, pickWork,
     onBlankConnect: (source, screen) => {
       closeMenu.current();
@@ -97,14 +107,17 @@ function Board(props: BoardProps) {
     doc.setNodes(videoRewrite.restore(graph.nodes)); doc.setEdges(graph.edges);
   });
   const stopLocal = useLocalStop(notify);
-  const actions = useBoardActions(doc, history, () => closeMenu.current(), notify, stopLocal);
+  const groups = useBoardGroups(doc, notify);
+  const actions = useBoardActions(doc, history, () => closeMenu.current(), notify, stopLocal, groups);
+  const characters = useBoardCharacters(doc, notify, actions.selectedNodes, groups.clear);
   const altDrag = useAltDrag(doc);
   const refPick = useRefPick(doc, cards, () => closeMenu.current());
-  const menus = useBoardMenus(cards, doc, actions, history, pending, () => setPending(null));
+  const menus = useBoardMenus(cards, doc, actions, history, pending, () => setPending(null), groups, characters);
   closeMenu.current = menus.close;
   useJobPolling(doc.nodes, doc.setNodes);
   const localMedia = useLocalMedia({ canvasId: canvas.id, nodes: doc.nodes, setNodes: doc.setNodes, setEdges: doc.setEdges, takeNumber: doc.takeNumber, notify });
   const videoClip = useVideoClip({ canvasId: canvas.id, nodes: doc.nodes, setNodes: doc.setNodes, setEdges: doc.setEdges, notify });
+  const captureFrame = useFrameCapture({ setNodes: doc.setNodes, setEdges: doc.setEdges, notify });
 
   useEffect(() => {
     if (doc.ready && flow.getNodes().length) void flow.fitView({ padding: 0.2, maxZoom: 1 });
@@ -123,16 +136,19 @@ function Board(props: BoardProps) {
       localMedia,
       stopLocal,
       videoClip,
+      captureFrame,
       videoRewrite,
+      productRemake,
       turnPage: cards.turnPage,
       updateCard: cards.updateCard,
       disconnect: cards.disconnect,
+      connect: cards.connect,
       send,
       startRefPick: refPick.start,
       openRefMenu: menus.openRefMenu,
       openNextMenu: menus.openNextMenu
     }),
-    [openViewer, notify, localMedia, stopLocal, videoClip, videoRewrite, cards, send, refPick.start, menus.openRefMenu, menus.openNextMenu]
+    [openViewer, notify, localMedia, stopLocal, videoClip, captureFrame, videoRewrite, productRemake, cards, send, refPick.start, menus.openRefMenu, menus.openNextMenu]
   );
 
   /** 改写图片卡原位补图；其他落点沿用新建卡。 */
@@ -141,6 +157,8 @@ function Board(props: BoardProps) {
     setDropHighlight(null);
     const at = flow.screenToFlowPosition({ x: event.clientX, y: event.clientY });
     const id = dropNodeId(event.clientX, event.clientY);
+    const character = event.dataTransfer.getData(CHARACTER_DRAG_TYPE);
+    if (character) { void characters.drop(character, at, id); return; }
     void handleCanvasDrop(flow.getNodes(), id, {
       work: event.dataTransfer.getData(WORK_DRAG_TYPE), files: Array.from(event.dataTransfer.files)
     }, at, { ...cards, notify }, flow.getNodes).catch(error => notify((error as Error).message));
@@ -152,12 +170,13 @@ function Board(props: BoardProps) {
       notify("这张画布本来就是空的。");
       return;
     }
+    void stopLocal(snapshot.nodes.map(n => n.id));
     doc.setNodes([]);
     doc.setEdges([]);
     notify("已清空这张画布。", { label: "撤销", run: () => { doc.setNodes(videoRewrite.restore(snapshot.nodes)); doc.setEdges(snapshot.edges); } }, 10000);
   };
 
-  const showMultiSelection = shouldShowMultiSelection(doc.nodes.filter((node) => node.selected).length);
+  const showMultiSelection = !groups.selected && shouldShowMultiSelection(doc.nodes.filter((node) => node.selected).length);
 
   if (doc.loadError) return <div className="stage__message">打不开这张画布：{doc.loadError}</div>;
   if (!doc.ready) return <div className="stage__message">正在打开画布…</div>;
@@ -169,7 +188,7 @@ function Board(props: BoardProps) {
         {...boardPointerControls}
         {...boardKeyboardControls}
         panActivationKeyCode={videoClip.session ? null : boardPointerControls.panActivationKeyCode}
-        className={`board${showMultiSelection ? " board--multi-selection" : ""}${refPick.active ? " board--ref-pick" : ""}`}
+        className={`board${showMultiSelection ? " board--multi-selection" : ""}${refPick.active ? " board--ref-pick" : ""}${groups.selected ? ' board--group-selected' : ''}`}
         colorMode="dark"
         nodes={doc.nodes.map(node => node.id === dropHighlight && !node.data.jobs.length
           ? { ...node, className: `${node.className ?? ''} rewrite-drop-target` } : node)}
@@ -181,7 +200,8 @@ function Board(props: BoardProps) {
         nodesConnectable={!refPick.active}
         elementsSelectable={!refPick.active}
         selectionOnDrag={!refPick.active}
-        onNodeClick={refPick.active ? refPick.onClickCapture : undefined}
+        onNodeClick={refPick.active ? refPick.onClickCapture : (_event, node) => groups.selectCard(node.id)}
+        onSelectionStart={groups.clear}
         onNodesChange={changes => actions.onNodesChange(refPick.active ? changes.filter(c => c.type !== "select") : changes)}
         onEdgesChange={doc.onEdgesChange}
         onConnect={cards.onConnect}
@@ -194,12 +214,9 @@ function Board(props: BoardProps) {
         maxZoom={MAX_ZOOM}
         onDoubleClick={menus.onDoubleClick}
         onDoubleClickCapture={refPick.onDoubleClickCapture}
-        onNodeDoubleClick={(event, node) => {
-          if (event.target instanceof Element && event.target.closest(NOT_FOCUS)) return;
-          void flow.fitView({ nodes: [{ id: node.id }], padding: 0.2, duration: 300, maxZoom: MAX_ZOOM });
-        }}
+        onNodeDoubleClick={(event, node) => { if (!(event.target instanceof Element && event.target.closest(NOT_FOCUS))) cardFocus(node.id); }}
         onContextMenu={menus.onContextMenu}
-        onPaneClick={refPick.active ? undefined : () => { videoRewrite.close(); actions.deselect(); }}
+        onPaneClick={refPick.active ? undefined : () => { videoRewrite.close(); productRemake.close(); actions.deselect(); }}
         onClick={actions.onClick}
         onClickCapture={event => {
           altDrag.onClickCapture(event);
@@ -208,6 +225,8 @@ function Board(props: BoardProps) {
         onPointerDownCapture={event => {
           if (refPick.active) { refPick.onPointerDownCapture(event); return; }
           altDrag.onPointerDownCapture(event);
+          const id = cardAtPointer(event.target, { x: event.clientX, y: event.clientY });
+          if (!event.defaultPrevented && id) groups.selectCard(id);
           if (!event.defaultPrevented) actions.onPointerDownCapture(event);
         }}
         onPointerMove={event => { actions.onPointerMove(event); refPick.onPointerMove(event); }}
@@ -226,6 +245,9 @@ function Board(props: BoardProps) {
         onDrop={onDrop}
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1.6} color="#2b2b33" bgColor="#0e0e11" />
+        {!refPick.active ? <GroupFrames nodes={doc.nodes} selected={groups.selected} onPointerDown={groups.onPointerDown}
+          onContextMenu={menus.onContextMenu} onUngroup={groups.ungroup} onArrange={groups.arrange} onAddImage={productRemake.addImage}
+          onAddGroup={productRemake.addProduct} onSameAs={productRemake.setSameAs} /> : null}
         {refPick.active ? <RefPickBar onReturn={refPick.returnToNode} onExit={refPick.exit}
           label={refPick.label} onCancel={refPick.cancel} /> : null}
         <Panel position="top-left" className="board__corner">
@@ -249,6 +271,8 @@ function Board(props: BoardProps) {
       {actions.pendingRemove ? <Confirm text={stopConfirmText(actions.pendingRemove.count)} okLabel="删除并停止"
         onOk={actions.confirmRemove} onCancel={actions.cancelRemove} /> : null}
       {menus.assetDialog ? <AssetIdDialog value={menus.assetDialog.value} onSave={menus.saveAssetId} onClose={menus.closeAssetDialog} /> : null}
+      {characters.images ? <SaveCharacterDialog images={characters.images} busy={characters.busy} error={characters.error}
+        onSave={fields => void characters.save(fields)} onClose={characters.closeSave} /> : null}
       {picking ? (
         <WorksPicker
           includeVideo={picking.includeVideo}

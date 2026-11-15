@@ -22,7 +22,7 @@ export function createExecutor({ launch = spawn, killTree } = {}) {
     if (signal?.aborted) return Promise.reject(stoppedError());
     return new Promise((resolve, reject) => {
       const child = launch(command, args, { windowsHide: true, detached: process.platform !== 'win32',
-        stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' } });
+        stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONIOENCODING: 'utf-8' } });
       children.add(child);
       const abort = () => kill(child);
       signal?.addEventListener('abort', abort, { once: true });

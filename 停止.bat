@@ -8,7 +8,9 @@ echo   正在找占用 5290 端口的进程 ...
 echo.
 
 set FOUND=
-for /f "tokens=5" %%p in ('netstat -ano ^| findstr /c:":5290 " ^| findstr "LISTENING"') do set FOUND=%%p
+rem 不看 netstat 的 LISTENING：有的 Windows 更新后它显示的状态是乱的。只认"远端端口为 0"的监听记录，
+rem 并跳过进程号 0（那是已经退出的程序留下的残影，不是真在跑的服务）。
+for /f "delims=" %%p in ('powershell -NoProfile -Command "(Get-NetTCPConnection -LocalPort 5290 -ErrorAction SilentlyContinue | Where-Object { $_.RemotePort -eq 0 -and $_.OwningProcess -ne 0 } | Select-Object -First 1).OwningProcess" 2^>nul') do set FOUND=%%p
 
 if not defined FOUND (
     echo   端口 5290 上没有在跑的服务，不用停。

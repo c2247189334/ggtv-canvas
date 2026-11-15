@@ -9,6 +9,7 @@ import type { useGraphHistory } from "@/canvas/useGraphHistory";
 import type { Point } from "@/domain/placement";
 import { busyLocalJobs } from "@/domain/localMedia";
 import type { CardNode } from "@/types";
+import type { useBoardGroups } from './useBoardGroups';
 
 let memory: Clipboard = { nodes: [], edges: [] };
 export const isEditable = (target: EventTarget | null): boolean => target instanceof Element && Boolean(target.closest("input, textarea, select, [contenteditable]:not([contenteditable='false'])"));
@@ -28,7 +29,7 @@ export function cardAtPointer(target: EventTarget | null, point: Point, bodyOnly
 }
 
 export function useBoardActions(doc: ReturnType<typeof useBoardDoc>, history: ReturnType<typeof useGraphHistory>, closeMenu: () => void, notify: Notify,
-  stopLocal: (cardIds: string[]) => Promise<void> = async () => {}) {
+  stopLocal: (cardIds: string[]) => Promise<void> = async () => {}, groups?: ReturnType<typeof useBoardGroups>) {
   const flow = useReactFlow<CardNode, Edge>();
   const pointer = useRef<Point | null>(null);
   const additive = useRef(false);
@@ -36,10 +37,17 @@ export function useBoardActions(doc: ReturnType<typeof useBoardDoc>, history: Re
   const [clipboard, setClipboard] = useState(memory);
   const [pendingRemove, setPendingRemove] = useState<{ ids: string[]; count: number } | null>(null);
   const order = useRef<string[]>([]);
+  const selectedNodes = () => {
+    const selected = flow.getNodes().filter(node => node.selected);
+    order.current = selectionOrder(order.current, selected.map(node => node.id));
+    const byId = new Map(selected.map(node => [node.id, node]));
+    return order.current.map(id => byId.get(id)!);
+  };
   useLayoutEffect(() => {
     order.current = selectionOrder(order.current, doc.nodes.filter(n => n.selected).map(n => n.id));
   }, [doc.nodes]);
   const deselect = () => {
+    groups?.clear();
     doc.setNodes(nodes => nodes.map(n => n.selected ? { ...n, selected: false } : n));
     doc.setEdges(edges => edges.map(e => e.selected ? { ...e, selected: false } : e));
   };
@@ -53,6 +61,7 @@ export function useBoardActions(doc: ReturnType<typeof useBoardDoc>, history: Re
     const source = duplicate ? copySelection(flow.getNodes(), flow.getEdges(), true) : memory;
     const created = pasteClipboard(source, resolvePasteAnchor(at, pointer.current, flow.screenToFlowPosition));
     if (!created.nodes.length) return;
+    groups?.clear();
     doc.setNodes(nodes => [...nodes.map(n => n.selected ? { ...n, selected: false } : n), ...created.nodes]);
     doc.setEdges(edges => [...edges.map(e => e.selected ? { ...e, selected: false } : e), ...created.edges]);
   };
@@ -82,7 +91,8 @@ export function useBoardActions(doc: ReturnType<typeof useBoardDoc>, history: Re
         }
         return;
       }
-      const action = shortcutAction(event, { editable: isEditable(event.target) });
+      const action = shortcutAction(event, { editable: isEditable(event.target),
+        modal: Boolean(document.querySelector('[aria-modal="true"]')), textSelected: Boolean(window.getSelection()?.toString()) });
       if (!action || action === "send") return;
       event.preventDefault();
       closeMenu();
@@ -91,6 +101,7 @@ export function useBoardActions(doc: ReturnType<typeof useBoardDoc>, history: Re
       else if (action === "copy") copy();
       else if (action === "paste") paste();
       else if (action === "duplicate") paste(null, true);
+      else if (action === "group") groups?.makeGroup();
       else if (action === "link") {
         const nodes = flow.getNodes();
         order.current = selectionOrder(order.current, nodes.filter(n => n.selected).map(n => n.id));
@@ -108,7 +119,7 @@ export function useBoardActions(doc: ReturnType<typeof useBoardDoc>, history: Re
   });
 
   return {
-    copy, paste, duplicate: () => paste(null, true), remove, deselect,
+    copy, paste, duplicate: () => paste(null, true), remove, deselect, selectedNodes,
     pendingRemove, confirmRemove, cancelRemove: () => setPendingRemove(null),
     canPaste: clipboard.nodes.length > 0,
     onNodesChange: (changes: Parameters<typeof doc.onNodesChange>[0]) => doc.onNodesChange(filterSelectionChanges(changes, additive.current)),

@@ -8,6 +8,10 @@ describe("workTitle", () => {
     expect(workTitle({ prompt: "一共 2 张图，按顺序是图1、图2。\n\nx" })).toBe("x");
   });
 
+  it("老作品说明末尾的「花费 0」不显示", () => {
+    expect(workTitle({ prompt: "深度视频；来源 upload:a；480p；花费 0" })).toBe("深度视频；来源 upload:a；480p");
+  });
+
   it("没连图的原样；空的叫「作品」", () => {
     expect(workTitle({ prompt: "一只猫" })).toBe("一只猫");
     expect(workTitle({ prompt: "" })).toBe("作品");

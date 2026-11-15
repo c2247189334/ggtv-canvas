@@ -1,7 +1,9 @@
 // 上传的图片或视频：存 <数据>/上传/<编号>.<后缀>，画布只记编号，不进作品库。
-// 类型看文件头几个字节，不信浏览器报的 Content-Type。没有画布在用的，启动时由 cleanup.mjs 真删掉。
+// 类型看文件头几个字节，不信浏览器报的 Content-Type。没有画布在用、也不在「我上传的」清单里的，启动时由 cleanup.mjs 真删掉。
+// saveStream 边收边算 sha256，回包带 bytes 和 sha256，给「我上传的」认重复。
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, openSync, readSync, closeSync, statSync, renameSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 import { isId, newId } from './files.mjs';
 import { parseMp4, readMp4File } from '../mp4.mjs';
 import { readBodyToFile } from '../http.mjs';
@@ -47,13 +49,14 @@ export function createUploadStore(dataRoot) {
     const id = newId();
     const part = join(dir, `${id}.part`);
     try {
-      await readBodyToFile(req, part, limit, message);
+      const hash = createHash('sha256');
+      await readBodyToFile(req, part, limit, message, chunk => hash.update(chunk));
       const meta = fileMetadata(part);
       if (!meta) return null;
       validate(meta);
-      const { ext, contentType, bytes, ...saved } = meta;
+      const { ext, contentType, ...saved } = meta;
       renameSync(part, join(dir, `${id}.${ext}`));
-      return { id, ...saved };
+      return { id, ...saved, sha256: hash.digest('hex') };
     } finally { rmSync(part, { force: true }); }
   }
 

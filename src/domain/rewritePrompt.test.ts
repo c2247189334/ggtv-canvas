@@ -23,7 +23,7 @@ function setup() {
   return { state, run, request, notify, onError, onLoading, options, resolve: (result: WriteVideoResult) => resolve(result),
     reject: (error: Error) => reject(error), time: (value: number) => { time = value; } };
 }
-const result: WriteVideoResult = { videoPrompt: '新词', warnings: ['拆解没把握：上方那团看不清'], issues: [], yuan: 0, costUnknown: false };
+const result: WriteVideoResult = { videoPrompt: '新词', warnings: ['拆解没把握：上方那团看不清'], issues: [], yuan: 0 };
 
 it('旧卡、缺图、正在写三种禁用原因清楚；缺图数和名字按当前连线', () => {
   const s = setup();
@@ -55,7 +55,7 @@ it('空词也能写，一次点击只发一单（跨控制器同卡也锁），�
   s.resolve(result); await pending;
   expect(s.state.data).toMatchObject({ prompt: '新词', rewriteWarnings: result.warnings });
   const [message, action, ms] = s.notify.mock.calls[0];
-  expect(message).toBe('提示词已生成（不花钱）'); expect(action.label).toBe('撤销'); expect(ms).toBe(10000);
+  expect(message).toBe('提示词已生成（免费）'); expect(action.label).toBe('撤销'); expect(ms).toBe(10000);
   s.time(9999); action.run();
   expect(s.state.data).toMatchObject({ prompt: '', rewriteWarnings: ['旧提醒'] });
 });
@@ -79,7 +79,7 @@ function addPerson(s: ReturnType<typeof setup>) {
   s.state.edges.push({ source: 'person', target: 'video' });
 }
 
-it('连了要换的人物图才要看图花钱；只连衣服图照旧免费', () => {
+it('连了要换的人物图才要看图；只连衣服图照旧免费', () => {
   const s = setup();
   expect(lookPromptPaid(s.state)).toBe(false);
   addPerson(s);
@@ -88,13 +88,13 @@ it('连了要换的人物图才要看图花钱；只连衣服图照旧免费', (
   expect(lookPromptPaid(s.state)).toBe(false);
 });
 
-it('看图花了钱：成功提示写已花多少；失败也写已花多少', async () => {
+it('看过图：成功和失败提示都不写金额，不写「免费」', async () => {
   const s = setup(); addPerson(s);
   const pending = s.run(); s.resolve({ ...result, yuan: 0.018 }); await pending;
-  expect(s.notify.mock.calls[0][0]).toBe('提示词已生成，已花 ¥0.018');
+  expect(s.notify.mock.calls[0][0]).toBe('提示词已生成');
   const t = setup(); addPerson(t);
-  const failed = t.run(); t.reject(Object.assign(Error('看图回话不对'), { yuan: 0.02, costUnknown: false })); await failed;
-  expect(t.onError.mock.calls.at(-1)?.[0]).toBe('生成提示词没成功：看图回话不对（已花 ¥0.02）');
+  const failed = t.run(); t.reject(Object.assign(Error('看图回话不对'), { yuan: 0.02 })); await failed;
+  expect(t.onError.mock.calls.at(-1)?.[0]).toBe('生成提示词没成功：看图回话不对');
 });
 
 it('缺图不请求；失败显示原话，保留原词与提醒，无自动重试', async () => {
@@ -109,4 +109,25 @@ it('缺图不请求；失败显示原话，保留原词与提醒，无自动重�
 it('生成期间换图或改词，旧回话不覆盖当前内容', async () => {
   const s = setup(); const pending = s.run(); s.state.data.prompt = '等待时新编辑'; s.resolve(result); await pending;
   expect(s.state.data.prompt).toBe('等待时新编辑'); expect(s.notify.mock.calls.at(-1)?.[0]).toBe('生成期间素材或提示词已变动，已保留当前内容。');
+});
+
+it('11-08 看图定稿：请求带原片和视频设置；等的时候改设置不丢结果，改素材照旧丢；定稿后提示看图核对过、改了几处', async () => {
+  const s = setup();
+  s.state.nodes.push({ id: 'depth', type: 'card', position: { x: 0, y: 0 }, data: newVideoCard('upload', 3, [{ type: 'work', id: 'depth-video', media: 'video', seconds: 6 }]) });
+  s.state.edges.push({ source: 'depth', target: 'video' });
+  expect(lookPromptRequest(s.state).materials[1]).toMatchObject({ tag: '@视频1', asset: { type: 'work', id: 'depth-video' } });
+  expect(lookPromptRequest(s.state).materials[1].asset).toEqual({ type: 'work', id: 'depth-video' });
+  expect(lookPromptRequest(s.state)).toMatchObject({ source: { type: 'upload', id: 'source', seconds: 6 },
+    settings: { model: s.state.data.video.model, ratio: s.state.data.video.ratio, resolution: s.state.data.video.resolution, duration: 6, audio: s.state.data.video.audio } });
+  const pending = s.run();
+  s.state.data.video = { ...s.state.data.video, resolution: '720p', audio: !s.state.data.video.audio };
+  s.resolve({ ...result, finalized: true, changes: [{ before: '旧', after: '新', why: '白帽', evidence: '原片' }, { before: 'a', after: 'b', why: '假发', evidence: '图' }] });
+  await pending;
+  expect(s.state.data.prompt).toBe('新词'); expect(s.notify.mock.calls[0][0]).toBe('提示词已生成：看图核对过，改了 2 处');
+  const again = setup(), next = again.run();
+  again.state.nodes[0].data.results = [{ type: 'upload', id: 'other-picture' }];
+  again.resolve({ ...result, finalized: true, changes: [] }); await next;
+  expect(again.state.data.prompt).toBe('原来的词'); expect(again.notify.mock.calls[0][0]).toBe('生成期间素材或提示词已变动，已保留当前内容。');
+  const quiet = setup(), done = quiet.run(); quiet.resolve({ ...result, finalized: true, changes: [] }); await done;
+  expect(quiet.notify.mock.calls[0][0]).toBe('提示词已生成：看图核对过，没改');
 });

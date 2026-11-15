@@ -10,16 +10,19 @@ import type { useBoardDoc } from "@/canvas/useBoardDoc";
 import type { useGraphHistory } from "@/canvas/useGraphHistory";
 import type { Point } from "@/domain/placement";
 import type { CardNode } from "@/types";
+import { cardGroupMenuItems, groupMenuItems } from '@/domain/groupMenus';
+import type { useBoardGroups } from './useBoardGroups';
+import type { useBoardCharacters } from './useBoardCharacters';
 
 type Menu = { x: number; y: number } & (
-  { kind: "reference" | "downstream"; id: string } |
+  { kind: "reference" | "downstream" | "group"; id: string } |
   { kind: "blank"; at: Point } |
   { kind: "context"; at: Point; card: boolean; id?: string }
 );
 export type PendingLink = { source: string; screen: Point; at: Point };
-const NOT_BLANK = ".react-flow__node, .react-flow__edge, [data-edge-cut], .react-flow__panel, .react-flow__node-toolbar, .react-flow__attribution";
+const NOT_BLANK = ".react-flow__node, .react-flow__edge, [data-edge-cut], .group-frame, .react-flow__panel, .react-flow__node-toolbar, .react-flow__attribution";
 
-export function useBoardMenus(cards: ReturnType<typeof useCards>, doc: ReturnType<typeof useBoardDoc>, actions: ReturnType<typeof useBoardActions>, history: ReturnType<typeof useGraphHistory>, pending: PendingLink | null, closePending: () => void) {
+export function useBoardMenus(cards: ReturnType<typeof useCards>, doc: ReturnType<typeof useBoardDoc>, actions: ReturnType<typeof useBoardActions>, history: ReturnType<typeof useGraphHistory>, pending: PendingLink | null, closePending: () => void, groups?: ReturnType<typeof useBoardGroups>, characters?: Pick<ReturnType<typeof useBoardCharacters>, 'canSave' | 'openSave'>) {
   const flow = useReactFlow<CardNode, Edge>();
   const [menu, setMenu] = useState<Menu | null>(null);
   const [assetDialog, setAssetDialog] = useState<{ id: string; value: string } | null>(null);
@@ -50,10 +53,19 @@ export function useBoardMenus(cards: ReturnType<typeof useCards>, doc: ReturnTyp
     }
     if (isEditable(event.target)) return;
     event.preventDefault();
+    const groupId = target?.closest<HTMLElement>('[data-group-id]')?.dataset.groupId;
+    if (groupId && groups) {
+      event.stopPropagation(); groups.select(groupId); closePending();
+      setMenu({ ...atScreen(event), kind: 'group', id: groupId });
+      return;
+    }
     const id = cardAtPointer(event.target, atScreen(event));
     if (id) {
-      const selected = selectGraph({ nodes: flow.getNodes(), edges: flow.getEdges() }, id, "context");
-      doc.setNodes(selected.nodes); doc.setEdges(selected.edges);
+      if (groups?.selected) groups.selectCard(id);
+      else {
+        const selected = selectGraph({ nodes: flow.getNodes(), edges: flow.getEdges() }, id, "context");
+        doc.setNodes(selected.nodes); doc.setEdges(selected.edges);
+      }
     }
     const screen = atScreen(event);
     const at = flow.screenToFlowPosition(screen);
@@ -62,10 +74,14 @@ export function useBoardMenus(cards: ReturnType<typeof useCards>, doc: ReturnTyp
   };
   // 只存菜单位置和类型，每次渲染接最新历史/内容，避免菜单操作旧快照。
   const itemsFor = (opened: Menu): MenuItem[] => {
+    if (opened.kind === 'group') return groupMenuItems({ ungroup: () => groups?.ungroup(opened.id),
+      copy: actions.copy, duplicate: actions.duplicate, delete: actions.remove });
     if (opened.kind === "context") return [...contextMenuItems(opened.card, {
       upload: () => void cards.uploadAt(opened.at), undo: history.undo, redo: history.redo,
       paste: () => actions.paste(opened.at), copy: actions.copy, duplicate: actions.duplicate, delete: actions.remove
     }, { undo: history.canUndo, redo: history.canRedo, paste: actions.canPaste }),
+    ...(opened.card && groups ? cardGroupMenuItems(groups.makeGroup) : []),
+    ...(opened.card && characters ? [{ label: '存为人物', disabled: !characters.canSave(), onSelect: characters.openSave }] : []),
     ...assetMenuItems(opened.id ? flow.getNode(opened.id)?.data : undefined, () => {
       const data = opened.id ? flow.getNode(opened.id)?.data : undefined;
       if (data?.kind === "image" && opened.id) setAssetDialog({ id: opened.id, value: data.assetId ?? "" });

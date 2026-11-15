@@ -94,7 +94,7 @@ test('没给token记估价；明确拒绝/没发出/不明均只提交一次', a
     assert.equal(calls, 1);
     const done = t.jobs.read(job.id);
     assert.equal(done.status, outcome === 'uncertain' ? 'uncertain' : 'failed');
-    assert.match(done.error, outcome === 'uncertain' ? /没有自动重发.*控制台/ : /没扣钱|没花钱/);
+    assert.match(done.error, outcome === 'uncertain' ? /没有自动重发.*控制台/ : /没建任务|没发出去/);
     assert.deepEqual(done.blocked, [1, 3]);
     assert.equal(t.spend.totalOn(), 0);
   }
@@ -115,24 +115,47 @@ test('只读查询和下片失败可重试，永不再提交', async () => {
   assert.equal(t.errors.length, 2);
 });
 
-test('任务失败、过期、两种取消均说明不收费', async () => {
+test('任务失败、过期、两种取消均说明原因', async () => {
   for (const status of ['failed', 'expired', 'cancelled', 'canceled']) {
     const t = setup({ query: async () => ({ status, error: { code: 'Blocked', message: '审核未通过' } }) });
     const job = t.queue.submit(input());
     await waitFor(terminal(t, job.id));
     assert.equal(t.jobs.read(job.id).status, 'failed');
-    assert.match(t.jobs.read(job.id).error, /Blocked.*审核未通过.*失败不收费/);
+    assert.match(t.jobs.read(job.id).error, /Blocked.*审核未通过/);
     assert.equal(t.spend.totalOn(), 0);
   }
 });
 
-test('视频出好超过24小时下片仍失败：说明已扣费链接过期', async () => {
+test('视频出好超过24小时下片仍失败：说明链接过期', async () => {
   const t = setup({ download: async () => { throw new Error('download failed'); } }, { now: () => new Date('2026-10-23T12:00:00Z') });
   const job = t.jobs.create(input({ taskId: 'old-task', completedAt: '2026-10-22T11:00:00Z' }));
   t.queue.pump();
   await waitFor(terminal(t, job.id));
   assert.equal(t.calls.submit, 0);
-  assert.match(t.jobs.read(job.id).error, /已扣费.*24 小时.*过期/);
+  assert.match(t.jobs.read(job.id).error, /24 小时.*过期/);
+});
+
+test('11-15 出好了但 24 小时没下下来：钱已花，照样记账，错误里写明金额和任务号', async () => {
+  // 第一次查到成功就记下实收；之后一直下不下来，过了 24 小时。
+  let clock = new Date('2026-10-22T11:00:00Z');
+  const t = setup({ query: async () => ({ status: 'succeeded', finished_at: '2026-10-22T11:00:00Z', content: { video_url: 'https://fake/video' }, usage: { completion_tokens: 100000 } }),
+    download: async () => { clock = new Date('2026-10-23T12:00:00Z'); throw new Error('download failed'); } }, { now: () => clock });
+  const job = t.queue.submit(input());
+  await waitFor(terminal(t, job.id));
+  const done = t.jobs.read(job.id);
+  assert.equal(done.status, 'failed'); assert.equal(done.errorCode, 'VIDEO_DOWNLOAD_EXPIRED');
+  assert.equal(done.yuan, 2.3); assert.equal(done.costEstimated, false);
+  assert.equal(t.spend.has(job.id), true); assert.equal(t.spend.totalOn(), 2.3);
+  assert.match(done.error, /24 小时.*过期.*¥2\.30.*task-1.*控制台/);
+  assert.equal(t.works.list().length, 0);
+
+  // 老记录（只有完成时间、没存实收）：按估价记，只记一次。
+  const old = setup({ download: async () => { throw new Error('download failed'); } }, { now: () => new Date('2026-10-23T12:00:00Z') });
+  const stale = old.jobs.create(input({ taskId: 'old-task', completedAt: '2026-10-22T11:00:00Z' }));
+  old.queue.pump();
+  await waitFor(terminal(old, stale.id));
+  assert.equal(old.jobs.read(stale.id).costEstimated, true); assert.equal(old.spend.totalOn(), 1.16);
+  assert.match(old.jobs.read(stale.id).error, /约 ¥1\.16.*old-task/);
 });
 
 test('重启：有任务号只查；提交过没号标不明；只上传过退回排队', async () => {
@@ -209,10 +232,10 @@ test('带真人asset编号的图不读字节，混排被拦编号映射回原参
   assert.deepEqual(seen.images, [{ asset: 'real-person-123' }]);
   assert.equal(seen.refVideoSeconds, 2);
   assert.deepEqual(t.jobs.read(job.id).blocked, [2, 1]);
-  assert.match(t.jobs.read(job.id).error, /参考 2、参考 1.*没扣钱/);
+  assert.match(t.jobs.read(job.id).error, /参考 2、参考 1.*没建任务/);
 });
 
-test('传TOS失败或参考丢失：没提交，不花钱', async () => {
+test('传TOS失败或参考丢失：没提交', async () => {
   for (const missing of [false, true]) {
     const t = setup({}, { uploadVideo: async () => { throw new Error('TOS failure'); } });
     const asset = t.uploads.save(video);
@@ -220,19 +243,19 @@ test('传TOS失败或参考丢失：没提交，不花钱', async () => {
     const job = t.queue.submit(input({ refs: [{ type: 'upload', id: asset.id, kind: 'video' }] }));
     await waitFor(terminal(t, job.id));
     assert.equal(t.jobs.read(job.id).status, 'failed');
-    assert.match(t.jobs.read(job.id).error, /没发出去.*没花钱/);
+    assert.match(t.jobs.read(job.id).error, /没发出去/);
     assert.equal(t.calls.submit, 0);
   }
 });
 
-test('TOS配置中途缺失：准确指出变量，未提交没花钱', async () => {
+test('TOS配置中途缺失：准确指出变量，未提交', async () => {
   const t = setup({}, { uploadVideo: async () => {
     throw Object.assign(new Error('安全人话'), { code: 'TOS_BUCKET_MISSING' });
   } });
   const asset = t.uploads.save(video);
   const job = t.queue.submit(input({ refs: [{ type: 'upload', id: asset.id, kind: 'video' }] }));
   await waitFor(terminal(t, job.id));
-  assert.match(t.jobs.read(job.id).error, /没填 TOS_BUCKET.*没花钱/);
+  assert.match(t.jobs.read(job.id).error, /没填 TOS_BUCKET/);
   assert.equal(t.calls.submit, 0);
 });
 
@@ -244,7 +267,7 @@ test('首次查询已成功：updated_at或ISO完成时间决定链接期限', a
     const job = t.queue.submit(input());
     await waitFor(terminal(t, job.id));
     assert.equal(t.jobs.read(job.id).status, 'failed');
-    assert.match(t.jobs.read(job.id).error, /已扣费.*过期/);
+    assert.match(t.jobs.read(job.id).error, /过期/);
     assert.equal(t.calls.download, 0);
   }
 });
@@ -254,7 +277,7 @@ test('火山失败原话以句号结尾时不叠加句号', async () => {
     const t = setup({ query: async () => ({ status: 'failed', error: { code: 'Blocked', message } }) });
     const job = t.queue.submit(input());
     await waitFor(terminal(t, job.id));
-    assert.equal(t.jobs.read(job.id).error, '火山生成失败（Blocked）：审核未通过。按火山规则失败不收费。');
+    assert.equal(t.jobs.read(job.id).error, '火山生成失败（Blocked）：审核未通过。');
   }
 });
 

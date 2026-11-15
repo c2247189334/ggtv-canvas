@@ -30,3 +30,13 @@ test('坏行跳过，不影响别的', () => {
 test('dayKey 用本地时间', () => {
   assert.equal(dayKey(new Date(2026, 0, 5, 23, 59)), '2026-01-05');
 });
+
+test('has：查某一单记没记过账（视频单收尾重来时防记两次）', () => {
+  const root = tempDir();
+  const log = createSpendLog(root);
+  assert.equal(log.has('a'), false);
+  log.add({ yuan: 0.12, model: 'm', jobId: 'a' });
+  appendFileSync(join(root, '花费.jsonl'), '这不是 JSON\n');
+  assert.equal(log.has('a'), true);
+  assert.equal(log.has('b'), false);
+});

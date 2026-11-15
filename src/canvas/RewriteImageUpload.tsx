@@ -2,14 +2,14 @@ import { useState } from "react";
 import { useBoard } from "./boardContext";
 import type { BoardApi } from "./boardContext";
 import { pickFiles } from "@/common/pickFiles";
-import { IMAGE_ACCEPT, readWorkDrag } from "@/domain/media";
+import { IMAGE_ACCEPT, readDragName, readWorkDrag } from "@/domain/media";
 import { rewriteDropPlan, rewriteDropTarget, rewriteImagePatch, type DropPayload } from '@/domain/rewriteDrop';
 import { uploadMedia } from "./uploadMedia";
 import type { AssetRef, CardNode, ImageCardData } from "@/types";
 import type { Point } from '@/domain/placement';
 
 type DropBoard = Pick<BoardApi, 'updateCard' | 'notify'> & {
-  addAssets: (source: 'work', refs: AssetRef[], at: Point) => unknown;
+  addAssets: (source: 'upload' | 'work', refs: Array<AssetRef & { fileName?: string }>, at: Point) => unknown;
   dropFiles: (files: File[], at: Point) => Promise<unknown>;
 };
 
@@ -28,7 +28,8 @@ export async function handleCanvasDrop(nodes: readonly CardNode[], id: string | 
   if (plan.kind === 'new') {
     if (payload.work) {
       const asset = readWorkDrag(payload.work);
-      if (asset) board.addAssets('work', [asset], at);
+      const fileName = readDragName(payload.work);
+      if (asset) board.addAssets(asset.type, [fileName === undefined ? asset : { ...asset, fileName }], at);
     } else if (payload.files.length) await board.dropFiles(payload.files, at);
     return;
   }

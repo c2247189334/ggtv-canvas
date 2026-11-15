@@ -17,7 +17,6 @@ export function ModelMenu({ gen, onChange, onClose }: Props & { onClose: () => v
           }}>
           <span className="model-icon" aria-hidden="true" />
           <span>{model.name}</span>
-          <span className="model-menu__hint">{model.hint}</span>
         </button>
       ))}
     </div>

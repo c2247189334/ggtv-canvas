@@ -90,6 +90,13 @@ describe("视频作品和大图内容", () => {
     expect(renderToStaticMarkup(<HealthDetails health={{ ...base, tosReady: true }} />)).toContain("TOS（存参考视频）：已填");
     expect(renderToStaticMarkup(<HealthDetails health={{ ...base, tosReady: false }} />)).toContain("TOS（存参考视频）：没填");
   });
+  it("设置显示本机 agent 是谁、模型、用在哪；没配好照原话说缺什么，不再提豆包", () => {
+    const base = { ok: true, fake: false, keyReady: true, tosReady: true, todayYuan: 0, uncertainToday: 0 };
+    expect(renderToStaticMarkup(<HealthDetails health={{ ...base, agentName: "Codex", agentReady: true, agentModel: "默认" }} />)).toContain("Codex 已就绪，模型 默认");
+    const broken = renderToStaticMarkup(<HealthDetails health={{ ...base, agentName: "Codex", agentReady: false, agentProblem: "本机 Codex 没配好：在终端跑一次 codex login。" }} />);
+    expect(broken).toContain("本机 Codex 没配好：在终端跑一次 codex login。"); expect(broken).not.toContain("豆包");
+    expect(broken).toContain("只出图出视频不需要");
+  });
   it("设置显示深度准备情况和ffmpeg状态，缺项指向.env.local，不泄露路径", () => {
     const base = { ok: true, fake: false, keyReady: true, tosReady: true, todayYuan: 0, uncertainToday: 0 };
     const ready = { filled: true, found: true };

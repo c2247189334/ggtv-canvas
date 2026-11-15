@@ -46,10 +46,10 @@ it('白模素材用途、最终连线和种类随存档保留；旧存档没有�
   expect(readCard({ ...newVideoCard('generate', 2), rewriteId: 'old' })).toMatchObject({ rewriteMotionReference: 'depth' });
 });
 
-it('白模参考数量也计入八个上限；结果、任务和运行中不能重试，仅明确失败可由用户重试', () => {
+it('要换的项超过 2.5 的图片上限先拒绝；结果、任务和运行中不能重试，仅明确失败可由用户重试', () => {
   const graph = start('mesh');
-  const items = Array.from({ length: 8 }, (_, i) => ({ ...plan.items[0], id: `p${i}` }));
-  expect(() => rewriteMaterials({ ...graph.state, plan: { ...plan, items, replace: items.map(item => item.id) } })).toThrow('最多 8 个参考');
+  const items = Array.from({ length: 31 }, (_, i) => ({ ...plan.items[0], id: `p${i}` }));
+  expect(() => rewriteMaterials({ ...graph.state, plan: { ...plan, items, replace: items.map(item => item.id) } })).toThrow('参考图最多 30 张');
   const failed = { ...newVideoCard('mesh', 2), note: 'ComfyUI 失败' };
   expect(retryRewriteMedia(failed)).toBe(true);
   expect(retryRewriteMedia({ ...failed, startedAt: 'running' })).toBe(false);

@@ -3,11 +3,16 @@ import type { CardPatch } from "@/types";
 import type { Notify } from "@/common/Toast";
 import type { useVideoRewrite } from './useVideoRewrite';
 import type { useVideoClip } from './useVideoClip';
+import type { useProductRemake } from './useProductRemake';
+import type { FrameKind, Playhead } from '@/domain/videoFrame';
 
 /** 卡片要用到的画布能力。卡片由画布库渲染，拿不到画布的 props，只能走 context。 */
 export type BoardApi = {
+  productRemake?: ReturnType<typeof useProductRemake>;
   videoRewrite?: ReturnType<typeof useVideoRewrite>;
   videoClip?: ReturnType<typeof useVideoClip>;
+  /** 11-09 视频截图：截这张视频卡的当前帧 / 首帧 / 尾帧，放成右边一张图片卡。 */
+  captureFrame?: (cardId: string, kind: FrameKind, playhead: Playhead) => Promise<void>;
   openViewer: (url: string, title: string, media?: "image" | "video" | "audio") => void;
   notify: Notify;
   localMedia: (id: string, action: "depth" | "mesh" | "audio", resolution?: "480p" | "720p") => Promise<void>;
@@ -16,6 +21,8 @@ export type BoardApi = {
   turnPage: (id: string, delta: number) => void;
   updateCard: (id: string, patch: CardPatch) => void;
   disconnect: (source: string, target: string) => void;
+  /** 连一根线（和拖线同一套检查）；11-13 背景卡「改回用图」用。 */
+  connect?: (source: string, target: string) => void;
   /** 面板「＋参考」：从当前画布连续选择参考。 */
   startRefPick: (id: string) => void;
   /** 左边 ＋：添加上下文图片或资源。 */

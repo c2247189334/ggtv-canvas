@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { createLocalMedia, depthGeometry, SMALL_SHA256 } from './local.mjs';
+import { createLocalMedia, depthGeometry, frameStart, SMALL_SHA256 } from './local.mjs';
 import { createDepthQueue } from './queue.mjs';
 import { createWorkStore } from '../store/works.mjs';
 import { createJobStore } from '../store/jobs.mjs';
@@ -203,4 +203,12 @@ test('深度停止：信号交给执行器，结果带已停止标记、不存�
     throw Object.assign(Error('已停止'), { canceled: true }); }, stop: () => {} } });
   await assert.rejects(s.media.depth({ source: s.source, resolution: '480p' }, { signal: controller.signal }), error => error.canceled === true);
   assert.equal(s.works.list().length, 0);
+});
+
+// 11-14 体检：声音比画面长的视频，整片时长比画面长；截尾帧按整片时长算会截到没有画面的地方，ffmpeg 出不了图。
+test('截帧起点按画面时长往前收：声音比画面长时截尾帧落在最后一帧画面上', () => {
+  assert.equal(frameStart({ duration: 3, videoDuration: 1, fps: 25 }, 2.95), 1 - 1.01 / 25);
+  assert.equal(frameStart({ duration: 3, videoDuration: 1, fps: 25 }, 0.5), 0.5);
+  assert.equal(frameStart({ duration: 2, fps: 30 }, 1.99), 2 - 1.01 / 30, '没有画面时长的旧数据照整片时长');
+  assert.throws(() => frameStart({ duration: 3, videoDuration: 1, fps: 25 }, 3), /时长内/);
 });

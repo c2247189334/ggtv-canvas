@@ -4,6 +4,7 @@ import type { ModelId } from "@/domain/pricing";
 import type { Resolution } from "@/domain/imageSize";
 import type { VideoSettings } from "@/domain/videoModels";
 import type { RewriteItem, RewritePlan, RewriteStatus } from './videoRewriteTypes';
+import type { ProductPlan, ProductRole } from './productRemakeTypes';
 
 /** 一张图在哪：传的图（数据/上传）还是作品（数据/作品）。 */
 export type AssetRef = { type: "upload" | "work"; id: string; media?: "video" | "audio"; seconds?: number; width?: number; height?: number;
@@ -23,9 +24,12 @@ export type GenSettings = {
 };
 
 /** 卡片上存的全部东西（画布存档里就是这个）。type 写法而不是 interface：画布库要求能当 Record 用。 */
+export type CardGroup = { id: string; name: string; characterId?: string; productId?: string; videoId?: string };
+
 type CardBase = {
+  group?: CardGroup;
   source: CardSource;
-  /** 卡片标题的 N，每次打开画布从 1 数，所有类型共用；新上传卡为 0，不占号。 */
+  /** 卡片标题的 N，每次打开画布从 1 数，所有类型共用；新上传卡和人物库卡为 0，不占号。 */
   number: number;
   /** 上传原文件名（带后缀）或副本标题；旧存档没有时按来源和编号显示。 */
   title?: string;
@@ -48,20 +52,40 @@ type CardBase = {
   /** 火山查单网络提示，仅运行时显示，不作为失败。 */
   jobWarning?: string | null;
   rewriteBusy?: 'analyzing';
+  rewriteTask?: 'product';
   rewriteStatus?: RewriteStatus;
+  /** 最近一次发送时的输入（11-08「输入已更新」用），见 `domain/staleInputs.ts`。 */
+  sentInputs?: SentInputs;
 };
+/** refs：按连线顺序每张参考当时那张（`upload:编号` / `work:编号` / `none`）；prompt：当时的提示词。 */
+export type SentInputs = { refs: string[]; prompt: string };
 
 export type VideoGenSettings = VideoSettings & { count: 1 | 2 | 4 };
 export type ImageCardData = CardBase & { kind: "image"; gen: GenSettings; video?: never; assetId?: string;
+  productRole?: ProductRole;
   rewriteId?: string; rewriteItemId?: string; rewriteItem?: RewriteItem;
   /** 改写背景卡：用户没勾「背景和原片保持一致」，背景换成新场景（素材用途和深度职责跟着变）。 */
-  rewriteNewScene?: true };
+  rewriteNewScene?: true;
+  /** 改写背景卡对应拆解单里哪个场景；原片只有一个地方时没有。 */
+  rewriteSceneId?: string;
+  /** 11-11：还没图时卡框的宽高比（宽 ÷ 高），和左边的原片截图一样大；有图后照图的比例。 */
+  emptyAspect?: number;
+  /** 11-13 改写背景卡「不出图，用文字」：开着时线剪掉、卡上写的字（rewriteSceneText）交给本机 agent 结合原片写；改回用图后字留着。 */
+  rewriteTextOn?: boolean; rewriteSceneText?: string };
+/** 11-13 生成提示词时 agent 对每张背景卡的字怎么理解（text 是当时卡上的字，用来发现之后又改过）。 */
+export type SceneRead = { title: string; text: string; read: string; cardId?: string };
 export type VideoCardData = CardBase & { kind: "video"; video: VideoGenSettings; gen?: never; assetId?: never; rewriteId?: string; rewriteSourceId?: string; rewriteSource?: AssetRef; rewriteChangeSeconds?: number[];
-  rewritePlan?: RewritePlan; rewriteUserText?: string; rewriteWarnings?: string[]; rewriteMotionReference?: 'depth' | 'mesh' };
+  rewriteKind?: 'product'; productPlan?: ProductPlan;
+  productAutoPosition?: { x: number; y: number };
+  rewritePlan?: RewritePlan; rewriteUserText?: string; rewriteWarnings?: string[]; rewriteMotionReference?: 'depth' | 'mesh';
+  /** 勾了「衣服和原片保持一致」：衣服卡删了也不穿人物图那身，退回文字描述。 */
+  rewriteKeepClothes?: true;
+  rewriteSceneReads?: SceneRead[] };
 export type AudioCardData = CardBase & { kind: "audio"; gen?: never; video?: never; assetId?: never };
 export type CardData = ImageCardData | VideoCardData | AudioCardData;
 export type CardPatch = Partial<Omit<CardBase, "source" | "number">> & { gen?: GenSettings; video?: VideoGenSettings; assetId?: string;
-  rewriteItem?: RewriteItem; rewritePlan?: RewritePlan; rewriteUserText?: string; rewriteWarnings?: string[] };
+  rewriteItem?: RewriteItem; rewritePlan?: RewritePlan; rewriteUserText?: string; rewriteWarnings?: string[]; productPlan?: ProductPlan;
+  rewriteTextOn?: boolean; rewriteSceneText?: string; rewriteSceneReads?: SceneRead[] };
 
 export type CardNode = Node<CardData, "card">;
 
@@ -82,10 +106,12 @@ export type CanvasSummary = { id: string; name: string; updatedAt: string };
 export type JobStatus = "queued" | "running" | "succeeded" | "failed" | "uncertain" | "missing";
 
 export type JobPhase = "uploading" | "submitting" | "waiting" | "downloading" | null;
-export type JobView = { id: string; kind?: "image" | "video"; status: JobStatus; phase?: JobPhase; warning?: string | null; blocked?: number[]; createdAt: string; count: number; works: string[]; error: string | null; workMeta?: Array<{ id: string; duration: number; width: number; height: number; hasAudio?: boolean; fps?: number | null }> };
+export type JobView = { id: string; kind?: "image" | "video"; status: JobStatus; phase?: JobPhase; warning?: string | null; blocked?: number[]; createdAt: string; count: number; works: string[]; error: string | null; errorCode?: string | null; workMeta?: Array<{ id: string; duration: number; width: number; height: number; hasAudio?: boolean; fps?: number | null }> };
 export type DepthJobView = Omit<JobView, "kind" | "phase"> & { kind: "depth" | "mesh"; phase: "processing" | null;
   errorCode: string | null; source: LocalMediaSource; resolution: "480p" | "720p" };
 export type LocalJobView = DepthJobView & { cardId: string };
+/** 小服务接了、画布存档里还没记下的付费单（见 domain/paidRecovery.ts）。 */
+export type OrphanJob = { id: string; cardId: string; kind: "image" | "video" };
 
 export type WorkView = {
   id: string;
@@ -110,12 +136,15 @@ export type WorkView = {
 export type ConfigPresence = { filled: boolean; found: boolean };
 export type Health = { ok: boolean; fake: boolean; keyReady: boolean; tosReady: boolean; todayYuan: number; uncertainToday: number;
   depth?: { python: ConfigPresence; modelDir: ConfigPresence; extraPackages: ConfigPresence };
-  mesh?: { ready?: boolean; url: ConfigPresence; directory: ConfigPresence }; ffmpegFound?: boolean; ffprobeFound?: boolean };
+  mesh?: { ready?: boolean; url: ConfigPresence; directory: ConfigPresence }; ffmpegFound?: boolean; ffprobeFound?: boolean;
+  /** 本机 agent（拆解 / 看图 / 定稿提示词）：.env.local 的 AGENT_ENGINE 选，默认 Claude；agentProblem 是没配好时给人看的话；假模式按就绪。 */
+  agent?: string; agentName?: string; agentReady?: boolean; agentModel?: string; agentProblem?: string | null };
 
 export type LocalMediaSource = { type: "upload" | "work"; id: string };
 export type LocalMediaRequest = { source: LocalMediaSource; canvasId?: string; cardId?: string };
 export type DepthJobRequest = LocalMediaRequest & { resolution: "480p" | "720p" };
-export type FrameRequest = LocalMediaRequest & { second: number };
+export type FrameRegion = 'top' | 'bottom' | 'left' | 'right';
+export type FrameRequest = LocalMediaRequest & { second: number; region?: FrameRegion };
 export type VideoClipRequest = LocalMediaRequest & { start: number; end: number };
 export type VideoClipUpload = { id: string; kind: 'video'; duration: number; width: number; height: number; fps: number | null; hasAudio: boolean };
 export type AudioWorkView = Omit<WorkView, "kind" | "width" | "height" | "duration"> & {

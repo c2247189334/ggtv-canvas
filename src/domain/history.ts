@@ -15,10 +15,10 @@ export function observeHistory(frame: HistoryFrame, current: Graph): HistoryFram
   return { history: recordHistory(frame.history, baseline, current), baseline: current };
 }
 
-/** 拓扑、位置和真人素材编号计步；提示词、生成进度等内容仍不计步。 */
+/** 拓扑、位置、组和真人素材编号计步；提示词、生成进度等内容仍不计步。 */
 export function sameStructure(a: Graph, b: Graph): boolean {
   const structure = (g: Graph) => JSON.stringify([
-    g.nodes.map(n => [n.id, n.position.x, n.position.y, n.data.kind === "image" ? n.data.assetId : undefined]),
+    g.nodes.map(n => [n.id, n.position.x, n.position.y, n.data.kind === "image" ? n.data.assetId : undefined, n.data.group]),
     g.edges.map(e => [e.id, e.source, e.target])
   ]);
   return structure(a) === structure(b);
@@ -29,7 +29,7 @@ export function recordHistory(history: History, before: Graph, after: Graph): Hi
   return { past: [...history.past, structuredClone({ before, after })].slice(-50), future: [] };
 }
 
-/** 两边都存在的卡只恢复位置；删除后找回的卡用快照里的内容。 */
+/** 两边都存在的卡恢复位置、组和素材编号；删除后找回的卡用快照里的内容。 */
 function restore(snapshot: Graph, current: Graph): Graph {
   const live = new Map(current.nodes.map(n => [n.id, n]));
   const liveEdges = new Map(current.edges.map(e => [e.id, e]));
@@ -37,6 +37,11 @@ function restore(snapshot: Graph, current: Graph): Graph {
     nodes: snapshot.nodes.map(n => {
       const present = live.get(n.id);
       const result = { ...n, ...present, position: n.position, ...(n.dragging || present?.dragging ? { dragging: false } : {}) };
+      const { group: _group, ...currentData } = result.data;
+      result.data = { ...currentData, ...(n.data.group ? { group: n.data.group } : {}) };
+      if (n.data.kind === 'video' && result.data.kind === 'video' && n.data.rewriteKind === 'product') {
+        result.data = { ...result.data, productAutoPosition: n.data.productAutoPosition };
+      }
       if (n.data.kind === "image" && result.data.kind === "image") {
         const { assetId: _assetId, ...data } = result.data;
         result.data = { ...data, ...(n.data.assetId ? { assetId: n.data.assetId } : {}) };

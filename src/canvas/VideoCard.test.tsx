@@ -25,16 +25,25 @@ describe("视频卡", () => {
     const html = render(patch);
     expect(html).toContain('正在拆解'); expect(html).toContain('busy-spinner'); expect(html).not.toContain('已用');
     expect(html).toContain('card__busy');
-    expect(render({ ...patch, rewriteBusy: undefined, rewriteStatus: { status: 'failed', error: '豆包失败原话', yuan: 0.02, costUnknown: false } })).toContain('豆包失败原话');
+    // 11-04：转圈盖着时不再透出空卡提示语，免得两行字叠在一起。
+    expect(html).not.toContain('写提示词生成视频');
+    expect(render({ jobs: [{ id: 'j' }] as unknown as VideoCardData['jobs'] })).not.toContain('写提示词生成视频');
+    expect(render({ ...patch, rewriteBusy: undefined, rewriteStatus: { status: 'failed', error: '豆包失败原话' } })).toContain('豆包失败原话');
     expect(render({ ...patch, rewriteBusy: undefined, rewriteStatus: { status: 'interrupted' } })).toContain('上次没做完');
   });
   it('改写视频卡的提示词面板从卡左边往右展开，不挡左边一列；普通卡照旧居中（用户 10-30）', () => {
     expect(render({ rewriteId: 'r' })).toContain('data-toolbar-align="start"');
     expect(render()).toContain('data-toolbar-align="center"');
   });
+  it('11-09 视频截图：传的视频和深度卡都有截图图标（深度卡照旧没有改写入口）', () => {
+    const upload = render({ source: 'upload', number: 0, title: 'a.mp4', results: [{ type: 'upload', id: 'u', media: 'video', seconds: 9 }] });
+    expect(upload).toContain('aria-label="视频截图"');
+    const depth = render({ source: 'depth', results: [{ type: 'work', id: 'd', media: 'video', depth: true, seconds: 9 }] });
+    expect(depth).toContain('aria-label="视频截图"'); expect(depth).not.toContain('视频改写');
+  });
   it("上传文件名用于卡片标题和视频名称", () => {
     const html = render({ source: "upload", number: 0, title: "source_10s.mp4", results: [{ type: "upload", id: "u", media: "video" }] });
-    expect(html).toContain('<div class="card__title">source_10s.mp4</div>');
+    expect(html).toContain('<div class="card__title" title="source_10s.mp4">source_10s.mp4</div>');
     expect(html).toContain('aria-label="source_10s.mp4"');
     expect(html).not.toContain("传的视频");
   });

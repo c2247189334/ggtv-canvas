@@ -35,25 +35,27 @@ async function verifyDepthModel(env) {
   if (hash.digest('hex') !== SMALL_SHA256) throw Error('模型权重 SHA256 不对，只允许官方 Small 权重。');
 }
 
-/** 视频改写的背景帧：秒数要在时长内；太靠末尾按帧率往前挪一帧，免得截空。 */
-export function frameStart({ duration, fps }, second) {
+/** 11-06 分屏视频抽衣服：只截这个人那半边。 */
+export const FRAME_REGIONS = { top: 'crop=iw:ih/2:0:0', bottom: 'crop=iw:ih/2:0:ih/2', left: 'crop=iw/2:ih:0:0', right: 'crop=iw/2:ih:iw/2:0' };
+/** 视频改写的背景帧：秒数要在时长内；太靠末尾按帧率往前挪一帧，免得截空。声音比画面长时按画面时长收（videoDuration）。 */
+export function frameStart({ duration, videoDuration, fps }, second) {
   if (typeof second !== 'number' || !Number.isFinite(second) || second < 0 || second >= duration) throw Error('截帧秒数要在视频时长内。');
-  return Math.max(0, Math.min(second, duration - (fps > 0 ? 1.01 / fps : 1)));
+  return Math.max(0, Math.min(second, (videoDuration ?? duration) - (fps > 0 ? 1.01 / fps : 1)));
 }
 
 /** 卡上只留人话：自己抛的中文句、Python 的中文 ValueError 保留；退出码、堆栈、英文原文由 temporary 记进小服务日志。 */
 export function localError(error) {
   const raw = String(error?.message ?? error);
-  let reason = '本地处理失败，没有自动重跑，花费 0。';
-  if (/out of memory|OutOfMemory/i.test(raw)) reason = '显存不够，关掉其他占显存的软件后可以再点一次，花费 0。';
-  else if (/NO_CUDA|no CUDA|CUDA.*available|没.*CUDA/i.test(raw)) reason = '没找到可用的 CUDA 显卡，不会改用 CPU，花费 0。';
+  let reason = '本地处理失败，没有自动重跑。';
+  if (/out of memory|OutOfMemory/i.test(raw)) reason = '显存不够，关掉其他占显存的软件后可以再点一次。';
+  else if (/NO_CUDA|no CUDA|CUDA.*available|没.*CUDA/i.test(raw)) reason = '没找到可用的 CUDA 显卡，不会改用 CPU。';
   else if (/ENOENT/.test(raw)) reason = '找不到执行程序，请检查 DEPTH_PYTHON 和 PATH 里的 ffmpeg / ffprobe。';
   else if (/ModuleNotFoundError|No module named/.test(raw)) reason = '深度的 Python 环境缺少依赖包，请检查 DEPTH_PYTHON 和 DEPTH_EXTRA_PACKAGES。';
   const last = raw.split(/\r?\n/).map(line => line.trim()).filter(Boolean).at(-1) ?? '';
   // 执行器报错（「xx 退出码 n」+ 原文）只认 Python 主动抛的中文 XxxError；自己抛的中文句原样保留。
   const text = /退出码/.test(raw) ? last.match(/^[A-Za-z]*Error: (.*)$/)?.[1] ?? '' : last;
   const human = /[一-鿿]/.test(text) && !/退出码|Traceback|[A-Za-z]:\\|\/[\w.-]+\//.test(text);
-  return human ? `${reason}\n${text}` : reason === '本地处理失败，没有自动重跑，花费 0。' ? `${reason}\n详情见小服务日志。` : reason;
+  return human ? `${reason}\n${text}` : reason === '本地处理失败，没有自动重跑。' ? `${reason}\n详情见小服务日志。` : reason;
 }
 
 export function createLocalMedia({ dataRoot, uploads, works, readEnv = () => ({}), fake = false,
@@ -82,7 +84,7 @@ export function createLocalMedia({ dataRoot, uploads, works, readEnv = () => ({}
     const size = depthGeometry(meta, job.resolution);
     const env = readEnv();
     if (!fake) {
-      for (const name of ['DEPTH_PYTHON', 'DEPTH_MODEL_DIR']) if (!configured(env, name)) throw Error(`.env.local 里还没填 ${name}，花费 0。`);
+      for (const name of ['DEPTH_PYTHON', 'DEPTH_MODEL_DIR']) if (!configured(env, name)) throw Error(`.env.local 里还没填 ${name}。`);
       await verifyModel(env);
     }
     return temporary(async folder => {
@@ -100,7 +102,7 @@ export function createLocalMedia({ dataRoot, uploads, works, readEnv = () => ({}
       }
       const work = works.addVideo(buffer, { ...job, jobId: job.id, depth: true,
         model: 'Video-Depth-Anything-Small', yuan: 0, elapsedSeconds: (Date.now() - started) / 1000,
-        prompt: `深度视频；来源 ${job.source.type}:${job.source.id}；${job.resolution}；花费 0` });
+        prompt: `深度视频；来源 ${job.source.type}:${job.source.id}；${job.resolution}` });
       if (!work) throw Error('输出不是有效的视频。');
       return work;
     });
@@ -121,7 +123,7 @@ export function createLocalMedia({ dataRoot, uploads, works, readEnv = () => ({}
     const meta = checkSource(job.source), start = frameStart(meta, job.second);
     return temporary(async folder => {
       const output = join(folder, 'frame.jpg');
-      await executor.run('ffmpeg', ['-v', 'error', '-n', '-ss', String(start), '-i', meta.path, '-an', '-vf', SQUARE_PIXELS,
+      await executor.run('ffmpeg', ['-v', 'error', '-n', '-ss', String(start), '-i', meta.path, '-an', '-vf', [SQUARE_PIXELS, FRAME_REGIONS[job.region]].filter(Boolean).join(','),
         '-frames:v', '1', '-q:v', '2', output]);
       const saved = uploads.save(readFileSync(output));
       if (saved?.kind !== 'image') throw Error('截出来的不是有效图片。');

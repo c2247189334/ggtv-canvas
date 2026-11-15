@@ -4,7 +4,6 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { createApp } from './app.mjs';
 import { createFakeSeedance } from './fakeSeedance.mjs';
 import { wav } from './fixtures/wav.mjs';
-import { createRewrite } from './rewrite.mjs';
 import { call, listen, tempDir, waitFor } from './testKit.mjs';
 
 const video=readFileSync(new URL('./fixtures/audio-video.mp4',import.meta.url));
@@ -65,7 +64,7 @@ test('深度接口排队落盘、查询视频作品元数据；无声抽取和�
   } finally {s.app.depthQueue?.stop();await s.close();}
 });
 
-test('改写接口假模式可辨认/假失败；真模式注入豆包按token记入今天花费且不重试',async()=>{
+test('改写接口假模式可辨认/假失败；真模式没接好本机 agent 就拦下、不调用不记账（11-15 起不用豆包）',async()=>{
   const fake=await boot();
   try {
     const result=await post(fake,'/api/rewrite',{prompt:'一只猫',kind:'image'});
@@ -75,12 +74,10 @@ test('改写接口假模式可辨认/假失败；真模式注入豆包按token�
     assert.equal((await call(fake.port,{path:'/api/health'})).json.todayYuan,0);
   } finally {fake.app.depthQueue.stop();await fake.close();}
   const env={ARK_API_KEY:'test-only'};let calls=0;
-  const real=await boot({fake:false,readEnv:()=>env,rewrite:createRewrite({env,fetch:async()=>{
-    calls++;return new Response(JSON.stringify({choices:[{message:{content:'一只猫。'}}],usage:{prompt_tokens:1000,completion_tokens:500}}));
-  }})});
+  const real=await boot({fake:false,readEnv:()=>env,rewrite:async()=>{calls++;return {text:'一只猫。',model:'x',usage:{},yuan:0};}});
   try {
     const result=await post(real,'/api/rewrite',{prompt:'一只猫',kind:'image'});
-    assert.equal(result.status,200);assert.equal(result.json.yuan,0.021);assert.equal(calls,1);
+    assert.equal(result.status,400);assert.match(result.json.error,/Claude 或 Codex/);assert.equal(calls,0);
     const originalFetch = globalThis.fetch, probes = [];
     globalThis.fetch = async (url, options) => {
       probes.push({ url: String(url), redirect: options.redirect, signal: options.signal });
@@ -88,7 +85,7 @@ test('改写接口假模式可辨认/假失败；真模式注入豆包按token�
     };
     try {
       const health = (await call(real.port,{path:'/api/health'})).json;
-      assert.equal(health.todayYuan,0.02);
+      assert.equal(health.todayYuan,0);
       assert.equal(health.mesh.ready, false);
       assert.deepEqual(probes.map(probe => probe.url), ['http://127.0.0.1:8188/system_stats']);
       assert.equal(probes[0].redirect, 'error');
@@ -105,5 +102,10 @@ test('截帧接口：读真实来源，秒数不对 400 不调 ffmpeg，成功�
     const ok=await post(s,'/api/frame-extractions',{source:{type:'upload',id:up.id},second:1});
     assert.equal(ok.status,200);assert.equal(ok.json.kind,'image');assert.equal(s.calls[0][0],'ffmpeg');
     assert.equal((await call(s.port,{path:`/api/uploads/file?id=${ok.json.id}`})).status,200);
+    assert.equal(s.calls[0][1].some(arg=>String(arg).includes('crop=')),false);
+    const half=await post(s,'/api/frame-extractions',{source:{type:'upload',id:up.id},second:1,region:'bottom'});
+    assert.equal(half.status,200);assert.ok(s.calls.at(-1)[1].some(arg=>String(arg).includes('crop=iw:ih/2:0:ih/2')));
+    const wrong=await post(s,'/api/frame-extractions',{source:{type:'upload',id:up.id},second:1,region:'middle'});
+    assert.equal(wrong.status,400);assert.match(wrong.json.error,/截帧区域/);
   } finally {s.app.depthQueue?.stop();await s.close();}
 });

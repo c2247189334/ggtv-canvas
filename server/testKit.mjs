@@ -1,6 +1,6 @@
 // 测试用小工具：建临时目录、起一个临时服务、发原始请求、等某个条件成立。只给 *.test.mjs 用。
 import { createServer, request as httpRequest } from 'node:http';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -20,6 +20,18 @@ export function tempDir(prefix = 'canvas-test-') {
   const dir = mkdtempSync(join(tmpdir(), prefix));
   made.push(dir);
   return dir;
+}
+
+// 本机 Claude 就绪要看用户自己的官方登录（CLAUDE_CONFIG_DIR 或 ~/.claude 下有没有 .credentials.json）。
+// 测试一律先指到空的临时目录，免得登录过 Claude 的电脑上测出来和别处不一样；要「已登录」的用 fakeClaudeLogin()。
+process.env.CLAUDE_CONFIG_DIR = tempDir('canvas-claude-');
+
+/** 假装用户已用官方方式登录过本机 Claude，返回还原函数（交给 t.after，或中途手动调一次变回「没登录」）。 */
+export function fakeClaudeLogin() {
+  const saved = process.env.CLAUDE_CONFIG_DIR, dir = tempDir('canvas-claude-');
+  writeFileSync(join(dir, '.credentials.json'), '{}');
+  process.env.CLAUDE_CONFIG_DIR = dir;
+  return () => { process.env.CLAUDE_CONFIG_DIR = saved; };
 }
 
 export async function listen(handler) {

@@ -7,7 +7,7 @@ import { addMenuItems } from "./menus";
 import { workRef, readWorkDrag } from "./media";
 import { collectSendRefs, patchCard } from "./sendRefs";
 import { toVideoPrompt } from "./videoPrompt";
-import { blockedReferenceMessage, videoProblems, videoEstimate } from "./videoPanel";
+import { blockedReferenceMessage, videoProblems } from "./videoPanel";
 import { absorbJobViews } from "./jobResults";
 import { copySelection, pasteClipboard } from "./clipboard";
 import { DEFAULT_VIDEO_SETTINGS } from "./videoModels";
@@ -78,15 +78,13 @@ describe("声音卡与参考", () => {
     expect(() => toVideoPrompt("@音频0", 1, 1, 1)).toThrow("@音频0");
     expect(toVideoPrompt("@音频1 @图片1 @视频1", 1, 1, 1)).toBe("@音频1 @图像1 @视频1");
   });
-  it("视频面板按声音数、时长和模型限制禁发，音频不计视频估价", () => {
+  it("视频面板按声音数、时长和模型限制禁发", () => {
     expect(videoProblems(DEFAULT_VIDEO_SETTINGS, [audio], { fake: false, tosReady: false }))
       .toEqual(["这个模型带音频时至少还要 1 张参考图或 1 段参考视频。"]);
     const model25 = { ...DEFAULT_VIDEO_SETTINGS, model: "doubao-seedance-2-5-260628" as const };
     expect(videoProblems(model25, [audio], { fake: false, tosReady: false })).toEqual([]);
     expect(videoProblems(model25, [{ ...audio, seconds: 31 }], null).join(" ")).toContain("@音频1");
     expect(videoProblems({ ...model25, mode: "first_frame" }, [{ type: "work", id: "i" }, audio], null)).toContain("首帧模式不能带音频。");
-    const settings = { ...DEFAULT_VIDEO_SETTINGS, count: 1 as const };
-    expect(videoEstimate(settings, [audio])).toEqual(videoEstimate(settings, []));
   });
   it("声音被拒按原连线定位，文案按声音独立编号", () => {
     expect(blockedReferenceMessage("参考 3 被拒", [3], ["audio", "image", "audio"])).toBe("音频2 被拒");

@@ -2,10 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "@/api";
 import { CanvasBoard } from "@/canvas/CanvasBoard";
 import { Confirm } from "@/common/Confirm";
+import { AgentNeededDialog } from "@/common/AgentNeededDialog";
 import { ImageViewer } from "@/common/ImageViewer";
 import { Toast, useToast } from "@/common/Toast";
 import { WorksSidebar } from "@/library/WorksSidebar";
 import { SettingsButton } from "@/shell/SettingsButton";
+import { SaveConflictBanner } from '@/shell/SaveConflictBanner';
 import type { CanvasSummary } from "@/types";
 
 const summaryOf = (doc: { id: string; name: string; updatedAt?: string }): CanvasSummary => ({
@@ -116,7 +118,9 @@ export function App() {
         )}
         <SettingsButton />
       </main>
+      {current ? <SaveConflictBanner canvasId={current.id} /> : null}
       <Toast toast={toast} onClose={closeToast} />
+      <AgentNeededDialog />
       {viewer ? <ImageViewer url={viewer.url} title={viewer.title} media={viewer.media} onClose={closeViewer} /> : null}
       {deleting ? (
         <Confirm

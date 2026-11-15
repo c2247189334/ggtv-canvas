@@ -22,7 +22,8 @@ test('health：报假火山、Key 填没填、今天花了多少', async () => {
   assert.deepEqual(r.json, { ok: true, fake: true, keyReady: false, tosReady: false, todayYuan: 0, uncertainToday: 0,
     depth: { python: {filled:false,found:false}, modelDir: {filled:false,found:false}, extraPackages: {filled:false,found:false} },
     mesh: { ready: true, url: { filled: false, found: true }, directory: { filled: false, found: true } },
-    ffmpegFound:r.json.ffmpegFound,ffprobeFound:r.json.ffprobeFound });
+    ffmpegFound:r.json.ffmpegFound,ffprobeFound:r.json.ffprobeFound,
+    agent: 'claude', agentName: 'Claude', agentReady: true, agentModel: 'sonnet', agentProblem: null });
   assert.equal(typeof r.json.ffmpegFound,'boolean');assert.equal(typeof r.json.ffprobeFound,'boolean');
   await s.close();
 });

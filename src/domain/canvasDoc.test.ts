@@ -74,4 +74,13 @@ describe("canvasDoc", () => {
     expect(card?.page).toBe(0);
     expect(readCard(null)).toBeNull();
   });
+  it("发送时的输入（输入已更新用）存档重开保留，读坏的丢掉", () => {
+    const sentInputs = { refs: ["upload:u1", "none"], prompt: "跳舞" };
+    const data = [{ ...newVideoCard("generate", 2), sentInputs }, { ...newCard("generate", 3), sentInputs }];
+    const nodes: CardNode[] = data.map((data, index) => ({ id: String(index), type: "card", position: { x: 0, y: 0 }, data }));
+    const back = fromDoc(JSON.parse(JSON.stringify(toDoc({ id: "c", name: "x" }, nodes, []))) as CanvasDoc);
+    expect(back.nodes.map(node => node.data.sentInputs)).toEqual([sentInputs, sentInputs]);
+    expect(readCard({ ...newCard("generate", 1), sentInputs: { refs: [1], prompt: "x" } })?.sentInputs).toBeUndefined();
+    expect(readCard({ ...newCard("generate", 1), sentInputs: "坏的" })?.sentInputs).toBeUndefined();
+  });
 });

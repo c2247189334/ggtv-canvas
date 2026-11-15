@@ -4,11 +4,10 @@ import { join } from 'node:path';
 import { createExecutor } from '../depth/executor.mjs';
 import { imageSize } from '../imageSize.mjs';
 
-/** 只解析本地素材引用；全部检查、缩图完成后才允许发看图请求。 */
+/** 只解析本地素材引用；全部检查、缩图完成后才允许发看图请求。本机 agent 是读文件看图，张数不设上限。 */
 export function createPromptImages({ uploads, works, executor = createExecutor() }) {
   async function prepare(materials) {
     const pictures = materials.filter(row => row.tag.startsWith('@图片'));
-    if (pictures.length > 12) throw Error('单次看图最多12张图片，请减少图片后再写词；这次没发出去，没花钱。');
     const sources = pictures.map(({ tag, asset }) => {
       try {
         const store = asset?.type === 'upload' ? uploads : asset?.type === 'work' ? works : null;
@@ -16,7 +15,7 @@ export function createPromptImages({ uploads, works, executor = createExecutor()
         if (!file || store.metadata(asset.id)?.kind !== 'image') throw Error('missing');
         return { tag, file };
       } catch {
-        throw Error(`${tag}的图片读不到，请重新上传或重新选择这张图片；这次没发出去，没花钱。`);
+        throw Error(`${tag}的图片读不到，请重新上传或重新选择这张图片；这次没发出去。`);
       }
     });
     if (!sources.length) return [];
@@ -31,7 +30,7 @@ export function createPromptImages({ uploads, works, executor = createExecutor()
             '-frames:v', '1', '-q:v', '2', output]);
           images.push(`data:image/jpeg;base64,${readFileSync(output).toString('base64')}`);
         } catch {
-          throw Error(`${tag}的图片缩图失败，请换一张能正常打开的图片，并确认本机ffmpeg可用；这次没发出去，没花钱。`);
+          throw Error(`${tag}的图片缩图失败，请换一张能正常打开的图片，并确认本机ffmpeg可用；这次没发出去。`);
         }
       }
       return images;
