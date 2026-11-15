@@ -2,60 +2,73 @@
 
 [简体中文](README.md) · **English**
 
-[![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm%20Noncommercial-orange.svg)](LICENSE) [![Check](https://github.com/c2247189334/ggtv-canvas/actions/workflows/check.yml/badge.svg)](https://github.com/c2247189334/ggtv-canvas/actions/workflows/check.yml)
+[![Latest release](https://img.shields.io/github/v/release/c2247189334/ggtv-canvas?label=latest)](../../releases/latest) [![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm%20Noncommercial-orange.svg)](LICENSE) [![Check](https://github.com/c2247189334/ggtv-canvas/actions/workflows/check.yml/badge.svg)](https://github.com/c2247189334/ggtv-canvas/actions/workflows/check.yml)
 
 **Turn a 4–30 s clip into a new video — a different person, outfit or background — while keeping the original motion and timing.**
-The motion reference (a depth map or a 3D body mesh) is computed on your own NVIDIA GPU for free. Image and video generation call Volcengine Ark (Seedream / Seedance) on your own account. A 15-second 480p rewrite cost the author about ¥11.72. Everything runs on your own Windows machine; your API key and your works are stored only there.
+
+The motion reference (a depth map or a 3D body mesh) is computed on your own NVIDIA GPU for free. Image and video generation call Volcengine Ark (Seedream / Seedance) directly on your own account — pay only for what you use; a 15-second 480p rewrite cost the author about ¥11.72. Everything runs on your own Windows machine; your API key and your works are stored only there.
+
+**[⬇ Download the latest release bundle (Windows)](../../releases/latest)**　The web app is prebuilt, no `npm install`: extract, fill in your key, double-click `一键启动.bat`.
 
 ![GG TV canvas: a body mesh, a background, a character sheet and the rewritten video connected on one canvas](docs/images/canvas.png)
 
-**How it works:** source clip → local motion reference (Video-Depth-Anything Small depth map, or ComfyUI + SAM 3D Body mesh) → your local Claude Code or Codex watches the clip and writes per-segment prompts → you swap in your own character, outfit and background images → Seedance generates the video → the original soundtrack is re-attached. Every step is a card on one infinite canvas, and connections are references.
+**How it works:** source clip → local motion reference (Video-Depth-Anything Small depth map, or ComfyUI + SAM 3D Body mesh) → your local AI agent watches the clip and writes per-segment prompts → you swap in your own character, outfit and background images → Seedance generates the video → the original soundtrack is re-attached. Every step is a card on one infinite canvas, connections are references, and you can redo any single step.
 
-**Good fit if** you want to restage an existing clip with your own characters and scenes, already use Volcengine Seedance / Seedream, and run Windows with an NVIDIA GPU.
+## Highlights
 
-**Not a fit if** you need many model providers (OpenAI, Gemini…), macOS / Linux, or an English UI. Without an NVIDIA GPU, image / video generation and the library still work, but video rewrite does not.
-
-The UI is in Chinese. Free for noncommercial use (PolyForm Noncommercial 1.0.0). Individuals may publish and monetize what they generate.
-
-> **Preview 0.1.1.** The full pipeline has only been tested on one Windows 11 laptop with an RTX 5080 (16 GB VRAM). Reports from other GPUs and systems are welcome in [Issues](../../issues).
+- **Motion follows the source** — a depth map or 3D body mesh locks the original motion and timing, so the new person, outfit or background stays in sync.
+- **An AI agent writes the prompts** — your local Claude Code / Codex breaks the clip down, writes per-segment prompts and checks them against the reference images and source frames, on your own subscription rather than Ark credit.
+- **One canvas for the whole pipeline** — sources, intermediate results and outputs all live on the canvas; connections are references, and you can go back to any step.
+- **Spending under control** — direct to Volcengine with no markup; every charge is recorded in a local ledger; a paid job whose reply got lost is re-attached to its card automatically, so you never pay twice.
+- **Ready to run** — a Windows bundle you start with a double-click; if something is missing it stops and says what, and it never installs anything behind your back.
+- **Well tested** — over 1,500 automated tests; every update runs type check, all tests, packaging and a start-up check on a fresh Windows runner.
 
 ## Features
 
-- **Video rewrite** — upload a clip; your local Claude Code or Codex describes it and writes per-segment prompts; you swap in your own character, outfit and background images; the result is generated and the original soundtrack is re-attached.
+- **Video rewrite** — upload a clip; your local AI agent describes it and writes per-segment prompts; you swap in your own character, outfit and background images; the result is generated and the original soundtrack is re-attached. Multi-location and two-person clips are supported.
 - **Motion reference (optional, runs on your GPU, free)** — a depth map (Video-Depth-Anything Small) or a body mesh (ComfyUI + SAM 3D Body).
-- **Infinite canvas** — multiple canvases; place image and video cards anywhere and connect them to use one as a reference for another.
+- **Infinite canvas** — multiple canvases; place image and video cards anywhere and connect them to use one as a reference for another; group cards with Ctrl+G.
 - **Image generation / editing** — Seedream 5.0 (Flash / Lite).
 - **Video generation** — Seedance 2.0 Mini / Fast / 2.0 / 2.5; images, videos and audio can all serve as references.
 - **Library** — generated images, videos and audio are collected automatically and can be dragged back onto the canvas; "My uploads" keeps the images and videos you uploaded (one copy per file), and a "Characters" page stores reusable characters.
-- **Video utilities** — extract the original soundtrack, trim a clip, capture a frame (current / first / last); a "rewrite for me" button asks your local Claude Code or Codex to polish your prompt.
-- **Product remake (no person)** — for clips that only show a product with hands or feet: say what to swap, and the product group and a new video card are laid out with the source clip as the reference.
+- **Video utilities** — extract the original soundtrack, trim a clip, capture a frame (current / first / last); a "rewrite for me" button asks your local AI agent to polish your prompt.
+- **Product remake (no person)** — for product clips that only show hands or feet: say what to swap, and the product group and a new video card are laid out with the source clip as the reference. No GPU needed.
 
 See the [CHANGELOG](CHANGELOG.md) for what each version added or changed.
 
+## Requirements
+
+- **OS**: Windows.
+- **GPU**: the motion reference for video rewrite needs an NVIDIA GPU (driver with CUDA 12.8+); without one you can still generate images and videos, use the library and run product remake.
+- **Model service**: Volcengine Ark (Seedream / Seedance) with your own API key.
+- **UI language**: Chinese.
+
+## Local AI agent (Claude Code / Codex built in, pluggable)
+
+Clip analysis, image lookups and prompt writing for video rewrite and product remake, plus "rewrite for me", run through the AI coding agent on your machine, using your own subscription rather than Ark credit. Plain image and video generation do not need it.
+
+- **Built in**: Claude Code (default; the copy bundled with the Claude desktop app is detected too) and Codex (set `AGENT_ENGINE=codex` in `.env.local`).
+- **Pluggable**: to add another command-line agent, write one adapter modelled on `server/codex.mjs` and register it in `server/agent.mjs`. Pull requests are welcome.
+- **Setup**: run `claude` (or `codex login`) once in a terminal and sign in with your own account. Only the `.exe` builds work; an npm-installed `.cmd` cannot be launched. If it is not set up, those buttons show a dialog explaining what is missing.
+- GG TV only launches the agent on your machine; it never reads, stores or forwards your credentials.
+
 ## Cost
 
-Image generation and video generation call Volcengine Ark and are billed per use to **your own Volcengine account**. As measured by the author in November 2026, one 15-second 480p video rewrite cost about ¥11.72. Depth and body mesh run on your local GPU and cost nothing.
+Image generation and video generation call Volcengine Ark and are billed per use to **your own Volcengine account**, with no markup in between. As measured by the author in November 2026, one 15-second 480p video rewrite cost about ¥11.72. Depth and body mesh run on your local GPU, and the AI agent uses your own subscription, so neither adds any cost.
 
-Clip analysis, image lookups and prompt writing for video rewrite and product remake, plus "rewrite for me", run through the Claude Code (or Claude desktop app) on your machine, using your own Claude subscription rather than Ark credit. Install it (only the `.exe` builds work: the official installer or the copy bundled with the desktop app; an npm install cannot be launched) and run `claude` once in a terminal to sign in with your own Claude account; if it is not set up, those buttons show a dialog explaining what is missing. GG TV only launches the Claude Code on your machine; it never reads, stores or forwards your Claude credentials. To use Codex instead, run `codex login` once and set `AGENT_ENGINE=codex` in `.env.local`. Plain image and video generation do not need it.
+## Tips
 
-## Known issues (beta)
-
-This is a **beta** personal tool. Its origin and rough edges, up front:
-
-- **Most of the code was written by AI coding assistants (Claude Code, Codex).** The author specifies the features, decides the design and tests repeatedly on their own machine; there are also over a thousand automated tests. It works, but it has not been exercised by many people or on many machines.
-- **Tested for real on one Windows 11 machine only.** Real generations were made with Seedance 2.5 and 2.0 Mini; video rewrite has only been run at 480p. 720p and 2.0 Standard / Fast have not been run for real.
-- **Keep reference videos under 64 MB**: the UI accepts up to 200 MB, but above 64 MB the upload may reach the cloud and still be reported as failed.
-- **Reference videos uploaded to TOS are not deleted automatically**: only the read link expires after 24 hours; the file stays in your own bucket until you remove it in the Volcengine console or add a lifecycle rule.
-- **Paid actions have no second confirmation**: Send and Ctrl+Enter submit immediately. If a card says a task "may have been created", check the task list in the Volcengine console before resending.
-- The page may slow down once many jobs and works pile up; no load testing has been done.
+- **Send submits a paid job right away** (so does Ctrl+Enter); check the prompt and settings first. If a card says a task "may have been created", check the task list in the Volcengine console before resending.
+- **Keep reference videos under 64 MB** for the most reliable uploads.
+- **Clean up reference videos in TOS from time to time**: the read link expires after 24 hours, but the file stays in your own bucket until you delete it in the Volcengine console or add a lifecycle rule.
 
 Bug reports are welcome in [issues](https://github.com/c2247189334/ggtv-canvas/issues); please include the raw error from the console window.
 
 ## Quick start (release bundle, recommended)
 
-You need: Windows (tested on Windows 11 only), [Node.js](https://nodejs.org/) 22.12 or newer, ffmpeg (with ffprobe), a Volcengine Ark API key; using a video as a reference also needs a TOS bucket in the Beijing region; video rewrite, product remake and "rewrite for me" also need Claude Code (or the Claude desktop app) or Codex installed and signed in.
+You need: Windows, [Node.js](https://nodejs.org/) 22.12 or newer, ffmpeg (with ffprobe), a Volcengine Ark API key; using a video as a reference also needs a TOS bucket in the Beijing region; video rewrite, product remake and "rewrite for me" also need the local AI agent set up (see above).
 
-1. Download `ggtv-canvas-<version>-win.zip` from [Releases](../../releases) and extract it completely into an ordinary folder.
+1. Download `ggtv-canvas-<version>-win.zip` from the [latest release](../../releases/latest) (not "Source code") and extract it completely into an ordinary folder.
 2. Install ffmpeg: run `winget install Gyan.FFmpeg` in a terminal.
 3. Copy `.env.example` to `.env.local` and fill in your Ark key and TOS settings.
 4. Double-click `一键启动.bat` (one-click start). Your browser opens `http://127.0.0.1:5290`. When you are done, close the console window or double-click `停止.bat` (stop).
@@ -96,7 +109,7 @@ Day-to-day development: `npm run dev` (web, port 5280) and `npm start` (local se
 - The local server binds `127.0.0.1` only; it is unreachable from the LAN or the internet, and it rejects requests from other websites.
 - Keys live only in `.env.local`, which is ignored by Git; keys are masked in logs.
 - Works, jobs and uploaded videos are stored in the local `数据/` folder.
-- What leaves your machine: for image and video generation, prompts and reference images / videos go to Volcengine (reference videos via your own TOS bucket); for video rewrite, product remake and "rewrite for me", frames from the clip, connected images and prompts are handed to the Claude Code / Codex on your machine, which sends them to Anthropic / OpenAI under your own account.
+- What leaves your machine: for image and video generation, prompts and reference images / videos go to Volcengine (reference videos via your own TOS bucket); for video rewrite, product remake and "rewrite for me", frames from the clip, connected images and prompts are handed to the AI agent on your machine, which sends them to its model service under your own account (Claude Code → Anthropic, Codex → OpenAI).
 
 See [SECURITY.md](SECURITY.md) for how to report a vulnerability, [CONTRIBUTING.md](CONTRIBUTING.md) to take part, and [CHANGELOG.md](CHANGELOG.md) for version history.
 

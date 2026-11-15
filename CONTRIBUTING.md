@@ -7,7 +7,7 @@ Thanks for helping out. Bug reports, ideas and pull requests are all welcome. En
 
 - 用 [问题模板](../../issues/new/choose)，写清你做了哪几步、想看到什么、实际看到了什么。
 - 贴黑窗口最后显示的内容和 `日志/` 里当天的记录，**先删掉密钥、账号和个人路径**，不要贴 `.env.local`。
-- 说明你的系统、显卡和显存。项目目前只在 Windows 11 + RTX 5080 16 GB 上完整测过，别的配置的反馈尤其有用。
+- 说明你的系统、显卡和显存，方便复现。
 
 ## 提想法
 

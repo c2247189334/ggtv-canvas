@@ -37,8 +37,8 @@ Format follows Keep a Changelog; versions follow Semantic Versioning.
 
 ## [0.1.0] - 2026-11-01
 
-首个公开预览版。只在一台 Windows 11 + RTX 5080（16 GB 显存）上完整测过。
-First public preview. Fully tested on one Windows 11 + RTX 5080 (16 GB) machine only.
+首个公开预览版。
+First public preview.
 
 ### 新增 / Added
 
