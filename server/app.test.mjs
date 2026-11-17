@@ -91,6 +91,8 @@ test('不是假火山、Key 没填：拒收，出图函数一次都不调', asyn
   const r = await post(s.port, '/api/jobs', { canvasId: canvas.id, cardId: 'card-1', model: FLASH, prompt: 'x', size: '1024x1024', count: 1, refs: [] });
   assert.equal(r.status, 400);
   assert.match(r.json.error, /ARK_API_KEY/);
+  // 11-17：指去右上角「设置」填，不再叫新手自己改 .env.local。
+  assert.match(r.json.error, /右上角「设置」/); assert.doesNotMatch(r.json.error, /\.env\.local/);
   assert.equal(called, false);
   await s.close();
 });

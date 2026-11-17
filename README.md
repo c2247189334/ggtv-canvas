@@ -10,6 +10,12 @@
 
 **[⬇ 下载最新整合包（Windows）](../../releases/latest)**　页面已经打包好，不用 `npm install`：解压、填密钥、双击 `一键启动.bat` 就能用。
 
+**🤖 让 AI 助手帮你装**　把下面这句话发给你的 AI 助手（Claude Code、Codex、Cursor 等），它会照 [给 AI 助手的安装说明](docs/AI助手安装说明.md) 一步步装好；密钥不用给它，装完你自己在页面右上角「设置」里填：
+
+```text
+帮我安装 https://github.com/c2247189334/ggtv-canvas ，严格按仓库里 docs/AI助手安装说明.md 的步骤做，装完用大白话告诉我怎么打开。
+```
+
 **[📖 使用教程](docs/使用教程.md)**　装好以后怎么用：5 分钟出第一张图、一步步走一遍视频改写、不看说明不知道的规矩。
 
 > **English** — GG TV (`ggtv-canvas`) does motion-preserving AI video rewrite on a local, Windows-first infinite canvas: turn a 4–30 s clip into a new video with a different person, outfit or background while keeping the original motion. The motion reference is a local depth map (Video-Depth-Anything Small) or a 3D body mesh (ComfyUI + SAM 3D Body); generation uses Volcengine Ark models (Seedream 5.0, Seedance 2.0 / 2.5); clip analysis and prompt writing run through a local AI agent (Claude Code and Codex built in, pluggable for others). The UI is in Chinese. Free for noncommercial use (PolyForm Noncommercial 1.0.0). Individuals may publish and monetize what they generate.
@@ -73,14 +79,14 @@
 
 ## 快速开始（整合包，推荐）
 
-需要：Windows、[Node.js](https://nodejs.org/) 22.12 或以上、ffmpeg（带 ffprobe）、火山方舟 API Key；用视频当参考还需要一个北京区的 TOS 桶；视频改写、拆解和「帮我改写」还要接好本机 AI 助手（见上面）。
+需要：Windows、[Node.js](https://nodejs.org/) 22.12 或以上。出图、出视频要火山方舟 API Key；用视频当参考还要一个北京区的 TOS 桶；截取、截帧、提取原声、深度和视频改写要 ffmpeg（带 ffprobe）；视频改写、拆解和「帮我改写」还要接好本机 AI 助手（见上面）。这些没备齐也能先打开画布用别的功能，用到哪一步才会提示。
 
 1. 到 [Releases 最新版](../../releases/latest) 下载 `ggtv-canvas-版本号-win.zip`（不是下面的 Source code），完整解压到一个普通文件夹。
-2. 装 ffmpeg：在终端运行 `winget install Gyan.FFmpeg`。
-3. 把 `.env.example` 复制一份改名为 `.env.local`，填上自己的火山方舟密钥和 TOS 配置。
-4. 双击 `一键启动.bat`，浏览器会打开 `http://127.0.0.1:5290`。用完关掉黑窗口，或双击 `停止.bat`。
+2. 装 ffmpeg（可以晚点再装）：在终端运行 `winget install Gyan.FFmpeg`。
+3. 双击 `一键启动.bat`，浏览器会打开 `http://127.0.0.1:5290`。用完关掉黑窗口，或双击 `停止.bat`。
+4. 点页面右上角「设置」，填上自己的火山方舟 Key 和 TOS 配置，点保存，不用重启。还没有 Key 的话，设置里的「怎么拿 Key」有步骤；设置下面的功能清单会告诉你每个功能能不能用、还缺什么。
 
-启动脚本不会自动安装任何东西，缺什么会停下来说清楚。每一步的细节、深度和白模的选装、常见问题，都在 **[安装说明](docs/安装说明.md)**。
+启动脚本不会自动安装任何东西：缺 Node 或页面会停下来说清楚；缺 ffmpeg 只提醒，照常启动。每一步的细节、深度和白模的选装、常见问题，都在 **[安装说明](docs/安装说明.md)**。
 
 | 选装 | 需要 | 怎么装 |
 | --- | --- | --- |
@@ -95,6 +101,7 @@ cd ggtv-canvas
 npm ci
 npm run typecheck   # 类型检查
 npm test            # 页面 + 小服务全部测试（要装 ffmpeg）
+npm run doctor      # 体检：能不能启动、每个功能还缺什么、怎么补（只读）
 npm run fake        # 假火山模式：不花钱、不需要密钥，打开 http://127.0.0.1:5291
 npm run pack        # 打 Windows 整合包到 release/
 npm run smoke       # 整合包冒烟测试：解压、不装依赖、假火山启动

@@ -2,6 +2,7 @@
 import { parseMp4 } from './mp4.mjs';
 import { videoPrice } from './videoModels.mjs';
 import { humanSeedanceError } from './seedance.mjs';
+import { tosMissingText } from './config.mjs';
 import { compressVideoReferences } from './videoReferences.mjs';
 import { addSoundtrack } from './soundtrack.mjs';
 
@@ -13,7 +14,7 @@ const missingTos = new Set(['TOS_ACCESS_KEY_ID_MISSING', 'TOS_SECRET_ACCESS_KEY_
 // 准备参考素材失败时按原因说话（都发生在交单之前，没花钱）。只认这张表里的码，别的错误原文不上页面。
 const PREPARE_ERRORS = {
   TOS_UPLOAD_TIMEOUT: '参考视频上传太慢超时，这单没发出去。可以把参考视频截短或压小再发。',
-  TOS_UPLOAD_FAILED: 'TOS 没收下参考视频，这单没发出去。检查 .env.local 里 TOS 的两个密钥和桶名，桶要在北京区，电脑时间要准。',
+  TOS_UPLOAD_FAILED: 'TOS 没收下参考视频，这单没发出去。检查右上角「设置」里填的 TOS 两个密钥和桶名（填错了重新填，不用重启），桶要在北京区，电脑时间要准。',
   TOS_REFERENCE_NOT_READABLE: '参考视频传上 TOS 后读不回来，这单没发出去。检查 TOS 密钥有没有读权限、桶名对不对（桶要在北京区）。',
   TOS_REFERENCE_HASH_MISMATCH: '参考视频传上 TOS 后内容对不上，这单没发出去。再发一次试试。',
   TOS_VIDEO_SIZE_INVALID: '参考视频是空的或超过 200MB，这单没发出去。截短或压小再发。',
@@ -139,7 +140,7 @@ export function createVideoQueue({ jobs, works, uploads, spend, client, uploadVi
         const raw = err?.code ?? err?.message;
         const code = missingTos.has(raw) || Object.hasOwn(PREPARE_ERRORS, raw) ? raw : 'REF_PREPARE_FAILED';
         const error = missingTos.has(code)
-          ? `.env.local 里没填 ${code.slice(0, -8)}（存参考视频要用），这单没发出去。`
+          ? tosMissingText(code.slice(0, -8))
           : PREPARE_ERRORS[code] ?? '参考素材读取或上传失败，这单没发出去。';
         // 只记错误码：原文可能带预签名地址。
         logError(`视频任务 ${id.slice(0, 8)} 准备参考素材失败`, new Error(code));

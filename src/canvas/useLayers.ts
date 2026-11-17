@@ -6,6 +6,7 @@ import { absorbLayerViews, mergedChild, normalizedBoxes, LAYER_TEXT, type Box, t
 import { absorbRedrawViews, redrawPending, redrawResults } from '@/domain/layerRedraw';
 import type { CardNode, LayerSplit } from '@/types';
 import type { Notify } from '@/common/Toast';
+import { requireKey } from '@/common/keyNeeded';
 import { composeLayers, pngIfNeeded } from './composeLayers';
 
 const POLL_MS = 2000;
@@ -47,6 +48,7 @@ export function useLayers({ canvasId, nodes, setNodes, notify }: Deps) {
     const card = flow.getNode(cardId);
     const current = card?.data.kind === 'image' ? currentResult(card.data) : null;
     if (!card || !current) throw new Error('这张卡上没有图。');
+    await requireKey();
     const png = await pngIfNeeded(assetUrl(current));
     const source = png ? { type: 'upload' as const, id: (await api.upload(png)).id } : { type: current.type, id: current.id };
     const { id } = await api.submitLayerJob({ canvasId, cardId, source, origin: { type: current.type, id: current.id }, text,
@@ -56,6 +58,7 @@ export function useLayers({ canvasId, nodes, setNodes, notify }: Deps) {
 
   /** 图层重绘：选中的一层 + 一句话交给火山；单号和落回去的位置记在卡上。出错抛人话，界面显示。 */
   const redraw = useCallback(async (cardId: string, layer: EditLayer, text: string) => {
+    await requireKey();
     const { id } = await api.submitLayerRedraw({ canvasId, cardId, layer: layer.work, name: layer.name, text });
     setNodes(list => list.map(node => node.id === cardId && node.data.kind === 'image'
       ? { ...node, data: { ...node.data, layerRedraw: redrawPending(id, layer), note: null } } : node));

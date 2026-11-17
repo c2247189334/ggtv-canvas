@@ -3,6 +3,7 @@ import { api } from "@/api";
 import { CanvasBoard } from "@/canvas/CanvasBoard";
 import { Confirm } from "@/common/Confirm";
 import { AgentNeededDialog } from "@/common/AgentNeededDialog";
+import { KeyNeededDialog } from "@/common/KeyNeededDialog";
 import { ImageViewer } from "@/common/ImageViewer";
 import { Toast, useToast } from "@/common/Toast";
 import { WorksSidebar } from "@/library/WorksSidebar";
@@ -121,6 +122,7 @@ export function App() {
       {current ? <SaveConflictBanner canvasId={current.id} /> : null}
       <Toast toast={toast} onClose={closeToast} />
       <AgentNeededDialog />
+      <KeyNeededDialog />
       {viewer ? <ImageViewer url={viewer.url} title={viewer.title} media={viewer.media} onClose={closeViewer} /> : null}
       {deleting ? (
         <Confirm

@@ -32,16 +32,23 @@ test('启动依赖分支识别源码、整合包、缺少页面三种情况，�
   }
 });
 
-test('启动前缺少 ffmpeg 或 ffprobe 任一项都停下，不执行安装', () => {
+// 11-17 用户定：缺 ffmpeg 只提醒、照常启动（只出图出视频用不到它），不执行安装。
+test('启动前缺少 ffmpeg 或 ffprobe 任一项只提醒缺哪个、怎么装，照常往下走；都有就不提', () => {
   for (const absent of ['ffmpeg', 'ffprobe']) {
     const cwd = tempDir();
     // where.exe 仍用系统工具，通过假工具文件控制 PATH 搜索结果。
     writeFileSync(join(cwd, `${absent === 'ffmpeg' ? 'ffprobe' : 'ffmpeg'}.exe`), '');
     const result = runSection('rem MEDIA_CHECK_BEGIN', 'rem MEDIA_CHECK_END', () => {},
       { ...process.env, PATH: `${cwd};${process.env.SystemRoot}\\System32` });
-    assert.equal(result.code, 1); assert.match(result.output, /winget install Gyan.FFmpeg/);
-    assert.match(result.output, new RegExp(absent));
+    assert.equal(result.code, 0); assert.match(result.output, /winget install Gyan.FFmpeg/);
+    assert.match(result.output, new RegExp(`找不到 ${absent}`)); assert.match(result.output, /照常能用/);
+    assert.doesNotMatch(result.output, new RegExp(`找不到 ${absent === 'ffmpeg' ? 'ffprobe' : 'ffmpeg'}`));
   }
+  const cwd = tempDir();
+  for (const name of ['ffmpeg', 'ffprobe']) writeFileSync(join(cwd, `${name}.exe`), '');
+  const quiet = runSection('rem MEDIA_CHECK_BEGIN', 'rem MEDIA_CHECK_END', () => {},
+    { ...process.env, PATH: `${cwd};${process.env.SystemRoot}\\System32` });
+  assert.equal(quiet.code, 0); assert.doesNotMatch(quiet.output, /找不到|winget/);
 });
 
 test('所有交付 bat 均为 GBK CRLF，安装/体检外壳沿用 Node 门槛并保留退出码', () => {

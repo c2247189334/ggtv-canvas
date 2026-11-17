@@ -59,17 +59,20 @@ if not defined BUILD_PAGE echo       整合包：页面已打包好
 rem RELEASE_CHECK_END
 
 rem MEDIA_CHECK_BEGIN
+rem 11-17 用户定：缺 ffmpeg 只提醒、照常启动；页面里截取、截帧、提取原声、深度、视频改写点的时候自己会查。
+set "MEDIA_MISSING="
 for %%t in (ffmpeg ffprobe) do (
     where %%t >nul 2>nul
     if errorlevel 1 (
-        echo.
-        echo   [X] 找不到 %%t，视频处理需要 ffmpeg 和 ffprobe。
-        echo   请手动安装：winget install Gyan.FFmpeg
-        echo   装完关闭这个窗口，再重新双击 一键启动.bat。
-        echo.
-        pause
-        exit /b 1
+        echo   [!] 找不到 %%t
+        set "MEDIA_MISSING=1"
     )
+)
+if defined MEDIA_MISSING (
+    echo       画布、上传、出图、出视频照常能用；截取、截帧、提取原声、
+    echo       深度、视频改写要用它，想用就手动装一次：winget install Gyan.FFmpeg
+    echo       装好后关掉这个窗口，再重新双击 一键启动.bat。
+    echo.
 )
 rem MEDIA_CHECK_END
 

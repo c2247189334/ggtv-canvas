@@ -25,10 +25,10 @@ beforeEach(() => {
   vi.clearAllMocks(); vi.mocked(api.health).mockResolvedValue({ fake: true } as Health);
   vi.mocked(api.analyzeProduct).mockResolvedValue({ plan, duration: 6, targetDuration: 6, ratio: '9:16', hasAudio: true, yuan: 0 });
 });
-it('预检缺项/来源越界不建卡不调AI，只查Key/TOS/ffmpeg，原话保留', async () => {
+it('预检缺项/来源越界不建卡不调AI，开拆只查ffmpeg（Key/TOS 出片才拦），原话保留', async () => {
   vi.mocked(api.health).mockResolvedValue({ fake: false, keyReady: false, tosReady: false, ffmpegFound: false, agentReady: true } as Health);
   const { actions } = setup();
-  expect(await actions.run('source', '鞋子')).toContain('ARK_API_KEY'); expect(graph.nodes).toHaveLength(1); expect(api.analyzeProduct).not.toHaveBeenCalled();
+  expect(await actions.run('source', '鞋子')).toContain('ffmpeg'); expect(graph.nodes).toHaveLength(1); expect(api.analyzeProduct).not.toHaveBeenCalled();
   // 11-15 用户定：拆解只走本机 agent；没配好弹说明框，不建卡、不调 AI。
   vi.mocked(api.health).mockResolvedValue({ fake: false, keyReady: true, tosReady: true, ffmpegFound: true, agentReady: false, agentProblem: '本机 Codex 没配好：在终端跑一次 codex login。' } as Health);
   expect(await setup().actions.run('source', '鞋子')).toBeUndefined();

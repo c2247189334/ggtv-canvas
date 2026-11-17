@@ -94,7 +94,7 @@ describe("视频面板纯逻辑", () => {
   });
   it("发送前检查首帧与TOS，假模式无需TOS", () => {
     const refs = [{ type: "work" as const, id: "v", media: "video" as const, seconds: 3 }];
-    expect(videoProblems(settings, refs, { fake: false, tosReady: false })).toContain("参考视频要先传到火山存储：.env.local 里还没填 TOS_ACCESS_KEY_ID、TOS_SECRET_ACCESS_KEY、TOS_BUCKET，填好不用重启。");
+    expect(videoProblems(settings, refs, { fake: false, tosReady: false })).toContain("参考视频要先传到火山存储：还没填 TOS 三项（TOS_ACCESS_KEY_ID、TOS_SECRET_ACCESS_KEY、TOS_BUCKET），点右上角「设置」填好就行，不用重启。");
     expect(videoProblems(settings, refs, { fake: true, tosReady: false })).toEqual([]);
     expect(videoProblems({ ...settings, mode: "first_frame" }, refs, { fake: true, tosReady: true })).toContain("首帧模式不能带视频。");
   });

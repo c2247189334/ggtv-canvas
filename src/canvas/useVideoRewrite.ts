@@ -18,7 +18,9 @@ import type { MotionReference } from '@/domain/motionReference';
 
 type Deps = { canvasId: string; nodes?: CardNode[]; setNodes: (update: (nodes: CardNode[]) => CardNode[]) => void;
   setEdges: (update: (edges: Edge[]) => Edge[]) => void; takeNumber: () => number; notify: Notify;
-  layout?: (id: string, column: RewriteColumn) => void; focus?: (id: string) => void };
+  layout?: (id: string, column: RewriteColumn) => void; focus?: (id: string) => void;
+  /** 输入面板掉出屏幕时把画布挪一下（`usePanelReveal`）。 */
+  reveal?: (id: string) => void };
 type MediaGraph = { nodes: CardNode[]; edges: Edge[]; depthId?: string };
 const makeId = () => `card-${crypto.randomUUID().slice(0, 8)}`;
 // 页面存活期间保留；切换画布重建组件也能取回，刷新页面自然清空。
@@ -32,7 +34,7 @@ const refreshPending = () => { pendingVersion++; for (const listener of pendingL
 const clearStatus = ({ rewriteStatus: _status, rewriteBusy: _busy, rewriteTask: _task, ...data }: VideoCardData): VideoCardData => data;
 const clearBusy = ({ rewriteBusy: _busy, ...data }: VideoCardData): VideoCardData => data;
 
-export function useVideoRewrite({ canvasId, nodes, setNodes, setEdges, takeNumber, notify, layout, focus }: Deps) {
+export function useVideoRewrite({ canvasId, nodes, setNodes, setEdges, takeNumber, notify, layout, focus, reveal }: Deps) {
   const flow = useReactFlow<CardNode, Edge>();
   const mediaPending = useRef(new Set<string>());
   const openedSource = useRef<string | null>(null);
@@ -63,7 +65,7 @@ export function useVideoRewrite({ canvasId, nodes, setNodes, setEdges, takeNumbe
     if (problem) { notify(problem); return; }
     if (activeSources.has(sourceId)) { notify('这条视频正在拆解，做完再来。'); return; }
     if (!pending.has(sourceKey(sourceId))) updateSource(sourceId, data => data.rewriteStatus ? clearStatus(data) : data);
-    openedSource.current = sourceKey(sourceId); setInputId(sourceId);
+    openedSource.current = sourceKey(sourceId); setInputId(sourceId); reveal?.(sourceId);
   };
   const dispatchMedia = async (node: CardNode, source: AssetRef) => {
     if (mediaPending.current.has(node.id)) return;

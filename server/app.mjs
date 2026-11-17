@@ -27,12 +27,13 @@ import { createCharacterStore } from './store/characters.mjs';
 import { characterRoutes } from './routes/characters.mjs';
 import { createLayerQueue } from './layerQueue.mjs';
 import { layerJobRoutes } from './routes/layerJobs.mjs';
+import { settingsRoutes } from './routes/settings.mjs';
 import { createFakeLayers, createFakeRedraw } from './fakeLayers.mjs';
 
 /** npm run dev 时页面所在的端口（vite.config.ts 里写的），它发来的写请求也放行。 */
 export const DEV_PORT = 5280;
 
-export function createApp({ dataRoot, distDir, port, fake, readEnv, generate, videoClient, uploadVideo, splitLayers, redrawLayer,
+export function createApp({ dataRoot, distDir, port, fake, readEnv, envFile, envTemplate, checkKey, generate, videoClient, uploadVideo, splitLayers, redrawLayer,
   videoPollMs = 10000, fakeDelayMs = 0, logError, log, concurrency = DEFAULT_CONCURRENCY, executor, rewrite, videoRewrite = {} }) {
   const stores = {
     canvases: createCanvasStore(dataRoot),
@@ -59,6 +60,7 @@ export function createApp({ dataRoot, distDir, port, fake, readEnv, generate, vi
   characterRoutes(router, { ...stores, queue, readEnv, fake });
   videoJobRoutes(router, { ...stores, videoQueue, readEnv, fake });
   layerJobRoutes(router, { ...stores, layerQueue, readEnv, fake });
+  settingsRoutes(router, { envFile, envTemplate, readEnv, checkKey: fake ? undefined : checkKey, logError });
   localMediaRoutes(router, { media, depthQueue });
   const sheets = videoRewrite.sheets ?? createSheets({ executor });
   const promptImages = videoRewrite.promptImages ?? createPromptImages({ ...stores, executor });

@@ -1,6 +1,6 @@
 // 出图接口：交单、查进度；还有设置面板用的 health（Key 填没填、今天花了多少）。
 import { agentHealth } from '../agent.mjs';
-import { depthHealth, keyFilled, meshHealth, tosFilled } from '../config.mjs';
+import { depthHealth, keyFilled, keyMissingText, meshHealth, tosFilled } from '../config.mjs';
 import { HttpError, readJson, sendJson } from '../http.mjs';
 import { checkJobInput } from '../jobInput.mjs';
 import { dayKey } from '../store/spend.mjs';
@@ -28,7 +28,7 @@ const missing = (id) => ({ id, kind: 'image', status: 'missing', phase: null, bl
 export function jobRoutes(router, { jobs, queue, uploads, works, spend, readEnv, fake }) {
   router.add('POST', '/api/jobs', async ({ req, res }) => {
     if (!fake && !keyFilled(readEnv())) {
-      throw new HttpError(400, '.env.local 里还没填 ARK_API_KEY，填好再发（这单没发出去）。');
+      throw new HttpError(400, keyMissingText());
     }
     const body = await readJson(req);
     const checked = checkJobInput(body, (ref) => ref.type === 'upload' ? uploads.metadata(ref.id) : works.metadata(ref.id));

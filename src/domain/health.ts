@@ -1,5 +1,9 @@
 import type { Health } from "@/types";
 
+/** 11-17 用户定：缺 ffmpeg 的提示要说怎么办。提示条只留 4 秒，放不下整条命令，所以指去「设置」，装法写在设置的功能清单里。 */
+export const FFMPEG_MISSING = "没找到 ffmpeg（处理视频的小工具）：点右上角「设置」看怎么装。";
+export const FFMPEG_HOW = "按 Win 键搜「终端」打开，粘贴 winget install Gyan.FFmpeg 回车；装完关掉黑窗口，重新双击「一键启动.bat」。";
+
 /** 配置体检只给状态，页面只列缺少的变量名，不展示本机路径。 */
 export function missingDepthConfig(depth?: Health["depth"]): string[] {
   const fields = [

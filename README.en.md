@@ -10,6 +10,12 @@ The motion reference (a depth map or a 3D body mesh) is computed on your own NVI
 
 **[⬇ Download the latest release bundle (Windows)](../../releases/latest)**　The web app is prebuilt, no `npm install`: extract, fill in your key, double-click `一键启动.bat`.
 
+**🤖 Let your AI agent install it**　Send this to your coding agent (Claude Code, Codex, Cursor…). It follows [the install guide for AI agents](docs/AI助手安装说明.md) (in Chinese). Never give it your keys: you enter them yourself under "设置" (settings) at the top right once the app is open.
+
+```text
+Install https://github.com/c2247189334/ggtv-canvas for me. Follow docs/AI助手安装说明.md in the repo exactly, then tell me in plain words how to open it.
+```
+
 ![GG TV canvas: a body mesh, a background, a character sheet and the rewritten video connected on one canvas](docs/images/canvas.png)
 
 **How it works:** source clip → local motion reference (Video-Depth-Anything Small depth map, or ComfyUI + SAM 3D Body mesh) → your local AI agent watches the clip and writes per-segment prompts → you swap in your own character, outfit and background images → Seedance generates the video → the original soundtrack is re-attached. Every step is a card on one infinite canvas, connections are references, and you can redo any single step.
@@ -67,14 +73,14 @@ Bug reports are welcome in [issues](https://github.com/c2247189334/ggtv-canvas/i
 
 ## Quick start (release bundle, recommended)
 
-You need: Windows, [Node.js](https://nodejs.org/) 22.12 or newer, ffmpeg (with ffprobe), a Volcengine Ark API key; using a video as a reference also needs a TOS bucket in the Beijing region; video rewrite, product remake and "rewrite for me" also need the local AI agent set up (see above).
+You need: Windows, [Node.js](https://nodejs.org/) 22.12 or newer. Generating images and videos needs a Volcengine Ark API key; using a video as a reference also needs a TOS bucket in the Beijing region; clipping, frame capture, audio extraction, depth and video rewrite need ffmpeg (with ffprobe); video rewrite, product remake and "rewrite for me" also need the local AI agent set up (see above). Without these you can still open the canvas and use everything else; you are told what is missing at the step that needs it.
 
 1. Download `ggtv-canvas-<version>-win.zip` from the [latest release](../../releases/latest) (not "Source code") and extract it completely into an ordinary folder.
-2. Install ffmpeg: run `winget install Gyan.FFmpeg` in a terminal.
-3. Copy `.env.example` to `.env.local` and fill in your Ark key and TOS settings.
-4. Double-click `一键启动.bat` (one-click start). Your browser opens `http://127.0.0.1:5290`. When you are done, close the console window or double-click `停止.bat` (stop).
+2. Install ffmpeg (can wait until later): run `winget install Gyan.FFmpeg` in a terminal.
+3. Double-click `一键启动.bat` (one-click start). Your browser opens `http://127.0.0.1:5290`. When you are done, close the console window or double-click `停止.bat` (stop).
+4. Click "设置" (settings) at the top right, enter your Ark key and TOS settings, and save. No restart needed. The panel also explains how to get a key ("怎么拿 Key") and lists which features are ready and what each one still needs.
 
-The start script never installs anything on its own; if something is missing it stops and tells you what. Step-by-step details, the optional depth / mesh installs and troubleshooting are in the **[installation guide](docs/安装说明.md)** (Chinese). Once it is running, the **[usage guide](docs/使用教程.md)** (Chinese, with screenshots) walks through the first image, a full video rewrite and the rules that are easy to miss.
+The start script never installs anything on its own: a missing Node.js or page bundle stops it with an explanation; a missing ffmpeg only shows a warning and the app starts anyway. Step-by-step details, the optional depth / mesh installs and troubleshooting are in the **[installation guide](docs/安装说明.md)** (Chinese). Once it is running, the **[usage guide](docs/使用教程.md)** (Chinese, with screenshots) walks through the first image, a full video rewrite and the rules that are easy to miss.
 
 | Optional | Needs | How |
 | --- | --- | --- |

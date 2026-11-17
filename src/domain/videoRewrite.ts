@@ -10,7 +10,7 @@ import { SIZE_FROM_ASPECT, type AspectId } from './aspects';
 import { rewriteImageTemplate } from './rewriteTemplates';
 import { clothesFrameRegion, keptClothes, REWRITE_CLOTHES_ASPECT, rewriteClothesPrompt } from './videoRewriteClothes';
 import type { MotionReference } from './motionReference';
-import { missingDepthConfig, meshConfigProblem } from './health';
+import { FFMPEG_MISSING, missingDepthConfig, meshConfigProblem } from './health';
 import { compareCard, compareSecond, frameAspect, type RewriteRow } from './rewriteRows';
 import { rewritePeers } from './rewritePeers';
 
@@ -28,17 +28,18 @@ const sameAsset = (a: AssetRef | null, b: AssetRef) => a?.id === b.id && a.type 
 /** 11-11 起五列：原视频 → 深度（1）→ 原片截图（2）→ 要补的卡（3）→ 最终视频（4）；截图和卡一行一对。 */
 const columnOf = (source: { x: number; y: number }, index: number) => Array.from({ length: index }).reduce<{ x: number; y: number }>(at => rightOf(at), source);
 
-/** 建任何卡和付费前一次列出缺项，假模式不挡。 */
+/**
+ * 建卡前一次列出本机缺项，假模式不挡。
+ * 11-17 用户定：火山 Key / TOS 不在这里查——拆解、深度、写词都不花火山的钱，出图、出片那一步小服务和面板才拦。
+ */
 export function rewriteStartProblem(health: Health, motionReference: MotionReference): string | null {
   if (health.fake) return null;
   const missing = [];
-  if (!health.keyReady) missing.push('ARK_API_KEY（火山 Key）');
-  if (!health.tosReady) missing.push('TOS 三项（TOS_ACCESS_KEY_ID、TOS_SECRET_ACCESS_KEY、TOS_BUCKET）');
   if (motionReference === 'depth') missing.push(...missingDepthConfig(health.depth));
   const meshProblem = motionReference === 'mesh' ? meshConfigProblem(health.mesh) : null;
   const reasons = missing.length ? [`请在项目根目录的 .env.local 填好或检查 ${missing.join('、')}。`] : [];
   if (meshProblem) reasons.push(meshProblem);
-  if (!health.ffmpegFound) reasons.push('没找到 ffmpeg，请先配置 ffmpeg。');
+  if (!health.ffmpegFound) reasons.push(FFMPEG_MISSING);
   if (motionReference === 'depth' && !health.ffprobeFound) reasons.push('没找到 ffprobe，请先安装含 ffprobe 的 ffmpeg 并加入 PATH。');
   return reasons.length ? `${reasons.join('')}还没开始改写，没建卡、没交单。` : null;
 }

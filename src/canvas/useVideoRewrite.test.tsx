@@ -53,15 +53,13 @@ beforeEach(() => {
   vi.mocked(api.analyzeVideo).mockResolvedValue({ ...meta, plan, yuan: 0.08 });
   vi.mocked(api.extractFrame).mockResolvedValue({ id: 'frame', kind: 'image' });
 });
-it('开始改写前缺Key、TOS、所选动作参考或ffmpeg均返回输入框说明，零建卡零交单零花费', async () => {
+it('开始改写前缺所选动作参考或ffmpeg均返回输入框说明，零建卡零交单零花费；缺 Key / TOS 不拦（出片才拦）', async () => {
   const ready = { filled: true, found: true };
   const complete = { ok: true, fake: false, keyReady: true, tosReady: true, ffmpegFound: true, ffprobeFound: true, todayYuan: 0, uncertainToday: 0, agentReady: true,
     depth: { python: ready, modelDir: ready, extraPackages: { filled: false, found: false } },
     mesh: { ready: true, url: ready, directory: { filled: false, found: false } } };
   for (const [health, kind, expected] of [
-    [{ ...complete, keyReady: false }, 'depth', 'ARK_API_KEY'],
-    [{ ...complete, tosReady: false }, 'depth', 'TOS_ACCESS_KEY_ID'],
-    [{ ...complete, depth: undefined }, 'depth', 'DEPTH_PYTHON'],
+    [{ ...complete, keyReady: false, tosReady: false, depth: undefined }, 'depth', 'DEPTH_PYTHON'],
     [{ ...complete, mesh: { ...complete.mesh, ready: false } }, 'mesh', 'COMFYUI_DIR'],
     [{ ...complete, ffmpegFound: false }, 'depth', 'ffmpeg'],
     [{ ...complete, ffprobeFound: false }, 'depth', 'ffprobe'], [{ ...complete, ffprobeFound: undefined }, 'depth', 'ffprobe']

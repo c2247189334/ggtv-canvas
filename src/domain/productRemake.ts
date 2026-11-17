@@ -7,18 +7,16 @@ import { CARD_WIDTH, rightOf } from './placement';
 import { rewriteNodeHeight, rewriteSpot } from './videoRewriteLayout';
 import { groupBounds, groupsIn } from './groups';
 import { linkId } from './refs';
+import { FFMPEG_MISSING } from './health';
 
 type GraphArgs = { nodes: readonly CardNode[]; edges: readonly Edge[]; takeNumber: () => number; makeId: () => string };
 const cleanStatus = ({ rewriteBusy: _busy, rewriteStatus: _status, ...data }: VideoCardData) => data;
 const connect = (source: string, target: string): Edge => ({ id: linkId(source, target), source, target });
 
+/** 11-17 用户定：火山 Key / TOS 等出图、出片那一步再拦，开拆只要本机 ffmpeg（拆解看帧用）。 */
 export function productStartProblem(health: Health): string | null {
-  if (health.fake) return null;
-  const missing = [];
-  if (!health.keyReady) missing.push('ARK_API_KEY（火山 Key）');
-  if (!health.tosReady) missing.push('TOS 三项（TOS_ACCESS_KEY_ID、TOS_SECRET_ACCESS_KEY、TOS_BUCKET）');
-  if (!health.ffmpegFound) missing.push('ffmpeg');
-  return missing.length ? `请先配置 ${missing.join('、')}。还没开始拆解，没建卡、没交单。` : null;
+  if (health.fake || health.ffmpegFound) return null;
+  return `${FFMPEG_MISSING}还没开始拆解，没建卡、没交单。`;
 }
 export function productVideoSettings(source: ProductState['source']): VideoCardData['video'] {
   const long = source.seconds! > 15;

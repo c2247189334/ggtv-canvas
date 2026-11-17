@@ -20,13 +20,15 @@ const makeId = () => `new${++serial}`;
 const start = (nodes = [source], edges: Array<{ id: string; source: string; target: string }> = []) =>
   startVideoRewrite({ source, nodes, edges, takeNumber: cardCounter(), makeId, userText: '换人换衣' });
 
-it('改写预检一次列出全部缺项；真模式齐全才放行，假模式不挡，白模和深度互不要求对方', () => {
+it('改写预检一次列出本机缺项；真模式齐全才放行，假模式不挡，白模和深度互不要求对方', () => {
   const ready = { filled: true, found: true };
   const health = { ok: true, fake: false, keyReady: false, tosReady: false, todayYuan: 0, uncertainToday: 0 };
   const missing = rewriteStartProblem(health, 'depth');
-  for (const name of ['ARK_API_KEY', 'TOS_ACCESS_KEY_ID', 'TOS_SECRET_ACCESS_KEY', 'TOS_BUCKET', 'DEPTH_PYTHON', 'DEPTH_MODEL_DIR', 'ffmpeg', 'ffprobe', '.env.local', '没交单']) expect(missing).toContain(name);
+  for (const name of ['DEPTH_PYTHON', 'DEPTH_MODEL_DIR', 'ffmpeg', 'ffprobe', '.env.local', '没交单']) expect(missing).toContain(name);
+  // 11-17 用户定：火山 Key / TOS 等出图、出片才拦，开始改写不提它们。
+  for (const name of ['ARK_API_KEY', 'TOS_ACCESS_KEY_ID', 'TOS_SECRET_ACCESS_KEY', 'TOS_BUCKET']) expect(missing).not.toContain(name);
   expect(rewriteStartProblem({ ...health, fake: true }, 'mesh')).toBeNull();
-  const complete = { ...health, keyReady: true, tosReady: true, ffmpegFound: true, ffprobeFound: true };
+  const complete = { ...health, ffmpegFound: true, ffprobeFound: true };
   expect(rewriteStartProblem({ ...complete, depth: { python: ready, modelDir: ready, extraPackages: { filled: false, found: false } } }, 'depth')).toBeNull();
   expect(rewriteStartProblem({ ...complete, mesh: { ready: true, url: ready, directory: { filled: false, found: false } } }, 'mesh')).toBeNull();
   expect(rewriteStartProblem(complete, 'mesh')).toContain('打开 ComfyUI');

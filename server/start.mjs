@@ -4,7 +4,8 @@
 import { createServer } from 'node:http';
 import { createApp } from './app.mjs';
 import { pruneUploads, pruneRewrites } from './cleanup.mjs';
-import { argValue, keyFilled, readEnvFile, runtimeOptions } from './config.mjs';
+import { join, resolve } from 'node:path';
+import { argValue, envFileOf, keyFilled, projectRoot, readEnvAt, runtimeOptions } from './config.mjs';
 import { createFakeArk } from './fakeArk.mjs';
 import { createLogger } from './log.mjs';
 import { concurrencyOf } from './queue.mjs';
@@ -16,6 +17,7 @@ import { createFakeSeedance } from './fakeSeedance.mjs';
 import { createTos } from './tos.mjs';
 import { transport } from './net.mjs';
 import { installShutdown } from './depth/executor.mjs';
+import { checkArkKey } from './keyCheck.mjs';
 
 const options = runtimeOptions();
 const logError = createLogger(options.logDir);
@@ -24,7 +26,12 @@ const logError = createLogger(options.logDir);
 process.on('uncaughtException', (err) => logError('没接住的异常（服务继续运行）', err));
 process.on('unhandledRejection', (err) => logError('没接住的 Promise 拒绝（服务继续运行）', err));
 
-const readEnv = () => readEnvFile();
+// 配置文件默认项目根目录的 .env.local；--env-path= 只给验收用（指到临时文件，不碰真配置）。
+// 别叫 --env-file：Node 自己有这个选项，写在脚本名后面也会被它抢走（11-17 实测，文件不存在直接退出码 9）。
+const envArg = argValue(process.argv.slice(2), 'env-path');
+const envFile = envArg ? resolve(projectRoot, envArg) : envFileOf();
+const envTemplate = join(projectRoot, '.env.example');
+const readEnv = () => readEnvAt(envFile);
 const fakeDelay = Number(argValue(process.argv.slice(2), 'fake-delay') ?? 1500);
 const fakeDelayMs = Number.isFinite(fakeDelay) && fakeDelay >= 0 ? fakeDelay : 1500;
 const generate = options.fake
@@ -49,7 +56,7 @@ const uploadVideo = fakeVideo?.uploadVideo ?? (asset => {
   const env = readEnv();
   return createTos({ env, fetch: transport(env).fetch }).uploadVideo(asset);
 });
-const app = createApp({ ...options, fakeDelayMs, readEnv, generate, splitLayers, redrawLayer, videoClient, uploadVideo, logError, log: console.log, concurrency: concurrencyOf(readEnv()) });
+const app = createApp({ ...options, fakeDelayMs, readEnv, envFile, envTemplate, checkKey: env => checkArkKey(env), generate, splitLayers, redrawLayer, videoClient, uploadVideo, logError, log: console.log, concurrency: concurrencyOf(readEnv()) });
 installShutdown(() => { app.depthQueue.stop(); app.stopVideoRewrite(); });
 
 // 启动时的收拾（恢复、清理、开跑）哪一步出错都只跳过那一步、服务照常启动：不能因为一个文件正被占用就起不来。
@@ -89,7 +96,7 @@ server.listen(options.port, '127.0.0.1', () => {
   console.log('');
   console.log(options.fake ? '  GG TV 已启动（假火山模式：出的是纯色假图）' : '  GG TV 已启动');
   console.log(`  浏览器打开：http://127.0.0.1:${options.port}`);
-  if (!options.fake && !keyFilled(readEnv())) console.log('  ⚠ .env.local 里还没填 ARK_API_KEY，出图用不了（填好不用重启）。');
+  if (!options.fake && !keyFilled(readEnv())) console.log('  ⚠ 还没填火山 Key：画布、上传、剪辑照常能用；出图出视频前点页面右上角「设置」填好就行（不用重启）。');
   console.log('  关掉这个窗口就停止服务。');
   console.log('');
 });

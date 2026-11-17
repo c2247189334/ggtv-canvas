@@ -1,6 +1,7 @@
 // TOS 签名只允许本项目对象前缀；凭据来自调用方读入的 .env.local。
 import { createHash, createHmac } from 'node:crypto';
 import { transport } from './net.mjs';
+import { tosMissingText } from './config.mjs';
 
 const sha = (value) => createHash('sha256').update(value).digest('hex');
 const fail = (code) => { throw Object.assign(Error(code), { code }); };
@@ -11,7 +12,7 @@ export function tosConfig(env = {}) {
     const value = String(env[name] ?? '').trim();
     if (!value || /^请/.test(value)) {
       const code = `${name}_MISSING`;
-      throw Object.assign(Error(`.env.local 里没填 ${name}（存参考视频要用），这单没发出去。`), { code, notSent: true });
+      throw Object.assign(Error(tosMissingText(name)), { code, notSent: true });
     }
     config[name] = value;
   }

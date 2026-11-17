@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { WorksGrid } from "./WorksGrid";
 import { AudioPreview, ImagePreview, VideoPreview } from "@/common/ImageViewer";
-import { HealthDetails } from "@/shell/SettingsButton";
 import { assetMenuItems } from "@/domain/menus";
 import { newCard, newVideoCard } from "@/domain/cards";
 import type { AudioWorkView, WorkView } from "@/types";
@@ -39,20 +38,13 @@ describe("视频作品和大图内容", () => {
     expect(renderToStaticMarkup(<WorksGrid works={[{ ...work, depth: true }]} onOpen={() => {}} />)).toContain("深度");
     expect(renderToStaticMarkup(<WorksGrid works={[work]} onOpen={() => {}} />)).not.toContain("深度");
   });
-  it('白模作品带同样式的白模标记，拖入保留种类；设置显示白模填没填和找没找到', () => {
+  it('白模作品带同样式的白模标记，拖入保留种类', () => {
     const html = renderToStaticMarkup(<WorksGrid works={[{ ...work, mesh: true }]} onOpen={() => {}} draggable />);
     expect(html).toContain('class="works__depth">白模');
     const tree = WorksGrid({ works: [{ ...work, mesh: true }], onOpen: () => {}, draggable: true });
     let payload = '';
     tree.props.children[0].props.onDragStart({ dataTransfer: { setData: (_key: string, value: string) => { payload = value; } } });
     expect(JSON.parse(payload)).toMatchObject({ mesh: true });
-    const health = { ok: true, fake: false, keyReady: true, tosReady: true, todayYuan: 0, uncertainToday: 0,
-      mesh: { url: { filled: false, found: true }, directory: { filled: true, found: false } } };
-    const settings = renderToStaticMarkup(<HealthDetails health={health} />);
-    expect(settings).toContain('白模动作捕捉：未就绪');
-    expect(settings).toContain('打开 ComfyUI，或在 .env.local 填好 COMFYUI_DIR');
-    expect(settings).toContain('白模地址：默认本机地址');
-    expect(settings).toContain('白模文件夹：已填，没找到');
   });
   it("视频拖入保留声音、帧率和深度标记", () => {
     for (const metadata of [{ hasAudio: false, fps: 30, depth: true }, { hasAudio: true, fps: 24, depth: false }]) {
@@ -84,28 +76,6 @@ describe("视频作品和大图内容", () => {
     expect(html).not.toContain("autoPlay");
     expect(html).toContain("声音 2");
     expect(html).toContain("关闭（Esc）");
-  });
-  it("设置只显示TOS填没填", () => {
-    const base = { ok: true, fake: false, keyReady: true, todayYuan: 0, uncertainToday: 0 };
-    expect(renderToStaticMarkup(<HealthDetails health={{ ...base, tosReady: true }} />)).toContain("TOS（存参考视频）：已填");
-    expect(renderToStaticMarkup(<HealthDetails health={{ ...base, tosReady: false }} />)).toContain("TOS（存参考视频）：没填");
-  });
-  it("设置显示本机 agent 是谁、模型、用在哪；没配好照原话说缺什么，不再提豆包", () => {
-    const base = { ok: true, fake: false, keyReady: true, tosReady: true, todayYuan: 0, uncertainToday: 0 };
-    expect(renderToStaticMarkup(<HealthDetails health={{ ...base, agentName: "Codex", agentReady: true, agentModel: "默认" }} />)).toContain("Codex 已就绪，模型 默认");
-    const broken = renderToStaticMarkup(<HealthDetails health={{ ...base, agentName: "Codex", agentReady: false, agentProblem: "本机 Codex 没配好：在终端跑一次 codex login。" }} />);
-    expect(broken).toContain("本机 Codex 没配好：在终端跑一次 codex login。"); expect(broken).not.toContain("豆包");
-    expect(broken).toContain("只出图出视频不需要");
-  });
-  it("设置显示深度准备情况和ffmpeg状态，缺项指向.env.local，不泄露路径", () => {
-    const base = { ok: true, fake: false, keyReady: true, tosReady: true, todayYuan: 0, uncertainToday: 0 };
-    const ready = { filled: true, found: true };
-    const html = renderToStaticMarkup(<HealthDetails health={{ ...base, depth: { python: ready, modelDir: ready, extraPackages: ready }, ffmpegFound: true }} />);
-    expect(html).toContain("深度动作捕捉：已就绪");
-    expect(html).toContain("ffmpeg：已找到");
-    const missing = renderToStaticMarkup(<HealthDetails health={{ ...base, depth: { python: { filled: false, found: false }, modelDir: ready, extraPackages: { filled: true, found: false } }, ffmpegFound: false }} />);
-    expect(missing).toContain("深度动作捕捉：缺 DEPTH_PYTHON、DEPTH_EXTRA_PACKAGES（填在 .env.local）");
-    expect(missing).toContain("ffmpeg：没找到");
   });
 });
 

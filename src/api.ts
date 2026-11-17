@@ -7,7 +7,11 @@ import type { CharacterGenerateInput, CharacterPatch, CharacterSaveInput, Charac
 import type { ProductAnalyzeResult, ProductPromptRequest, ProductCheckRequest } from './productRemakeTypes';
 import type { UploadList } from './uploadTypes';
 
-const OFFLINE = "连不上本机小服务。看看黑窗口还开着没有，或者重新双击 一键启动.bat。";
+/** 保存火山 Key 后小服务顺手验的结果：火山认 / 火山回 401 / 这次没法验（没连上）。没验就没有这一项。 */
+export type KeyCheck = 'accepted' | 'rejected' | 'unknown';
+export type KeyName = 'ARK_API_KEY' | 'TOS_ACCESS_KEY_ID' | 'TOS_SECRET_ACCESS_KEY' | 'TOS_BUCKET';
+
+const OFFLINE ="连不上本机小服务。看看黑窗口还开着没有，或者重新双击 一键启动.bat。";
 
 type Init = { json?: unknown; body?: Blob; keepalive?: boolean; headers?: Record<string, string> };
 
@@ -58,6 +62,8 @@ export const api = {
   writeVideoPrompt: (json: WriteVideoRequest) => call<WriteVideoResult>("POST", "/api/video-rewrite/prompt", { json }),
   checkVideoPrompt: (json: CheckVideoRequest) => call<{ issues: string[]; yuan: number }>("POST", "/api/video-rewrite/check", { json }),
   health: () => call<Health>("GET", "/api/health"),
+  /** 设置面板填 Key：写进 .env.local，只回填没填，不回值。 */
+  saveKeys: (json: Partial<Record<KeyName, string>>) => call<{ saved: KeyName[]; keyReady: boolean; tosReady: boolean; keyCheck?: KeyCheck }>("POST", "/api/settings/keys", { json }),
   listCanvases: () => call<CanvasSummary[]>("GET", "/api/canvases"),
   createCanvas: (name: string) => call<CanvasDoc>("POST", "/api/canvases", { json: { name } }),
   getCanvas: (id: string) => call<CanvasDoc>("GET", `/api/canvas?id=${q(id)}`),

@@ -12,7 +12,7 @@ import type { Notify } from '@/common/Toast';
 
 type Deps = { canvasId: string; nodes: CardNode[]; setNodes: (update: (nodes: CardNode[]) => CardNode[]) => void;
   setEdges: (update: (edges: Edge[]) => Edge[]) => void; takeNumber: () => number; notify: Notify;
-  focus?: (id: string) => void; layout?: (id: string, column: RewriteColumn) => void };
+  focus?: (id: string) => void; reveal?: (id: string) => void; layout?: (id: string, column: RewriteColumn) => void };
 const pending = new Set<string>(), drafts = new Map<string, string>(), listeners = new Set<() => void>();
 let version = 0;
 const subscribe = (fn: () => void) => { listeners.add(fn); return () => { listeners.delete(fn); }; };
@@ -20,7 +20,7 @@ const snapshot = () => version;
 const changed = () => { version++; for (const fn of listeners) fn(); };
 const makeId = () => `card-${crypto.randomUUID().slice(0, 8)}`;
 const clean = ({ rewriteBusy: _busy, rewriteStatus: _status, rewriteTask: _task, ...data }: VideoCardData): VideoCardData => data;
-export function useProductRemake({ canvasId, nodes, setNodes, setEdges, takeNumber, notify, focus, layout }: Deps) {
+export function useProductRemake({ canvasId, nodes, setNodes, setEdges, takeNumber, notify, focus, reveal, layout }: Deps) {
   const flow = useReactFlow<CardNode, Edge>();
   const alive = useRef(true), activeCanvas = useRef(canvasId), openedSource = useRef<string | null>(null);
   activeCanvas.current = canvasId;
@@ -44,7 +44,7 @@ export function useProductRemake({ canvasId, nodes, setNodes, setEdges, takeNumb
     const problem = node?.data.kind === 'video' ? rewriteSourceProblem(currentResult(node.data)) : '先选一张有结果的视频卡。';
     if (problem) { notify(problem); return; }
     if (activeRewriteSources.has(id)) { notify('这条视频正在拆解，做完再来。'); return; }
-    openedSource.current = keyOf(id); setInputId(id);
+    openedSource.current = keyOf(id); setInputId(id); reveal?.(id);
   };
   const run = async (sourceId: string, userText: string) => {
     const key = keyOf(sourceId), source = flow.getNode(sourceId);

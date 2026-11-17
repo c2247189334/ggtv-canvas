@@ -1,6 +1,6 @@
 // 显式白名单。fake 模块被入口静态导入，必须保留；测试媒体不随正式包发布。
 export const SERVER_FILES = [
-  'app', 'cleanup', 'config', 'fakeArk', 'fakeSeedance', 'http', 'imageSize', 'jobInput', 'log',
+  'app', 'cleanup', 'config', 'envWrite', 'fakeArk', 'fakeSeedance', 'http', 'imageSize', 'jobInput', 'log',
   'mp4', 'net', 'png', 'pricing', 'queue', 'rewrite', 'seedance', 'seedream',
   'soundtrack', 'start', 'tos', 'videoJobInput', 'videoModels', 'videoQueue',
   'videoReferences', 'wav', 'characterInput', 'characterPolicy',
@@ -11,10 +11,10 @@ export const SERVER_FILES = [
   'productRemake/analyze', 'productRemake/fake', 'productRemake/input', 'productRemake/lookProducts', 'productRemake/rules',
   'productRemake/writePrompt',
   'routes/assets', 'routes/canvases', 'routes/characters', 'routes/jobs', 'routes/localMedia',
-  'routes/productRemake', 'routes/rewrite', 'routes/videoJobs', 'routes/videoRewrite',
+  'routes/productRemake', 'routes/rewrite', 'routes/settings', 'routes/videoJobs', 'routes/videoRewrite',
   'store/canvases', 'store/characters', 'store/files', 'store/jobs', 'store/spend',
   'store/uploadRecords', 'store/uploads', 'store/works',
-  'agent', 'agentProcess', 'claude', 'codex',
+  'agent', 'agentProcess', 'claude', 'codex', 'keyCheck',
   'videoRewrite/analysisImages', 'videoRewrite/analyze', 'videoRewrite/claudeAsk', 'videoRewrite/finalPrompt', 'videoRewrite/fake', 'videoRewrite/input', 'videoRewrite/backgroundFrames',
   'videoRewrite/itemTexts', 'videoRewrite/lookPeople', 'videoRewrite/modelJson', 'videoRewrite/promptImages',
   'videoRewrite/roles', 'videoRewrite/rules', 'videoRewrite/sceneTexts', 'videoRewrite/session', 'videoRewrite/sheets', 'videoRewrite/storage',
@@ -24,7 +24,7 @@ export const SERVER_FILES = [
 export const SCRIPT_FILES = [
   'setup-depth', 'depth-download', 'depth-env', 'depth-runtime', 'command', 'check-mesh',
   'mesh-requirements',
-  'install-safety',
+  'install-safety', 'doctor',
 ].map(name => `scripts/${name}.mjs`);
 
 export const ROOT_FILES = [

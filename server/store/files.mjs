@@ -21,11 +21,16 @@ const pause = (ms) => { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0
  * 先写临时文件再改名盖过去：写到一半断电，旧文件还是完整的。失败了把临时文件删掉再报错，不留垃圾。
  * 改名时文件被占着就等一下重试（一共试 5 次、最多等 0.37 秒）；别的错（盘满、目录没了）不重试。
  */
-export function writeJsonAtomic(file, data, { rename = renameSync, wait = pause } = {}) {
+export function writeJsonAtomic(file, data, options) {
+  writeTextAtomic(file, JSON.stringify(data, null, 2) + '\n', options);
+}
+
+/** 同上，写的是现成的一段文字（设置面板写 .env.local 用）。 */
+export function writeTextAtomic(file, text, { rename = renameSync, wait = pause } = {}) {
   mkdirSync(dirname(file), { recursive: true });
   const tmp = `${file}.${process.pid}.tmp`;
   try {
-    writeFileSync(tmp, JSON.stringify(data, null, 2) + '\n', 'utf8');
+    writeFileSync(tmp, text, 'utf8');
     for (let attempt = 0; ; attempt += 1) {
       try { rename(tmp, file); break; }
       catch (err) {

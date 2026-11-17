@@ -3,6 +3,22 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号按 [语义化版本](https://semver.org/lang/zh-CN/)。
 Format follows Keep a Changelog; versions follow Semantic Versioning.
 
+## [未发布] / Unreleased
+
+### 新增 / Added
+
+- 设置里直接填火山 Key 和 TOS，不用再手改 `.env.local`；保存时顺手验一下 Key 对不对，带「怎么拿 Key」的步骤和网址。Enter the Ark key and TOS settings in the settings panel (no more hand-editing `.env.local`); the key is checked on save, with a "how to get a key" guide.
+- 没填 Key 点发送会弹说明框，点「去填 Key」直接打开设置。Sending without a key now opens a dialog with a "fill in key" button that opens settings.
+- 设置里的功能清单：每个功能能不能用、缺什么、怎么办；深度、白模这类选装默认折叠。Settings now show a feature checklist: what works, what is missing and how to fix it; optional features are folded.
+- 体检命令 `npm run doctor`（整合包：`node scripts/doctor.mjs`）：只读，列出能不能启动、还缺什么。A read-only `npm run doctor` command that lists what is ready and what is missing.
+- 给 AI 助手的安装说明 `docs/AI助手安装说明.md`：把仓库链接发给你的 AI 助手就能照着装。Install guide for AI coding agents (`docs/AI助手安装说明.md`, Chinese).
+
+### 改动 / Changed
+
+- 新建卡片、点「视频改写 / 拆解」后，面板掉到屏幕外时画布会自动挪到看得见。The canvas now pans automatically when a new card's panel would open off-screen.
+- 缺 ffmpeg 只提醒、照常启动；页面上缺 ffmpeg 的提示改成指去「设置」，里面写着安装命令。A missing ffmpeg no longer blocks startup; the in-app hint now points to settings, which shows the install command.
+- 视频改写、拆解到出图、出片那一步才要火山 Key。Video rewrite and breakdown only need the Ark key at the generation step.
+
 ## [0.1.2] - 2026-11-17
 
 ### 新增 / Added

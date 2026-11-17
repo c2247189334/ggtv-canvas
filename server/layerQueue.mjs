@@ -1,7 +1,7 @@
 // 图层分离排队（kind: 'layers'）。规矩和出图排队一样（queue.mjs 开头四条）：先落盘再发、失败不重发、重启标结果不明。
 // 火山一单回一张底图 + 若干透明图层；全部存进作品库（作品带 layer 标记，作品库网格不显示），单子上记下各层的作品编号和位置。
 // 图层重绘（kind: 'layer-redraw'）也排在这里：一个图层 + 一句话出一张透明图层，存成新作品，单子上记下 from → work。
-import { humanError } from './queue.mjs';
+import { humanError, rejectedText } from './queue.mjs';
 import { LAYER_MODEL } from './layerSplit.mjs';
 
 const CONCURRENCY = 2;
@@ -67,7 +67,7 @@ export function createLayerQueue({ jobs, works, uploads, spend, split, redraw, r
     }
     if (!result.ok) {
       charge(job, result.charged ?? 0);
-      return finish(id, { status: 'failed', error: result.status ? `火山没接（${result.status}）：${result.message}` : result.message,
+      return finish(id, { status: 'failed', error: result.status ? rejectedText(result.status, result.message) : result.message,
         errorCode: result.charged ? 'DOWNLOAD_FAILED' : 'REJECTED', yuan: Math.round((result.charged ?? 0) * job.priceYuan * 100) / 100 });
     }
     charge(job, result.count);
@@ -92,7 +92,7 @@ export function createLayerQueue({ jobs, works, uploads, spend, split, redraw, r
       return finish(job.id, { status: code === 'EDIT_INTERRUPTED' || code === 'EDIT_TIMEOUT' ? 'uncertain' : 'failed',
         error: humanError(code), errorCode: code });
     }
-    if (!result.ok) return finish(job.id, { status: 'failed', error: `火山没接（${result.status}）：${result.message}`, errorCode: 'REJECTED' });
+    if (!result.ok) return finish(job.id, { status: 'failed', error: rejectedText(result.status, result.message), errorCode: 'REJECTED' });
     const work = works.add(result.image, { jobId: job.id, canvasId: job.canvasId, prompt: job.prompt, model: job.model, yuan: job.priceYuan,
       refs: [{ type: 'work', id: job.from }], layer: { role: 'layer', of: job.layerOf, name: job.name, redrawOf: job.from } });
     charge(job, 1);

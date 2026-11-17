@@ -15,6 +15,7 @@ import { isWorkDeleted } from "@/library/worksEvents";
 import { rewriteOutputProblem } from '@/domain/rewriteProgress';
 import { productMaterials, productSourceProblem } from '@/domain/productPrompt';
 import { sceneTextIds } from '@/domain/rewriteTextScene';
+import { requireKey } from '@/common/keyNeeded';
 import type { CardNode } from "@/types";
 
 /**
@@ -35,6 +36,8 @@ export function useSend(canvasId: string, setNodes: (update: (nodes: CardNode[])
         if (sourceProblem) throw Error(sourceProblem);
       }
       const refs = collectSendRefs(flow.getNodes(), flow.getEdges(), cardId, card.data.kind, isWorkDeleted);
+      // 没填火山 Key：弹框说明并带「去填 Key」，不发请求（11-17 用户定）。
+      await requireKey();
       // 交上单才记下当时的输入，出结果后和现在比，变了卡标题右边亮「输入已更新」（11-08 用户定）。
       const sentInputs = sentInputsOf(flow.getNodes(), flow.getEdges(), cardId);
       // 交单报错时先查这单是不是其实交上去了（回话丢了）：是就接回卡片，别让用户再点一次重复花钱（11-15）。

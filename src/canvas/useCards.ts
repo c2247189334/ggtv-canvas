@@ -25,10 +25,12 @@ type Deps = {
   notify: Notify;
   pickWork: (includeVideo?: boolean) => Promise<PickedMedia | null>;
   onBlankConnect: (source: string, screen: Point) => void;
+  /** 新建的生成卡面板掉出屏幕时把画布挪一下（`usePanelReveal`）。 */
+  reveal?: (id: string) => void;
 };
 
 /** 往画布上放卡片、连线、断线、翻页、改卡片内容。 */
-export function useCards({ setNodes, setEdges, takeNumber, notify, pickWork, onBlankConnect }: Deps) {
+export function useCards({ setNodes, setEdges, takeNumber, notify, pickWork, onBlankConnect, reveal }: Deps) {
   const flow = useReactFlow<CardNode, Edge>();
   const connectHandled = useRef(false);
 
@@ -46,9 +48,10 @@ export function useCards({ setNodes, setEdges, takeNumber, notify, pickWork, onB
           data: newCanvasCard(item.source, takeNumber, item.results, kind, item.title) };
       });
       setNodes((nodes) => [...(select ? nodes.map((n) => (n.selected ? { ...n, selected: false } : n)) : nodes), ...created]);
+      if (select && created.length === 1 && created[0].data.source === "generate") reveal?.(created[0].id);
       return created.map((n) => n.id);
     },
-    [flow, setNodes, takeNumber]
+    [flow, setNodes, takeNumber, reveal]
   );
 
   const addAssets = useCallback(

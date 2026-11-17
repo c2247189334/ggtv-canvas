@@ -38,6 +38,7 @@
     "build": "vite build",
     "pack": "node scripts/pack-release.mjs",
     "smoke": "node scripts/smoke-release.mjs",
+    "doctor": "node scripts/doctor.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run test:web && npm run test:server",
     "test:web": "vitest run src",

@@ -39,6 +39,7 @@ import type { CanvasSummary, CardNode } from "@/types"; import type { PickedMedi
 import { useVideoRewrite } from "./useVideoRewrite";
 import { useMeasuredRewriteLayout } from "./useMeasuredRewriteLayout";
 import { useCardFocus, useRewriteFocus } from "./useRewriteFocus";
+import { usePanelReveal } from "./usePanelReveal";
 import { useBoardGroups } from './useBoardGroups';
 import { GroupFrames } from './GroupFrames';
 import { cardAtPointer } from './useBoardActions';
@@ -85,19 +86,19 @@ function Board(props: BoardProps) {
   const flow = useReactFlow<CardNode, Edge>();
   const doc = useBoardDoc(canvas.id, canvas.name, notify);
   const rewriteLayout = useMeasuredRewriteLayout(doc.nodes, doc.setNodes);
-  const rewriteFocus = useRewriteFocus(), cardFocus = useCardFocus();
+  const rewriteFocus = useRewriteFocus(), cardFocus = useCardFocus(), reveal = usePanelReveal();
   const send = useSend(canvas.id, doc.setNodes);
   const videoRewrite = useVideoRewrite({ canvasId: canvas.id, nodes: doc.nodes, setNodes: doc.setNodes, setEdges: doc.setEdges,
-    takeNumber: doc.takeNumber, notify, layout: rewriteLayout, focus: id => void rewriteFocus(id) });
+    takeNumber: doc.takeNumber, notify, layout: rewriteLayout, focus: id => void rewriteFocus(id), reveal });
   const productRemake = useProductRemake({ canvasId: canvas.id, nodes: doc.nodes, setNodes: doc.setNodes, setEdges: doc.setEdges,
-    takeNumber: doc.takeNumber, notify, layout: rewriteLayout, focus: id => void rewriteFocus(id) });
+    takeNumber: doc.takeNumber, notify, layout: rewriteLayout, focus: id => void rewriteFocus(id), reveal });
   const [pending, setPending] = useState<PendingLink | null>(null);
   const [dropHighlight, setDropHighlight] = useState<string | null>(null);
   const closeMenu = useRef(() => {});
   const [picking, setPicking] = useState<{ resolve: (picked: PickedMedia | null) => void; includeVideo: boolean } | null>(null);
 
   const pickWork = useCallback((includeVideo = true) => new Promise<PickedMedia | null>((resolve) => setPicking({ resolve, includeVideo })), []);
-  const cards = useCards({ setNodes: doc.setNodes, setEdges: doc.setEdges, takeNumber: doc.takeNumber, notify, pickWork,
+  const cards = useCards({ setNodes: doc.setNodes, setEdges: doc.setEdges, takeNumber: doc.takeNumber, notify, pickWork, reveal,
     onBlankConnect: (source, screen) => {
       closeMenu.current();
       setPending({ source, screen, at: flow.screenToFlowPosition(screen) });

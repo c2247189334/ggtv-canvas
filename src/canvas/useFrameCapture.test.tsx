@@ -52,7 +52,7 @@ it('读不到时长不截尾帧；缺 ffmpeg 先拦；截帧失败提示原话�
   expect(h.notify).toHaveBeenCalledWith('视频还没加载好，暂时截不了尾帧，请稍后再试。');
   vi.mocked(api.health).mockResolvedValueOnce({ fake: false, ffmpegFound: false } as Health);
   await h.capture('source', 'current', { time: 2, duration: 9 });
-  expect(h.notify).toHaveBeenCalledWith('没找到 ffmpeg，请先配置 ffmpeg，再重试。');
+  expect(h.notify).toHaveBeenCalledWith('没找到 ffmpeg（处理视频的小工具）：点右上角「设置」看怎么装。');
   vi.mocked(api.extractFrame).mockRejectedValueOnce(new Error('截帧秒数要在视频时长内。'));
   await h.capture('source', 'current', { time: 2, duration: 9 });
   expect(h.notify).toHaveBeenLastCalledWith('截帧秒数要在视频时长内。');

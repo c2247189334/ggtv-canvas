@@ -23,7 +23,7 @@ export function videoSummary(settings: VideoGenSettings): string {
   return `${settings.ratio === "adaptive" ? "Auto" : settings.ratio} · ${settings.resolution.toUpperCase()} · ${settings.duration}s · ${settings.count}个`;
 }
 
-export const TOS_PROBLEM = "参考视频要先传到火山存储：.env.local 里还没填 TOS_ACCESS_KEY_ID、TOS_SECRET_ACCESS_KEY、TOS_BUCKET，填好不用重启。";
+export const TOS_PROBLEM = "参考视频要先传到火山存储：还没填 TOS 三项（TOS_ACCESS_KEY_ID、TOS_SECRET_ACCESS_KEY、TOS_BUCKET），点右上角「设置」填好就行，不用重启。";
 export function videoProblems(settings: VideoSettings, refs: readonly AssetRef[], health: Pick<Health, "fake" | "tosReady"> | null): string[] {
   const videos = refs.filter(ref => ref.media === "video");
   const audios = refs.filter(ref => ref.media === "audio");

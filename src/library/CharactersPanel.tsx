@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/api';
 import { Confirm } from '@/common/Confirm';
+import { askIfKeyError } from '@/common/keyNeeded';
 import type { Notify } from '@/common/Toast';
 import type { CharacterView } from '@/characterTypes';
 import { characterDeleteText } from '@/domain/characters';
@@ -31,6 +32,8 @@ export function CharactersPanel({ characters, error, notify, onUpdate, onRemove 
       const result = await request();
       if (alive.current) { success(result); bumpWorks(); }
     } catch (reason) {
+      // 小服务说「还没填火山 Key」：除了框里那行字，再弹说明框（带「去填 Key」）。
+      askIfKeyError(reason);
       if (alive.current) setActionError((reason as Error).message);
     } finally { locked.current = false; if (alive.current) setBusy(false); }
   };

@@ -3,7 +3,7 @@ import { newAudioCard, newVideoCard, isFinished, currentResult } from "./cards";
 import { linkId } from "./refs";
 import { CARD_WIDTH, rightOf } from "./placement";
 import { rewriteNodeHeight, rewriteSpot } from "./videoRewriteLayout";
-import { missingDepthConfig, meshConfigProblem } from "./health";
+import { FFMPEG_MISSING, missingDepthConfig, meshConfigProblem } from "./health";
 import type { CardData, CardNode, DepthJobView, Health } from "@/types";
 
 export type LocalAction = "depth" | "mesh" | "audio";
@@ -11,7 +11,7 @@ export type LocalAction = "depth" | "mesh" | "audio";
 /** 确认前拦截本机配置问题；不显示任何路径或配置值。 */
 export function localMediaProblem(health: Health, action: LocalAction): string | null {
   if (health.fake) return null;
-  if (!health.ffmpegFound) return "没找到 ffmpeg，请先配置 ffmpeg，再重试。";
+  if (!health.ffmpegFound) return FFMPEG_MISSING;
   if (action === "audio") return null;
   if (action === 'mesh') return meshConfigProblem(health.mesh);
   if (!health.ffprobeFound) return "没找到 ffprobe，请先安装含 ffprobe 的 ffmpeg 并加入 PATH，再重试。";

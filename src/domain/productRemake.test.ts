@@ -21,10 +21,11 @@ export function setupProduct(seconds = 6) {
   const graph = prepareProductCards({ ...args, ...started, plan: productPlan });
   return { args, started, graph };
 }
-it('仅查 Key/TOS/ffmpeg，假模式放行，不依赖深度/白模/ffprobe', () => {
-  const health = { fake: false, keyReady: true, tosReady: true, ffmpegFound: true } as Health;
+it('只查 ffmpeg，假模式放行，不依赖 Key/TOS（11-17 出片才拦）/深度/白模/ffprobe', () => {
+  const health = { fake: false, keyReady: false, tosReady: false, ffmpegFound: true } as Health;
   expect(productStartProblem(health)).toBeNull();
-  expect(productStartProblem({ ...health, keyReady: false, tosReady: false, ffmpegFound: false })).toMatch(/ARK_API_KEY.*TOS.*ffmpeg/s);
+  const missing = productStartProblem({ ...health, ffmpegFound: false });
+  expect(missing).toContain('ffmpeg'); expect(missing).not.toMatch(/ARK_API_KEY|TOS/);
   expect(productStartProblem({ fake: true } as Health)).toBeNull();
 });
 it('开跑只建第三列视频，成功填同一张，商品为普通组/空卡，全部为参考线，只选输出', () => {

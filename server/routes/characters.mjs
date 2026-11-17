@@ -1,5 +1,5 @@
 import { HttpError, readJson, sendJson } from '../http.mjs';
-import { keyFilled } from '../config.mjs';
+import { keyFilled, keyMissingText } from '../config.mjs';
 import { characterImageJob, characterVideo } from '../characterPolicy.mjs';
 import { characterDescription, characterFields, characterImages, requireCharacter } from '../characterInput.mjs';
 
@@ -49,7 +49,7 @@ export function characterRoutes(router, { characters, jobs, queue, uploads, work
   });
 
   router.add('POST', '/api/characters/generate', async ({ req, res }) => {
-    if (!fake && !keyFilled(readEnv())) throw new HttpError(400, '.env.local 里还没填 ARK_API_KEY，这单没发出去。');
+    if (!fake && !keyFilled(readEnv())) throw new HttpError(400, keyMissingText());
     const body = await readJson(req);
     const description = characterDescription(body?.description, true);
     const previous = body?.id === undefined ? null : requireCharacter(characters, body.id);

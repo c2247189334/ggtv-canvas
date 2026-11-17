@@ -4,6 +4,7 @@
 //   3. 失败绝不自动重发 —— 超时有可能图其实已经出了、钱也扣了；
 //   4. 小服务中途被关：正在发的那单标「结果不明」，不重发；还没轮到的（从没发出去过）照常排。
 // 一单要几张就连发几次（火山一次只出一张）；每出一张立刻存进作品库、记一笔花费 —— 钱花了图不能丢。
+import { KEY_REJECTED_HINT, keyMissingText } from './config.mjs';
 
 export const DEFAULT_CONCURRENCY = 3;
 
@@ -28,9 +29,12 @@ export function nextToStart(jobs, runningIds, limit) {
     .map((job) => job.id);
 }
 
+/** 火山不收这单时的话；401（没通过身份验证）补一句去「设置」重填 Key。出图和图层共用。 */
+export const rejectedText = (status, message) => `火山没接（${status}）：${message}${status === 401 ? ` ${KEY_REJECTED_HINT}` : ''}`;
+
 /** 错误码翻成人话。每句都说清楚「花没花钱」。 */
 export function humanError(code) {
-  if (code === 'ARK_KEY_MISSING') return '.env.local 里没填 ARK_API_KEY，这单没发出去。';
+  if (code === 'ARK_KEY_MISSING') return keyMissingText();
   if (code === 'EDIT_TIMEOUT') return '等了 5 分钟火山没回音。可能已经出图（只是没传回来），没有自动重发。';
   if (code === 'EDIT_UNREACHABLE') return '这台电脑连不上火山，检查一下网络。这单没发出去。';
   if (code === 'EDIT_INTERRUPTED') return '请求已经发给火山，回话传到一半断了。可能已经出图并扣费，没有自动重发；先去火山控制台看一眼，别急着再发。';
@@ -107,7 +111,7 @@ export function createQueue({ jobs, works, uploads, spend, generate, concurrency
           : { status: 'failed', error: humanError(code), errorCode: code });
       }
       if (!result.ok) {
-        const reason = `火山没接（${result.status}）：${result.message}`;
+        const reason = rejectedText(result.status, result.message);
         return finish(id, made.length
           ? { status: 'succeeded', error: `出了 ${made.length}/${job.count} 张；第 ${index + 1} 张${reason}`, errorCode: 'REJECTED' }
           : { status: 'failed', error: reason, errorCode: 'REJECTED' });

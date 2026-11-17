@@ -9,6 +9,8 @@ runtime/
 .env
 .env.local
 .env*.local
+# 设置面板写 .env.local 时的临时文件（写到一半断电才会留下，里面有密钥）
+.env.local.*.tmp
 
 # 运行时数据（作品、任务、上传的视频）
 数据/

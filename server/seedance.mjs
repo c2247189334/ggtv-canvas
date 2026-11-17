@@ -1,6 +1,7 @@
 // Seedance 只发一次建任务；查询与下载是只读操作，由排队决定何时重试。
 import { seedreamConfig } from './seedream.mjs';
 import { transport } from './net.mjs';
+import { KEY_REJECTED_HINT, keyMissingText } from './config.mjs';
 
 const MAX_BODY = 64 * 1024 * 1024;
 const validId = (value) => typeof value === 'string' && /^[A-Za-z0-9._-]{1,128}$/.test(value);
@@ -25,7 +26,8 @@ export function buildSeedanceBody({ model, prompt, mode, images = [], videos = [
   };
 }
 
-export function humanSeedanceError({ code = '', message = '', blocked = [], outcome = 'rejected' }) {
+export function humanSeedanceError({ code = '', message = '', blocked = [], outcome = 'rejected', status }) {
+  if (code === 'ARK_KEY_MISSING') return keyMissingText();
   if (outcome === 'notSent') return '这单没发出去。';
   if (outcome === 'uncertain') return '可能已建任务，没有自动重发，去火山控制台视频任务列表看一眼。';
   const refs = blocked.length ? `${blocked.map((n) => `参考 ${n}`).join('、')} 被火山拦下：` : '';
@@ -33,7 +35,7 @@ export function humanSeedanceError({ code = '', message = '', blocked = [], outc
   if (code.includes('PrivacyInformation')) reason = '疑似含真人（火山不收真人照片 / 真人视频，可改用真人素材编号）。';
   // 除 PrivacyInformation 外的 Input*SensitiveContentDetected* 尚未经真实火山实测。
   else if (/^Input.*SensitiveContentDetected/.test(code)) reason = '内容没过火山审核。';
-  return `${refs}${reason} 火山没建任务。`;
+  return `${refs}${reason} 火山没建任务。${status === 401 ? KEY_REJECTED_HINT : ''}`;
 }
 
 /** 环境只留闭包里；任何上游错误文本和查询字段都先脱敏再交给排队。 */
@@ -43,8 +45,8 @@ export function createSeedance({ env = {}, fetch: suppliedFetch, timeout = 60000
   const clean = (value) => secrets.reduce((text, secret) => text.replaceAll(secret, '***'), String(value ?? ''));
   const safeTime = (value) => typeof value === 'number' && Number.isFinite(value) ? value : typeof value === 'string' ? clean(value) : undefined;
   const fetch = suppliedFetch ?? transport({ TOS_BUCKET: String(env.TOS_BUCKET ?? '').trim() }).fetch;
-  const result = (outcome, code = '', rawMessage = '', blocked = []) => ({ ok: false, outcome, code, rawMessage, blocked,
-    message: humanSeedanceError({ code, message: rawMessage, blocked, outcome }) });
+  const result = (outcome, code = '', rawMessage = '', blocked = [], status) => ({ ok: false, outcome, code, rawMessage, blocked,
+    message: humanSeedanceError({ code, message: rawMessage, blocked, outcome, status }) });
   async function json(response) {
     const raw = Buffer.from(await response.arrayBuffer()).toString('utf8');
     try { return JSON.parse(raw); } catch { return { error: { message: raw } }; }
@@ -70,7 +72,7 @@ export function createSeedance({ env = {}, fetch: suppliedFetch, timeout = 60000
       const code = clean(payload?.error?.code);
       const rawMessage = clean(payload?.error?.message);
       const blocked = [...new Set([...rawMessage.matchAll(/content\[(\d+)\]/g)].map((match) => Number(match[1])).filter((n) => n > 0))];
-      return result(response.status >= 400 && response.status < 500 ? 'rejected' : 'uncertain', code, rawMessage, blocked);
+      return result(response.status >= 400 && response.status < 500 ? 'rejected' : 'uncertain', code, rawMessage, blocked, response.status);
     },
     async query(taskId) {
       try {

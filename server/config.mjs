@@ -9,9 +9,15 @@ export const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..'
 export const DEFAULT_PORT = 5290;
 export const videoRewriteRoot = dataRoot => join(dataRoot, '改写');
 
+/** 配置文件放哪：默认项目根目录的 .env.local（验收时可用 --env-path= 指到临时文件，免得碰真配置）。 */
+export const envFileOf = (root = projectRoot) => join(root, '.env.local');
+
 /** 读项目根目录的 .env.local。没有、读坏了都返回空对象，不抛。每次调用都重新读，改了 Key 不用重启。 */
 export function readEnvFile(root = projectRoot) {
-  const file = join(root, '.env.local');
+  return readEnvAt(envFileOf(root));
+}
+
+export function readEnvAt(file) {
   if (!existsSync(file)) return {};
   try {
     return parseEnv(readFileSync(file, 'utf8').replace(/^﻿/, ''));
@@ -49,6 +55,14 @@ export function keyFilled(env) {
   const value = String(env?.ARK_API_KEY ?? '').trim();
   return Boolean(value) && !/^请/.test(value);
 }
+
+// 11-17 起 Key 和 TOS 能在页面右上角「设置」里填：缺了、被拒都指去那里；变量名留在括号里，给会自己改文件的人看。
+const SETTINGS_HINT = '点右上角「设置」填好再试，不用重启';
+export const keyMissingText = () => `还没填火山 Key（ARK_API_KEY）：${SETTINGS_HINT}。这单没发出去。`;
+export const tosMissingText = (names = 'TOS 三项（TOS_ACCESS_KEY_ID、TOS_SECRET_ACCESS_KEY、TOS_BUCKET）') =>
+  `还没填 ${names}，带参考视频出片要用：${SETTINGS_HINT}。这单没发出去。`;
+/** 火山回 401（没通过身份验证）时补的一句。官方规则副本里没写 Key 错回什么码，401 是通用的「没授权」，所以说「可能」。 */
+export const KEY_REJECTED_HINT = '火山 Key 可能填错了或已失效：点右上角「设置」重新填，不用重启。';
 
 /** 只报 TOS 三项是否齐全，绝不返回配置值。 */
 export function tosFilled(env) {
