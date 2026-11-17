@@ -1,7 +1,7 @@
 {
   "name": "ggtv-canvas",
   "private": true,
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "GG TV：本机运行的无限画布 AI 图片 / 视频创作工具（火山引擎 Seedream、Seedance），支持视频改写。Local infinite-canvas studio for AI image and video generation with Volcengine Ark (Seedream, Seedance) and motion-preserving video rewrite. Windows.",
   "keywords": [
     "infinite-canvas",
