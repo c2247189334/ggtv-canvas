@@ -3,9 +3,7 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号按 [语义化版本](https://semver.org/lang/zh-CN/)。
 Format follows Keep a Changelog; versions follow Semantic Versioning.
 
-## [未发布] / Unreleased
-
-这一节的内容在源码里已经有了，0.1.1 的整合包里还没有。Everything in this section is in the source tree but not yet in the 0.1.1 bundle.
+## [0.1.2] - 2026-11-17
 
 ### 新增 / Added
 
