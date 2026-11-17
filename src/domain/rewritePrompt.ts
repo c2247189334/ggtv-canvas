@@ -5,7 +5,7 @@ import type { Notify } from '@/common/Toast';
 import { cardTitle, currentResult } from './cards';
 import { videoRewriteMaterials } from './videoRewrite';
 import { rewriteOutputProblem } from './rewriteProgress';
-import { attachReadCards, isRewriteBackground, SCENE_TEXT_HINT, sceneTextProblem, sceneTextsOf } from './rewriteTextScene';
+import { attachReadCards, canUseText, cardTextsOf, itemTextsOf, SCENE_TEXT_HINT, sceneTextProblem, sceneTextsOf } from './rewriteTextScene';
 
 export type LookPromptState = { id: string; data: VideoCardData; nodes: readonly CardNode[]; edges: readonly Pick<Edge, 'source' | 'target'>[] };
 const pending = new Map<string, number>(), listeners = new Set<() => void>();
@@ -28,14 +28,16 @@ export function lookPromptProblem(state: LookPromptState, loading = pending.has(
   if (!state.data.rewritePlan || !state.data.rewriteUserText?.trim()) return '这张卡是旧版做的，没存拆解结果，请重新做一次视频改写';
   const images = inputs(state).filter(node => node.data.kind === 'image');
   // 至少要一张图（小服务也这么拦）：背景全改成用文字、别的图又没连时，说清怎么救回来。
-  if (!images.length) return sceneTextsOf(state.nodes, state.data).length
-    ? '背景都改成用文字了，一张图也没连。生成提示词至少要一张图：连一张人物或衣服图，或者选一张背景卡点「改回用图」。'
-    : '请先连入背景、人物或衣服图片，再生成提示词。';
+  if (!images.length) return itemTextsOf(state.nodes, state.data, state.edges).length
+    ? '卡都改成用文字了，一张图也没连。生成提示词至少要一张图：连一张人物图，或者选一张卡点「改回用图」。'
+    : sceneTextsOf(state.nodes, state.data).length
+      ? '背景都改成用文字了，一张图也没连。生成提示词至少要一张图：连一张人物或衣服图，或者选一张背景卡点「改回用图」。'
+      : '请先连入背景、人物或衣服图片，再生成提示词。';
   const missing = images.filter(node => !currentResult(node.data));
-  // 11-13：缺的是背景卡就顺带说一句可以不出图、改用文字；只连着这一张图时不说（改了就一张图都没有了）。
+  // 11-13：缺的是背景卡（11-16 起衣服卡、东西卡也算）就顺带说一句可以不出图、改用文字；只连着这一张图时不说（改了就一张图都没有了）。
   if (missing.length) return `还差 ${missing.length} 张图：${missing.map(node => cardTitle(node.data)).join('、')}`
-    + (images.length > 1 && missing.some(node => isRewriteBackground(node.data)) ? `；${SCENE_TEXT_HINT}` : '');
-  return sceneTextProblem(sceneTextsOf(state.nodes, state.data));
+    + (images.length > 1 && missing.some(node => canUseText(node.data)) ? `；${SCENE_TEXT_HINT}` : '');
+  return sceneTextProblem(cardTextsOf(state.nodes, state.data, state.edges));
 }
 export function lookPromptRequest(state: LookPromptState): WriteVideoRequest {
   if (!state.data.rewritePlan) throw Error('这张卡没存拆解结果，请重新做一次视频改写');
@@ -46,12 +48,12 @@ export function lookPromptRequest(state: LookPromptState): WriteVideoRequest {
     const asset = ref && kind === 'video' ? { type: ref.type, id: ref.id } : ref;
     return asset ? { ...material, asset: { ...asset } } : material;
   });
-  const sceneTexts = sceneTextsOf(state.nodes, state.data);
+  const sceneTexts = sceneTextsOf(state.nodes, state.data), itemTexts = itemTextsOf(state.nodes, state.data, state.edges);
   return { cardId: state.id, plan: structuredClone(state.data.rewritePlan), userText: state.data.rewriteUserText ?? '',
     duration: state.data.video.duration, sourceDuration: state.data.rewriteSource?.seconds ?? state.data.video.duration,
     ratio: state.data.video.ratio, materials, ...(state.data.rewriteKeepClothes ? { keepClothes: true } : {}),
     ...(state.data.rewriteSource ? { source: { ...state.data.rewriteSource } } : {}), settings: finalSettings(state.data),
-    ...(sceneTexts.length ? { sceneTexts } : {}) };
+    ...(sceneTexts.length ? { sceneTexts } : {}), ...(itemTexts.length ? { itemTexts } : {}) };
 }
 /** 11-08 看图定稿要的视频设置（写进提问，不进存档）。 */
 export function finalSettings(data: VideoCardData): FinalSettings {
@@ -74,7 +76,7 @@ export function createLookPromptAction(options: Options<WriteVideoRequest>) {
   // 11-13：背景卡的字怎么理解的回显按卡名对回卡的编号，之后改了哪张卡的字才认得出。
   const request = async (input: WriteVideoRequest) => {
     const result = await options.request(input);
-    return { ...result, sceneReads: attachReadCards(result.sceneReads, input.sceneTexts) };
+    return { ...result, sceneReads: attachReadCards(result.sceneReads, [...input.sceneTexts ?? [], ...input.itemTexts ?? []]) };
   };
   return createPromptAction({ ...options, request, problem: lookPromptProblem, input: lookPromptRequest, paid: lookPromptPaid });
 }

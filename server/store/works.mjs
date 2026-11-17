@@ -32,7 +32,9 @@ export function createWorkStore(dataRoot, { now = () => new Date() } = {}) {
       yuan: meta?.yuan ?? 0,
       refs: meta?.refs ?? [],
       width: size?.width ?? null,
-      height: size?.height ?? null
+      height: size?.height ?? null,
+      // 11-16 图层分离：底图 / 图层也存成作品（带这个标记，作品库网格不显示），见 layerQueue.mjs。
+      ...(meta?.layer ? { layer: meta.layer } : {})
     };
     writeJsonAtomic(metaFile(id), work);
     return work;

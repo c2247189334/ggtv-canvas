@@ -12,7 +12,7 @@ import { checkLink, dropLinkHint, linkId, maxRefsOf, refSources, referenceLimitR
 import type { AssetRef, CardPatch, CardNode, CardSource } from "@/types";
 import type { PickedMedia } from "@/uploadTypes";
 import { pickedAsset } from "@/domain/uploads";
-import { usesSceneText } from "@/domain/rewriteTextScene";
+import { usesText } from "@/domain/rewriteTextScene";
 
 function newNodeId(): string {
   return `card-${crypto.randomUUID().slice(0, 8)}`;
@@ -117,7 +117,7 @@ export function useCards({ setNodes, setEdges, takeNumber, notify, pickWork, onB
     [flow, notify, uploadFiles, pickWork, addAssets, setEdges]
   );
 
-  /** 拖线和从画布选参考共用校验与提示。 */
+  /** 拖线连参考时的校验与提示。 */
   const connect = useCallback(
     (source: string, target: string) => {
       const targetData = flow.getNode(target)?.data;
@@ -129,9 +129,9 @@ export function useCards({ setNodes, setEdges, takeNumber, notify, pickWork, onB
         return;
       }
       setEdges((edges) => [...edges, { id: linkId(source, target), source, target }]);
-      // 11-13 线就是开关：「不出图，用文字」的背景卡又连回视频卡 = 改回用图（字留着）。
+      // 11-13 线就是开关：「不出图，用文字」的卡（背景 / 衣服 / 东西）又连回视频卡 = 改回用图（字留着）。
       const sourceData = flow.getNode(source)?.data;
-      if (sourceData && usesSceneText(sourceData) && targetData?.kind === "video") {
+      if (sourceData && usesText(sourceData) && targetData?.kind === "video") {
         setNodes((nodes) => nodes.map((n) => (n.id === source ? { ...n, data: patchCard(n.data, { rewriteTextOn: false }) } : n)));
       }
     },

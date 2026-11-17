@@ -16,6 +16,8 @@ export function jobView(job, works) {
   return { id: job.id, kind: job.kind ?? 'image', status: job.status, phase: job.phase ?? null,
     blocked: job.blocked ?? [], createdAt: job.createdAt, count: job.count ?? 1, works: job.works ?? [], error: job.error ?? null,
     ...(job.kind === 'video' ? { warning: job.warning ?? null } : {}),
+    ...(job.kind === 'layers' ? { layers: job.layers ?? null, errorCode: job.errorCode ?? null, source: job.origin ?? job.source } : {}),
+    ...(job.kind === 'layer-redraw' ? { redraw: job.redraw ?? null, errorCode: job.errorCode ?? null } : {}),
     ...(workMeta ? { workMeta } : {}), ...(['depth', 'mesh'].includes(job.kind) ? { errorCode: job.errorCode,
       source: job.source, resolution: job.resolution } : {}) };
 }

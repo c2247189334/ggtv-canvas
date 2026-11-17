@@ -2,7 +2,8 @@ import { MAX_PROMPT } from '../jobInput.mjs';
 import { VIDEO_RATIOS } from '../videoModels.mjs';
 import { validatePlan, validCardId } from './analyze.mjs';
 import { isId } from '../store/files.mjs';
-import { isNewScene, NEW_SCENE_PURPOSE } from './roles.mjs';
+import { isNewScene, NEW_SCENE_PURPOSE, ownItemTitles } from './roles.mjs';
+import { checkItemTexts } from './itemTexts.mjs';
 
 /**
  * 11-11 用户定：换新背景时也按场景每段铺一张背景卡；用户删掉多的（想几段共用一张），那几段就沿用前一张。
@@ -88,9 +89,10 @@ export function checkPromptInput(body) {
   const missing = materials.find(item => item.tag.startsWith('@图片') && !item.asset);
   if (missing) throw Error(`${missing.tag}还没有图片，请先补齐这张图片；这次没发出去。`);
   if (materials.some(item => item.itemId && !body.plan.items.some(entry => entry.id === item.itemId))) throw Error('素材对照表引用了不存在的改写项。');
-  const sceneTexts = checkSceneTexts(body.sceneTexts, body.plan, materials);
+  const sceneTexts = checkSceneTexts(body.sceneTexts, body.plan, materials), itemTexts = ownItemTitles({ materials, plan: body.plan, itemTexts: checkItemTexts(body.itemTexts, body.plan, materials) });
   return { cardId: body.cardId, plan: scenesInUse(body.plan, materials, sceneTexts), duration: body.duration, sourceDuration, ratio: body.ratio,
-    userText: checkUserText(body.userText), materials, ...(sceneTexts.length ? { sceneTexts } : {}), ...(body.keepClothes === true ? { keepClothes: true } : {}) };
+    userText: checkUserText(body.userText), materials, ...(sceneTexts.length ? { sceneTexts } : {}), ...(itemTexts.length ? { itemTexts } : {}),
+    ...(body.keepClothes === true ? { keepClothes: true } : {}) };
 }
 
 export function nearestRatio(width, height) {

@@ -4,7 +4,8 @@ import type { MediaWorkView } from "@/types";
 export type WorkKindFilter = "all" | "image" | "video" | "audio";
 
 export function filterWorks(works: readonly MediaWorkView[], kind: WorkKindFilter, onlyCanvasId: string | null): MediaWorkView[] {
-  return works.filter((w) => (kind === "all" || w.kind === kind) && (!onlyCanvasId || w.canvasId === onlyCanvasId));
+  // 11-16 图层分离拆出的底图 / 图层也是作品，但不在作品库里显示（在原卡上用）。
+  return works.filter((w) => !("layer" in w && w.layer) && (kind === "all" || w.kind === kind) && (!onlyCanvasId || w.canvasId === onlyCanvasId));
 }
 
 /**

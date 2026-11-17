@@ -1,5 +1,5 @@
 /** 页面和本机小服务说话的唯一出口。小服务回错误时，把它给的那句人话原样抛出来，页面直接显示。 */
-import type { AudioWorkView, CanvasDoc, CanvasSave, CanvasSummary, DepthJobRequest, DepthJobView, FrameRequest, Health, JobRequest, JobView, LocalJobView, LocalMediaRequest, OrphanJob, RewriteResult, VideoJobRequest, WorkView } from "@/types";
+import type { AudioWorkView, CanvasDoc, CanvasSave, CanvasSummary, DepthJobRequest, DepthJobView, FrameRequest, Health, JobRequest, JobView, LayerJobRequest, LayerJobView, LayerRedrawRequest, LayerRedrawView, LocalJobView, LocalMediaRequest, OrphanJob, RewriteResult, VideoJobRequest, WorkView } from "@/types";
 import type { RewriteRefs } from "@/domain/rewrite";
 import type { AnalyzeVideoRequest, AnalyzeVideoResult, CheckVideoRequest, WriteVideoRequest, WriteVideoResult } from "./videoRewriteApiTypes";
 import type { VideoClipRequest, VideoClipUpload } from './types';
@@ -80,6 +80,9 @@ export const api = {
     }
   },
   submitJob: (request: JobRequest) => call<{ id: string }>("POST", "/api/jobs", { json: request }),
+  submitLayerJob: (request: LayerJobRequest) => call<{ id: string }>('POST', '/api/layer-jobs', { json: request }),
+  getLayerJobs: (ids: string[]) => call<Array<LayerJobView | LayerRedrawView>>('GET', `/api/jobs?ids=${ids.map(q).join(',')}`),
+  submitLayerRedraw: (request: LayerRedrawRequest) => call<{ id: string }>('POST', '/api/layer-redraws', { json: request }),
   submitVideoJob: (request: VideoJobRequest) => call<{ id: string }>("POST", "/api/video-jobs", { json: request }),
   submitDepthJob: (request: DepthJobRequest) => call<{ id: string }>("POST", "/api/depth-jobs", { json: request }),
   submitMeshJob: (request: LocalMediaRequest) => call<{ id: string }>('POST', '/api/mesh-jobs', { json: request }),

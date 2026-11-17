@@ -8,7 +8,7 @@ const graph = vi.hoisted(() => ({ nodes: [] as CardNode[], edges: [] as { source
 vi.mock('./useRewritePromptCheck', () => ({ useRewritePromptCheck: () => graph.ruleIssues }));
 vi.mock("@xyflow/react", () => ({ useEdges: () => graph.edges, useNodes: () => graph.nodes,
   useReactFlow: () => ({ getNode: (id: string) => graph.nodes.find(node => node.id === id), getNodes: () => graph.nodes, getEdges: () => graph.edges }) }));
-vi.mock("@/canvas/boardContext", () => ({ useBoard: () => ({ updateCard: vi.fn(), startRefPick: vi.fn(), disconnect: vi.fn(), send: vi.fn() }) }));
+vi.mock("@/canvas/boardContext", () => ({ useBoard: () => ({ updateCard: vi.fn(), disconnect: vi.fn(), send: vi.fn() }) }));
 vi.mock("@/api", () => ({ api: { health: vi.fn() } }));
 
 describe("共享提示词面板", () => {
@@ -16,7 +16,7 @@ describe("共享提示词面板", () => {
     graph.nodes = []; graph.edges = []; graph.ruleIssues = [];
     const html = renderToStaticMarkup(<PromptPanel id="pending" data={{ ...newVideoCard('generate', 1),
       rewriteId: 'r', rewriteSourceId: 's', rewriteBusy: 'analyzing', rewriteStatus: { status: 'pending' }, prompt: '手填词' }} />);
-    // 11-04 面板理顺：等待只说一次、不算出错，写词按钮和「＋参考」同一排；11-08 用户定：灰字收进「N 条提醒 ?」，平时藏着。
+    // 11-04 面板理顺：等待只说一次、不算出错，写词按钮在小按钮那排；11-08 用户定：灰字收进「N 条提醒 ?」，平时藏着。
     expect(html.match(/>正在拆解视频，图片卡铺好后再补图</g)).toHaveLength(1);
     expect(html).toMatch(/class="panel__tools">.*aria-label="1 条提醒，提醒".*hidden=""><span class="help-tip__line">正在拆解视频，图片卡铺好后再补图<\/span>/);
     expect(html).not.toContain('panel__hint');
@@ -83,7 +83,7 @@ describe("共享提示词面板", () => {
   it("图片卡仍显示原占位字、张数和图片模型", () => {
     graph.nodes = []; graph.edges = [];
     const html = renderToStaticMarkup(<PromptPanel id="image" data={newCard("generate", 1)} />);
-    expect(html).toContain("描述你想要的画面；要改图就先点「＋参考」接一张图");
+    expect(html).toContain("描述你想要的画面；要改图就先从别的卡拖线连一张图进来");
     expect(html).toContain("Seedream 5.0 Flash");
     expect(html).toContain("1张");
     expect(html).not.toContain("文生视频");

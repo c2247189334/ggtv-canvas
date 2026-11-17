@@ -1,20 +1,17 @@
-import { createContext, useContext, useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react";
+import { useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, useReactFlow, useStore, type EdgeProps } from "@xyflow/react";
 import { canCutEdge, nearestPointOnPolyline } from "@/domain/edgeCut";
 import type { Point } from "@/domain/placement";
 
-export const EdgeCutRefPickContext = createContext(false);
-
 export function CutEdge(props: EdgeProps) {
-  const refPicking = useContext(EdgeCutRefPickContext);
   const flow = useReactFlow();
   const blocked = useStore(state => !canCutEdge({
-    refPicking: false, connecting: state.connection.inProgress,
+    connecting: state.connection.inProgress,
     selecting: state.userSelectionActive || state.userSelectionRect !== null,
     dragging: state.paneDragging || state.nodes.some(node => node.dragging)
   }));
   const zoom = useStore(state => state.transform[2]);
-  const enabled = !blocked && !refPicking;
+  const enabled = !blocked;
   const [path] = getBezierPath({ ...props, curvature: props.pathOptions?.curvature });
   const group = useRef<SVGGElement>(null);
   const button = useRef<HTMLButtonElement>(null);

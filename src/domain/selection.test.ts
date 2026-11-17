@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyNodeChanges } from "@xyflow/react";
-import { contextSelection, filterSelectionChanges, handleVisibility, boardKeyboardControls, overlaySelection, selectGraph, selectionOrder, selectionLink, refPickState } from "./selection";
+import { contextSelection, filterSelectionChanges, handleVisibility, boardKeyboardControls, overlaySelection, selectGraph, selectionOrder, selectionLink } from "./selection";
 import { newCard } from "./cards";
 import { emptyHistory, observeHistory, undoHistory } from "./history";
 const nodes = ["a", "b", "c"].map((id, index) => ({ id, type: "card" as const, position: { x: 0, y: 0 }, selected: index < 2, data: newCard("generate", index + 1) }));
@@ -27,17 +27,6 @@ describe("selection", () => {
     expect(selectionLink(["a", "b"], upload, []).message).toBe("传的图和作品库的图不收参考图，线要连进生成卡。");
     const full = Array.from({ length: 8 }, (_, i) => ({ id: `u${i}`, source: `u${i}`, target: "b" }));
     expect(selectionLink(["a", "b"], nodes, full)).toEqual({ edge: null, message: "一张卡最多连 8 张参考图。" });
-  });
-  it("选参考：空白/自己忽略，新卡本体连接，已有参考只在标签上断开", () => {
-    const ab = [{ id: "ab", source: "a", target: "b" }];
-    expect(refPickState("b", nodes[0], [])).toEqual({ label: "选择 图片 1", action: "connect" });
-    expect(refPickState("b", nodes[0], ab)).toEqual({ label: "取消选择", action: "ignore" });
-    expect(refPickState("b", nodes[0], ab, true)).toEqual({ label: "取消选择", action: "disconnect" });
-    for (const candidate of [undefined, nodes[1]]) {
-      expect(refPickState("b", candidate, ab)).toEqual({ label: null, action: "ignore" });
-    }
-    expect(refPickState(null, nodes[0], [])).toEqual({ label: null, action: "ignore" });
-    expect(refPickState("b", { ...nodes[0], data: { ...nodes[0].data, title: "自定标题" } }, []).label).toBe("选择 自定标题");
   });
   it("选中顺序保留旧成员、移除取消项，新成员按nodes顺序追加", () => {
     expect(selectionOrder([], ["b"])).toEqual(["b"]);

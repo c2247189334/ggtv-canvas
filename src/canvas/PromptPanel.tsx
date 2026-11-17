@@ -25,16 +25,16 @@ import { productReference } from '@/domain/productPrompt';
 import { usePanelFit } from './usePanelFit';
 import { mergeTagIssues } from '@/domain/panelNotes';
 import { HelpTip } from '@/common/HelpTip';
-import { sceneTextStaleNotes, usesSceneText } from '@/domain/rewriteTextScene';
+import { sceneTextStaleNotes, usesText } from '@/domain/rewriteTextScene';
 import { SceneReads, SceneTextPanel, SceneTextToggle } from './SceneTextPanel';
 
 /**
  * 选中生成卡时，卡片正下方浮出的提示词面板：
- * 一排小按钮（＋参考；普通卡加「帮我改写」；改写视频卡只加「生成提示词」，11-08 起它连看图定稿一起做）→ 连进来的参考图缩略图（左上角编号，点一下把 @图片N 写进提示词，× 断开）
+ * 一排小按钮（普通卡「帮我改写」；改写视频卡只有「生成提示词」，11-08 起它连看图定稿一起做）→ 连进来的参考图缩略图（左上角编号，点一下把 @图片N 写进提示词，× 断开）
  * → 提示词框 → 出错（同一句只写一次）→ 底行选项和发送；灰字提醒收进小按钮那排末尾的「N 条提醒 ?」，鼠标移上去才看。
  */
 export function PromptPanel({ id, data }: { id: string; data: CardData }) {
-  if (data.kind === "image" && usesSceneText(data)) return <SceneTextPanel key={id} id={id} data={data} />;
+  if (data.kind === "image" && usesText(data)) return <SceneTextPanel key={id} id={id} data={data} />;
   return data.kind === "audio" ? null : <GenerationPromptPanel key={id} id={id} data={data} />;
 }
 
@@ -102,7 +102,7 @@ function GenerationPromptPanel({ id, data }: { id: string; data: ImageCardData |
     else if (!health) problems.push("正在检查参考视频的存储设置…");
   }
   // 11-13：背景卡的字在生成提示词之后改过 / 切换过，红字提醒再生成一次，不拦发送。
-  const issues = mergeTagIssues([...ruleIssues, ...hints, ...(data.kind === "video" ? sceneTextStaleNotes(nodes, data) : [])]);
+  const issues = mergeTagIssues([...ruleIssues, ...hints, ...(data.kind === "video" ? sceneTextStaleNotes(nodes, data, edges) : [])]);
   const warnings = data.kind === 'video' ? mergeTagIssues(data.rewriteWarnings ?? []) : [];
   // 11-08 用户定：灰字的说明 / 提醒（写词按钮为什么灰、拆解提醒、等待中）收进「N 条提醒 ?」，鼠标移上去才看；红字出错照旧露在面板里。
   const waitingNote = waiting && outputProblem && problems.includes(outputProblem) ? outputProblem : null;
@@ -143,7 +143,6 @@ function GenerationPromptPanel({ id, data }: { id: string; data: ImageCardData |
       data-focus-ready={data.kind !== 'video' || health !== null || healthError !== null}>
       <div className="panel__tools">
         {data.kind === "image" ? <><RewriteImageUpload id={id} data={data} /><SceneTextToggle id={id} data={data} /></> : null}
-        <button type="button" title="在当前画布中添加参考" onClick={() => board.startRefPick(id)}>＋参考</button>
         {/* 11-08 用户定：改写视频卡的提示词只走「生成提示词」一步（拼底稿 + 看图定稿），不再放「帮我改写」。 */}
         {!rewriteCard ? <button type="button" disabled={!data.prompt.trim() || rewrite.loading} onClick={() => void rewrite.run()}>
           {rewrite.loading ? "改写中…" : "帮我改写"}
@@ -181,7 +180,7 @@ function GenerationPromptPanel({ id, data }: { id: string; data: ImageCardData |
         data-prompt-field="true"
         rows={4}
         value={data.prompt}
-        placeholder={data.kind === "video" ? "描述你想要生成的画面内容，@引用素材" : refs.length ? "描述你想要的画面，用 @图片1 引用参考图" : "描述你想要的画面；要改图就先点「＋参考」接一张图"}
+        placeholder={data.kind === "video" ? "描述你想要生成的画面内容，@引用素材" : refs.length ? "描述你想要的画面，用 @图片1 引用参考图" : "描述你想要的画面；要改图就先从别的卡拖线连一张图进来"}
         onBeforeInput={(event) => {
           beforeInput.current = { start: event.currentTarget.selectionStart, end: event.currentTarget.selectionEnd };
         }}

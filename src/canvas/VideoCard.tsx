@@ -26,7 +26,7 @@ type FrameProps = {
 };
 
 /**
- * 预览本体允许选参考和拖卡；原生播放控制期间才隔离画布手势。
+ * 预览本体允许拖卡；原生播放控制期间才隔离画布手势。
  * 双击交给画布放大对准；Chrome 播放器靠「第二下 click」进全屏（拦 dblclick 没用，10-22 实测），所以拦第二下。
  */
 export function VideoFrame({ url, title, seconds, playing, videoRef, failure, missingText, error, onStart, onError, onPlay, onStop }: FrameProps) {

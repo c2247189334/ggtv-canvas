@@ -13,6 +13,8 @@ export type BoardApi = {
   videoClip?: ReturnType<typeof useVideoClip>;
   /** 11-09 视频截图：截这张视频卡的当前帧 / 首帧 / 尾帧，放成右边一张图片卡。 */
   captureFrame?: (cardId: string, kind: FrameKind, playhead: Playhead) => Promise<void>;
+  /** 11-16 图层分离：打开这张图片卡的图层分离界面。 */
+  openLayers?: (cardId: string) => void;
   openViewer: (url: string, title: string, media?: "image" | "video" | "audio") => void;
   notify: Notify;
   localMedia: (id: string, action: "depth" | "mesh" | "audio", resolution?: "480p" | "720p") => Promise<void>;
@@ -23,8 +25,6 @@ export type BoardApi = {
   disconnect: (source: string, target: string) => void;
   /** 连一根线（和拖线同一套检查）；11-13 背景卡「改回用图」用。 */
   connect?: (source: string, target: string) => void;
-  /** 面板「＋参考」：从当前画布连续选择参考。 */
-  startRefPick: (id: string) => void;
   /** 左边 ＋：添加上下文图片或资源。 */
   openRefMenu: (id: string, anchor: DOMRect) => void;
   /** 右边 ＋：弹「引用该节点生成」图片 / 视频。 */

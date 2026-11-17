@@ -40,7 +40,7 @@ export function WorksPicker({ onPick, includeVideo = true }: { onPick: (picked: 
           <button type="button" className={tab === "uploads" ? "is-on" : ""} onClick={() => setTab("uploads")}>我上传的</button>
         </div>
         {error?.tab === tab ? <p className="works__error">{error.text}</p> : shown === null ? <p className="works__empty">读取中…</p>
-          : tab === "works" ? <WorksGrid works={(works ?? []).filter(work => includeVideo || work.kind === "image")} onOpen={work => onPick({ source: "work", work })} />
+          : tab === "works" ? <WorksGrid works={(works ?? []).filter(work => !("layer" in work && work.layer) && (includeVideo || work.kind === "image"))} onOpen={work => onPick({ source: "work", work })} />
           : <UploadsGrid items={(uploads ?? []).filter(upload => includeVideo || upload.kind === "image")} onOpen={upload => onPick({ source: "upload", upload })} />}
       </div>
     </div>,

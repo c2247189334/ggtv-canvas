@@ -45,9 +45,9 @@ export async function sceneTextFiles(rows, sourcePath, folder, sheets) {
   return [...files, { name: '背景卡要求.txt', buffer: Buffer.from(sceneTextNote(rows)) }];
 }
 
-/** 每张卡一条回显；agent 漏写的照样列出来，写明没说怎么理解（不拦）。 */
+/** 每张卡一条回显；agent 漏写的照样列出来，写明没说怎么理解（不拦）。卡名换回页面传来的那个（cardTitle），页面按它对回卡。 */
 export function sceneReadsOf(sceneTexts, reads = []) {
-  return sceneTexts.map(({ title, text }) => ({ title, text,
+  return sceneTexts.map(({ title, text, cardTitle }) => ({ title: cardTitle ?? title, text,
     read: reads.find(row => row.title.replace(/\s+/g, '') === title.replace(/\s+/g, ''))?.read || '（没说怎么理解）' }));
 }
 

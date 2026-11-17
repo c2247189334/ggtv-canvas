@@ -12,6 +12,8 @@ import { readRewriteItem, readRewriteStatus, readRewriteChangeSeconds, readRewri
 import { readProductPlan, readProductRole } from './productRemakeDoc';
 import type { AssetRef, CanvasDoc, CardData, CardGroup, CardNode, CardSource } from "@/types";
 import { readSentInputs } from './staleInputs';
+import { readLayerSplit } from './layers';
+import { readLayerRedraw } from './layerRedraw';
 import { MAX_SCENE_TEXT, readSceneReads } from './rewriteTextScene';
 
 export type CanvasMeta = { id: string; name: string };
@@ -116,6 +118,9 @@ export function readCard(raw: unknown): CardData | null {
     ...(d.rewriteTextOn === true ? { rewriteTextOn: true } : {}),
     ...(typeof d.rewriteSceneText === "string" ? { rewriteSceneText: d.rewriteSceneText.slice(0, MAX_SCENE_TEXT) } : {}),
     ...(typeof d.emptyAspect === "number" && d.emptyAspect >= 0.1 && d.emptyAspect <= 10 ? { emptyAspect: d.emptyAspect } : {}),
+    ...(typeof d.layerJob === "string" && d.layerJob ? { layerJob: d.layerJob } : {}),
+    ...(readLayerSplit(d.layerSplit) ? { layerSplit: readLayerSplit(d.layerSplit) } : {}),
+    ...(readLayerRedraw(d.layerRedraw) ? { layerRedraw: readLayerRedraw(d.layerRedraw) } : {}),
     ...(source !== "generate" && typeof d.assetId === "string" && validAssetId(d.assetId) ? { assetId: d.assetId } : {}) };
 }
 

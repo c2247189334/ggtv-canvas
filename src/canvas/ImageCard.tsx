@@ -13,13 +13,13 @@ import { assetUrl, cardTitle, currentResult, imageFailure } from "@/domain/cards
 import { useDeletedWorks } from "@/library/worksEvents";
 import type { AssetRef, CardNode } from "@/types";
 import { productEmptyText, productOriginalLook } from '@/domain/productRemake';
-import { usesSceneText } from '@/domain/rewriteTextScene';
+import { usesText } from '@/domain/rewriteTextScene';
 
 const IMAGE_RETRY_INTERVAL_MS = 3000;
 
 /** key 用原图地址：翻页、换图时连同旧探测和重试计时器一起销毁。确定找不到（404）就不出上方工具条。 */
-function CardImage({ asset, url, title, missingText, onSize, panelBelow }: { asset: AssetRef; url: string; title: string; missingText: string;
-  onSize: (width: number, height: number) => void; panelBelow?: boolean }) {
+function CardImage({ asset, url, title, missingText, onSize, panelBelow, cardId }: { asset: AssetRef; url: string; title: string; missingText: string;
+  onSize: (width: number, height: number) => void; panelBelow?: boolean; cardId: string }) {
   const [failed, setFailed] = useState(false);
   const [failure, setFailure] = useState<"missing" | "retry" | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -64,7 +64,7 @@ function CardImage({ asset, url, title, missingText, onSize, panelBelow }: { ass
       {failed || failure ? (
         <div className="card__empty">{failure === "missing" ? missingText : "图片没加载出来，正在重试…"}</div>
       ) : null}
-      {failure !== "missing" ? <CardTools asset={asset} title={title} media="image" panelBelow={panelBelow} /> : null}
+      {failure !== "missing" ? <CardTools asset={asset} title={title} media="image" panelBelow={panelBelow} cardId={cardId} /> : null}
     </>
   );
 }
@@ -103,8 +103,8 @@ function ImageCardView({ id, data, selected }: NodeProps<CardNode>) {
   else if (isGenerate) empty = "写好提示词，点发送出图";
   if (data.kind === 'image' && data.rewriteItem) empty = `传：${data.rewriteItem.desc}`;
   if (data.kind === 'image' && data.productRole) empty = productEmptyText(data, productLook)!;
-  // 11-13 背景卡「不出图，用文字」：卡面只显示写的字；原来有图也留着不删，改回用图时还在。
-  const sceneText = usesSceneText(data);
+  // 11-13 背景卡「不出图，用文字」（11-16 起衣服卡、东西卡也有）：卡面只显示写的字；原来有图也留着不删，改回用图时还在。
+  const sceneText = usesText(data);
   if (sceneText) empty = `用文字：${data.rewriteSceneText?.trim() || '（还没写）'}`;
 
   return (
@@ -112,13 +112,14 @@ function ImageCardView({ id, data, selected }: NodeProps<CardNode>) {
       <CardHead id={id} title={title} size={size}>{data.kind === "image" && data.assetId ? <span className="card__asset">真人素材</span> : null}</CardHead>
       <div className={`card__body${frame ? " card__body--fit" : ""}`} style={frame ? { aspectRatio: frame } : undefined}>
         {current && url && !missing && !sceneText ? (
-          <CardImage key={url} asset={current} url={url} title={title} onSize={(width, height) => setNatural({ url, width, height })} panelBelow={isGenerate}
+          <CardImage key={url} asset={current} url={url} title={title} onSize={(width, height) => setNatural({ url, width, height })} panelBelow={isGenerate} cardId={id}
             missingText={current?.type === "work" ? "作品已删除" : "这张图找不到了"} />
         ) : (
           <div className={`card__empty${data.kind === 'image' && (data.rewriteItem || data.productRole || sceneText) ? ' card__replacement' : ''}`} title={empty}>{empty}</div>
         )}
-        {busy ? <BusyOverlay text={`正在生成中…${data.jobs.length > 1 ? `（${data.jobs.length} 单）` : ""}`} /> : null}
-        {!busy && data.note ? <div className="card__note">{data.note}</div> : null}
+        {busy ? <BusyOverlay text={`正在生成中…${data.jobs.length > 1 ? `（${data.jobs.length} 单）` : ""}`} />
+          : data.kind === "image" && data.layerJob ? <BusyOverlay text="图层分离中…" /> : null}
+        {!busy && !(data.kind === "image" && data.layerJob) && data.note ? <div className="card__note">{data.note}</div> : null}
         {total > 1 ? (
           <div className="card__pager nodrag">
             <button type="button" aria-label="上一张" disabled={page === 0} onClick={() => board.turnPage(id, -1)}>◀</button>

@@ -1,7 +1,6 @@
 import type { NodeChange } from "@xyflow/react";
 import type { CardNode } from "@/types";
 import type { Graph } from "@/domain/history";
-import { cardTitle } from "@/domain/cards";
 import { checkLink, linkId, maxRefsOf, type LinkEdge } from "@/domain/refs";
 
 export const boardKeyboardControls = {
@@ -24,13 +23,6 @@ export function selectionLink(order: readonly string[], nodes: readonly CardNode
     sourceKind: nodes.find(n => n.id === source)?.data.kind, targetKind: targetData?.kind,
     referenceKinds: edges.filter(edge => edge.target === target).map(edge => nodes.find(n => n.id === edge.source)?.data.kind ?? "image") });
   return check.ok ? { edge: { id: linkId(source, target), source, target }, message: "已连接2个节点" } : { edge: null, message: check.reason };
-}
-
-/** 已有参考只允许点标签取消；本体点击保持连线。 */
-export function refPickState(target: string | null, candidate: CardNode | undefined, edges: readonly LinkEdge[], onLabel = false): { label: string | null; action: "connect" | "disconnect" | "ignore" } {
-  if (!target || !candidate || candidate.id === target) return { label: null, action: "ignore" };
-  if (edges.some(e => e.source === candidate.id && e.target === target)) return { label: "取消选择", action: onLabel ? "disconnect" : "ignore" };
-  return { label: `选择 ${cardTitle(candidate.data)}`, action: "connect" };
 }
 
 /** 库默认Ctrl再点会反选；加选操作中只接受选中，不接受取消。 */

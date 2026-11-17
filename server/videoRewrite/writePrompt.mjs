@@ -1,6 +1,6 @@
 import { validatePlan } from './analyze.mjs';
 import { outfitChangePoints, sceneChangePoints, sceneItems, targetDuration } from './rules.mjs';
-import { isNewScene, itemLabel, materialRoles, MESH_PURPOSE } from './roles.mjs';
+import { isNewScene, itemLabel, itemTextOf, labelPeers, materialRoles, MESH_PURPOSE } from './roles.mjs';
 
 const THINGS = ['道具', '遮挡物', '其他'];
 const KEEP_CLOTHES = /衣服(?:不换|不变|别换|不要换|照旧|保留|保持|还用原)|(?:保留|保持|不换|别换|不要换)(?:原来的|原视频的|原)?衣服|只换(?:脸|人脸|头)|换脸/;
@@ -24,11 +24,12 @@ const outfitsNote = count =>`原视频有${count}套衣服在换装，提示词�
  * 10-30 功夫舞真成片：只说「人物换掉」时照原视频写衣服，大爷穿了女生的舞蹈服。改成：连了一张要换的人物图、没连衣服图、
  * 原话没说衣服不换、看图说人物图不是纯色打底衣服（出图模板那种占位）→ 衣服也照人物图。原片在换装就保留换装（换装点要单独一秒段），只提醒。
  * 11-06 用户：只写换人时衣服要跟原片。勾了「衣服和原片保持一致」（keepClothes）就不走这条，衣服卡删了也不穿人物图那身。
+ * 11-16：有衣服卡改用文字（itemTexts）也算有衣服安排，不然卡上的字会被人物图那身顶掉。
  */
-export function personOutfit({ plan, materials, userText = '', keepClothes = false }, looks = {}) {
+export function personOutfit({ plan, materials, userText = '', keepClothes = false, itemTexts = [] }, looks = {}) {
   const kindOf = id => plan.items.find(item => item.id === id)?.kind;
   const people = materials.filter(row => kindOf(row.itemId) === '人物' && plan.replace.includes(row.itemId));
-  if (keepClothes || people.length !== 1 || materials.some(row => kindOf(row.itemId) === '衣服') || KEEP_CLOTHES.test(userText)
+  if (keepClothes || people.length !== 1 || [...materials, ...itemTexts].some(row => kindOf(row.itemId) === '衣服') || KEEP_CLOTHES.test(userText)
     || looks[people[0].tag]?.plainClothes) return null;
   const outfits = plan.items.filter(item => item.kind === '衣服').length;
   return { tag: people[0].tag, clothes: looks[people[0].tag]?.clothes ?? '', changing: outfitChangePoints(plan).length ? outfits : 0 };
@@ -48,8 +49,9 @@ export function writePrompt(input, looks = {}) {
   const total = targetDuration(input.duration);
   const depth = materials.find(material => material.tag.startsWith('@视频'))?.tag;
   const tagOf = id => materials.find(material => material.itemId === id)?.tag;
-  const replaced = plan.items.filter(item => plan.replace.includes(item.id));
-  const names = plan.items.filter(item => THINGS.includes(item.kind) && !plan.replace.includes(item.id)).map(item => item.desc.split(/[，,]/)[0].trim());
+  const peers = labelPeers(input);
+  // 11-16：用文字的东西卡由定稿按卡上的字写，不进「底稿没写」的提醒。
+  const names = plan.items.filter(item => THINGS.includes(item.kind) && !plan.replace.includes(item.id) && !itemTextOf(input.itemTexts, item)).map(item => item.desc.split(/[，,]/)[0].trim());
   const outfit = personOutfit(input, looks), wearing = outfit && !outfit.changing ? outfit : null;
   const clothes = plan.items.filter(item => item.kind === '衣服');
   // 要换却没连图的衣服只写称呼，不带回原视频的样子。
@@ -57,8 +59,9 @@ export function writePrompt(input, looks = {}) {
   const clothTag = item => tagOf(item.id) ?? (item.sameAs ? tagOf(item.sameAs) : undefined);
   // 11-11 婚礼：衣服跟原片又没连图时原描述每段重抄（15 秒约 1500 字）。先放记号，拼完再换：每套第一次出现写全，后面只写开头那个名字。
   const own = item => clothes.find(entry => entry.id === item.sameAs) ?? item;
-  const look = item => clothTag(item) ? `${clothTag(item)}的衣服`
-    : plan.replace.includes(item.id) ? itemLabel(item, replaced).replace(/（.*）$/, '') : `\u0000${own(item).id}\u0000`;
+  // 11-16 衣服卡用文字：写占位，定稿时由本机 agent 按卡上的字换成画面描述（隔一段穿回的同一套共用一个占位）。
+  const look = item => clothTag(item) ? `${clothTag(item)}的衣服` : itemTextOf(input.itemTexts, item) ? sceneTextMark(itemTextOf(input.itemTexts, item).title)
+    : plan.replace.includes(item.id) ? itemLabel(item, peers).replace(/（.*）$/, '') : `\u0000${own(item).id}\u0000`;
   const once = text => {
     const seen = new Set();
     return text.replace(/\u0000([^\u0000]+)\u0000/g, (_, id) => {

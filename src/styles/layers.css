@@ -1,0 +1,64 @@
+/* 11-16 图层分离界面（整屏）。层级：在画布和卡片浮层之上，在看大图（1200）、确认框（1250）之下。 */
+.layer-editor { position: fixed; inset: 0; z-index: 1150; display: grid; grid-template-rows: 56px minmax(0, 1fr) auto; background: #0b0b0d; color: var(--text); }
+.layer-editor__top { display: flex; align-items: center; gap: 16px; padding: 0 12px 0 20px; border-bottom: 1px solid var(--line); }
+.layer-editor__name { flex: none; max-width: 30vw; overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
+.layer-editor__hint { flex: 1; min-width: 0; overflow: hidden; color: var(--muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.layer-editor__history { display: flex; gap: 6px; }
+.layer-editor button { padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); color: inherit; font-size: 13px; cursor: pointer; }
+.layer-editor button:disabled { opacity: 0.45; cursor: default; }
+.layer-editor .layer-editor__close { width: 32px; height: 32px; padding: 0; border-radius: 50%; font-size: 18px; line-height: 1; }
+.layer-editor .layer-editor__primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+.layer-editor__body { position: relative; display: flex; min-height: 0; }
+.layer-editor__busy { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 10px; background: rgba(11, 11, 13, 0.7); font-size: 14px; }
+.layer-editor__bottom { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px 20px; border-top: 1px solid var(--line); }
+.layer-editor__input { flex: 0 1 560px; min-width: 0; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: inherit; font-size: 13px; }
+.layer-editor__count { flex: none; color: var(--muted); font-size: 12px; }
+.layer-editor__error { position: absolute; left: 50%; bottom: 72px; max-width: min(720px, 90vw); padding: 8px 14px; border: 1px solid var(--danger); border-radius: 8px; background: var(--panel); color: var(--danger); font-size: 13px; line-height: 1.6; transform: translateX(-50%); }
+
+/* 中间的图：棋盘格底，透明的地方看得出来。 */
+.layer-stage { flex: 1; min-width: 0; display: grid; place-items: center; overflow: hidden; }
+.layer-stage__canvas { position: relative; user-select: none; touch-action: none;
+  background: repeating-conic-gradient(#2a2a31 0 25%, #1d1d22 0 50%) 0 0 / 16px 16px; }
+.layer-stage__canvas.is-split { cursor: crosshair; }
+.layer-stage__base { display: block; width: 100%; height: 100%; pointer-events: none; }
+.layer-stage__layer { position: absolute; cursor: move; }
+.layer-stage__layer img { display: block; width: 100%; height: 100%; pointer-events: none; }
+.layer-stage__layer.is-selected { outline: 1px solid var(--accent); }
+.layer-stage__scale, .layer-stage__rotate { position: absolute; width: 12px; height: 12px; border: 2px solid #fff; border-radius: 50%; background: var(--accent); }
+.layer-stage__scale { right: -7px; bottom: -7px; cursor: nwse-resize; }
+.layer-stage__rotate { top: -28px; left: 50%; margin-left: -6px; cursor: grab; }
+.layer-stage__rotate::after { content: ""; position: absolute; top: 10px; left: 3px; width: 2px; height: 14px; background: var(--accent); }
+.layer-stage__box { position: absolute; border: 1.5px dashed var(--accent); background: rgba(91, 124, 255, 0.12); }
+.layer-stage__box span { position: absolute; top: -22px; left: -1px; padding: 1px 6px; border-radius: 4px; background: var(--accent); color: #fff; font-size: 11px; white-space: nowrap; }
+.layer-stage__box button { position: absolute; top: -10px; right: -10px; width: 20px; height: 20px; padding: 0; border-radius: 50%; font-size: 13px; line-height: 1; }
+
+/* 右边图层清单。 */
+.layer-panel { flex: none; display: flex; flex-direction: column; gap: 10px; width: 280px; padding: 12px; overflow-y: auto; border-left: 1px solid var(--line); background: var(--panel); }
+.layer-panel__head { display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
+.layer-panel__sources { display: grid; gap: 10px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.layer-panel__source-name { margin-bottom: 6px; overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.layer-panel__thumbs { display: flex; flex-wrap: wrap; gap: 6px; }
+.layer-panel .layer-panel__thumbs button { width: 56px; height: 56px; padding: 4px; background: repeating-conic-gradient(#2a2a31 0 25%, #1d1d22 0 50%) 0 0 / 10px 10px; }
+.layer-panel__thumbs img { width: 100%; height: 100%; object-fit: contain; }
+.layer-panel__list { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.layer-panel__list li { display: flex; align-items: center; gap: 6px; padding: 4px; border: 1px solid transparent; border-radius: 6px; }
+.layer-panel__list li.is-selected { border-color: var(--accent); background: rgba(91, 124, 255, 0.1); }
+.layer-panel .layer-panel__name { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 2px; border: 0; background: none; text-align: left; }
+.layer-panel__name img { flex: none; width: 32px; height: 32px; object-fit: contain; border-radius: 4px; background: repeating-conic-gradient(#2a2a31 0 25%, #1d1d22 0 50%) 0 0 / 8px 8px; }
+.layer-panel__name span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.layer-panel__name small, .layer-panel__locked small { display: block; color: var(--muted); font-size: 11px; }
+.layer-panel .layer-panel__eye { flex: none; padding: 2px 8px; font-size: 12px; }
+.layer-panel__locked { justify-content: space-between; padding: 8px !important; color: var(--muted); font-size: 13px; }
+.layer-panel__actions { display: grid; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.layer-panel__title { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.layer-panel__row { display: flex; flex-wrap: wrap; gap: 6px; }
+.layer-panel__angle { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+.layer-panel__angle input { width: 70px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); }
+.layer-panel .layer-panel__remove { border-color: var(--danger); color: var(--danger); }
+.layer-panel__empty { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+/* 图层重绘（选中一层时，在右边操作区里）。 */
+.layer-redraw { display: grid; gap: 6px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.layer-redraw__input { width: 100%; box-sizing: border-box; padding: 6px 8px; resize: vertical; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); font: inherit; font-size: 12px; }
+.layer-redraw__row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.layer-redraw__row small { color: var(--muted); font-size: 11px; }
+.layer-redraw__error { margin: 0; color: var(--danger); font-size: 12px; line-height: 1.5; }

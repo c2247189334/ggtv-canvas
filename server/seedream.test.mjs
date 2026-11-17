@@ -49,6 +49,14 @@ test('请求体：一张图是字符串、多张是数组、没图不带 image�
   assert.equal(none.size, '1024x1024');
 });
 
+test('图层重绘要透明底：带 background: transparent、出 PNG；不要的时候一个字都不发', () => {
+  const clear = buildSeedreamBody({ model: FLASH, prompt: 'x', images: [{ buffer: Buffer.from('p'), contentType: 'image/png' }], transparent: true });
+  assert.equal(clear.background, 'transparent');
+  assert.equal(clear.output_format, 'png');
+  assert.equal(clear.image.startsWith('data:image/png;base64,'), true);
+  assert.equal('background' in buildSeedreamBody({ model: FLASH, prompt: 'x' }), false);
+});
+
 test('出好一张：交回中性 image 字段，请求发到火山、带上 Key', async () => {
   const png = Buffer.from('fake-png');
   const doFetch = fakeFetch(() => new Response(JSON.stringify({ data: [{ b64_json: png.toString('base64') }] }), { status: 200 }));

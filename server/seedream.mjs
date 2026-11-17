@@ -70,7 +70,7 @@ function dataUrlOf(image) {
  * 一张图时 image 是字符串、多张是数组（照官方文档的两种写法）；没图就是纯文字出图，不带 image。
  * `sequential_image_generation` 一个字都不发：pro / flash 官方写「不支持配置」，其余默认就是关。
  */
-export function buildSeedreamBody({ model, prompt, images = [], size }) {
+export function buildSeedreamBody({ model, prompt, images = [], size, transparent = false }) {
   const urls = images.map(dataUrlOf);
   return {
     model: String(model ?? ''),
@@ -78,7 +78,8 @@ export function buildSeedreamBody({ model, prompt, images = [], size }) {
     ...(urls.length === 1 ? { image: urls[0] } : urls.length > 1 ? { image: urls } : {}),
     ...(size ? { size } : {}),
     response_format: 'b64_json',
-    output_format: 'jpeg',
+    // 11-16 图层重绘要透明底：官方 `background: transparent`，5.0 pro / flash 只能图生、输入图本身要带透明通道（图层都是）。
+    ...(transparent ? { background: 'transparent', output_format: 'png' } : { output_format: 'jpeg' }),
     watermark: false
   };
 }
@@ -96,9 +97,9 @@ export function upstreamMessage(payload, raw) {
  * 发一次，出一张。返回 { ok: true, image } 或 { ok: false, status, message }。
  * 网络层出错抛 EDIT_TIMEOUT / EDIT_UNREACHABLE（没发出去）/ EDIT_INTERRUPTED（发出去之后才断）；真实原因只进黑窗口，Key 打码。
  */
-export async function generateOne({ model, prompt, images = [], size }, { env, fetch: doFetch, log = console.error, timeout = IMAGE_TIMEOUT_MS }) {
+export async function generateOne({ model, prompt, images = [], size, transparent }, { env, fetch: doFetch, log = console.error, timeout = IMAGE_TIMEOUT_MS }) {
   const cfg = seedreamConfig(env);
-  const body = buildSeedreamBody({ model, prompt, images, size: seedreamSize(model, size) });
+  const body = buildSeedreamBody({ model, prompt, images, size: seedreamSize(model, size), transparent });
   let response;
   try {
     response = await doFetch(`${cfg.base}/images/generations`, {

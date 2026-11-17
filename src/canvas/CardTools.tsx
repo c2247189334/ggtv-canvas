@@ -37,7 +37,9 @@ export function CardTools({ asset, title, media, onOpen, cardId, product, frame,
           onClick={() => { board.videoRewrite?.close(); board.productRemake?.start(source); }}>拆解（无人物）</button> : null}
         {source ? <VideoMoreTools cardId={source} asset={asset} /> : null}
         {product && cardId ? <ProductToolButtons id={cardId} /> : null}
-        {source || (product && cardId) ? <span className="card-tools__sep" aria-hidden="true" /> : null}
+        {media === "image" && cardId && board.openLayers ? <button type="button" className="card-tools__button"
+          onClick={() => board.openLayers?.(cardId)}>图层分离</button> : null}
+        {source || (product && cardId) || (media === "image" && cardId && board.openLayers) ? <span className="card-tools__sep" aria-hidden="true" /> : null}
         {media === "video" && frame ? <FrameCaptureTools cardId={frame.cardId} playhead={frame.playhead} /> : null}
         <a className="card-tools__button card-tools__icon" href={assetDownloadUrl(asset)} download aria-label="下载" title="下载"><DownloadIcon /></a>
         <button type="button" className="card-tools__button card-tools__icon" aria-label="预览" title="预览"

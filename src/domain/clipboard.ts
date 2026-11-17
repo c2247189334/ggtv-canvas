@@ -4,7 +4,14 @@ import { linkId } from "@/domain/refs";
 import { copyRewriteData } from "./rewriteCopy";
 import { copyGroups, pastedGroups } from './groups';
 import type { Point } from "@/domain/placement";
-import type { CardNode } from "@/types";
+import type { CardData, CardNode } from "@/types";
+
+/** 副本不接着查原卡还在拆的图层分离单、在跑的图层重绘单（拆好的结果照常带上）。 */
+function withoutLayerJob<T extends CardData>(data: T): T {
+  if (data.kind !== "image" || !(data.layerJob || data.layerRedraw)) return data;
+  const { layerJob: _layerJob, layerRedraw: _layerRedraw, ...rest } = data;
+  return rest as T;
+}
 
 export type Clipboard = { nodes: CardNode[]; edges: Edge[] };
 
@@ -41,7 +48,7 @@ export function pasteClipboard(clipboard: Clipboard, at: Point | null, newId = (
       return {
         id: ids.get(n.id)!, type: "card", selected: true,
         position: { x: n.position.x + delta.x, y: n.position.y + delta.y },
-        data: { ...copyRewriteData(data, ids, n.data, delta), title: `${cardTitle(n.data)} - 副本`, jobs: [] }
+        data: withoutLayerJob({ ...copyRewriteData(data, ids, n.data, delta), title: `${cardTitle(n.data)} - 副本`, jobs: [] })
       };
     }),
     edges: copy.edges.map(e => {

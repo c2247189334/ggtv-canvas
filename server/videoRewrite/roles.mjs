@@ -10,6 +10,31 @@ export function itemLabel(item, items) {
   return `${item.kind}${peers.length > 1 ? number : ''}`;
 }
 
+/** 11-16 这一项用文字的那张卡（衣服 / 东西卡「不出图，用文字」）：隔一段穿回的同一套（sameAs）跟着原来那套走。 */
+export const itemTextOf = (itemTexts, item) => (itemTexts ?? []).find(row => row.itemId === item.id || row.itemId === item.sameAs);
+/**
+ * 11-16 给「第 N 套衣服」「人物 N」排号用的同一份名单：连着图的 + 用文字的 + 要换却没连图的衣服。
+ * 以前素材分工句按连着的排、时间轴按要换的排，剪掉一张衣服卡后同一个号会指两套。
+ */
+export function labelPeers({ materials, plan, itemTexts = [] }) {
+  const linked = new Set(materials.map(material => material.itemId).filter(Boolean)), texts = new Set(itemTexts.map(row => row.itemId));
+  const on = id => linked.has(id) || texts.has(id);
+  return plan.items.filter(item => (linked.has(item.id) && (plan.replace.includes(item.id) || item.kind === '衣服')) || texts.has(item.id)
+    || (item.kind === '衣服' && plan.replace.includes(item.id) && !on(item.id) && !(item.sameAs && on(item.sameAs))));
+}
+
+/**
+ * 11-17 衣服卡用文字时，底稿占位和给 agent 看的卡名用小服务自己排的号（「衣服 N」，和分工句、时间轴的「第N套衣服」同一个 N），
+ * 不直接用页面传来的卡名：两边万一排得不一样，同一个号会指两套衣服。页面的卡名留在 cardTitle，回显时换回去。
+ */
+export function ownItemTitles({ materials, plan, itemTexts = [] }) {
+  const clothes = labelPeers({ materials, plan, itemTexts }).filter(item => item.kind === '衣服').sort((a, b) => a.from - b.from);
+  return itemTexts.map(row => {
+    const number = clothes.findIndex(item => item.id === row.itemId) + 1;
+    return number ? { ...row, title: `衣服 ${number}`, cardTitle: row.title } : row;
+  });
+}
+
 /** 页面背景卡用途（和 src/domain/videoRewrite.ts 两边一起改）：用户没勾「背景和原片保持一致」，背景换成新场景。 */
 export const NEW_SCENE_PURPOSE = '背景，换成新场景';
 export const isNewScene = materials => materials.some(material => material.purpose === NEW_SCENE_PURPOSE);
@@ -21,8 +46,11 @@ const STRICT = '严格参考其中人物的动作、姿态、位置和机位，�
  * 10-30 功夫舞真成片：深度里辫子轮廓很清楚，换了人就不采用深度的发型；looks 是看人物图的结果，wearPerson 时衣服也照人物图。
  * 11-10 用户定统一按官方 2.5 写：动作参考先写编号和用途，再用官方示例的「严格参考…顺序（和节奏）与视频保持一致」（2.5 指南第 198、1262 行）。
  */
-export function materialRoles({ materials, plan, keepClothes = false }, { looks = {}, wearPerson = false } = {}) {
+export function materialRoles({ materials, plan, keepClothes = false, itemTexts = [] }, { looks = {}, wearPerson = false } = {}) {
   const rhythm = outfitChangePoints(plan).length ? '动作和换装节奏' : '动作节奏';
+  const peers = labelPeers({ materials, plan, itemTexts });
+  // 11-16：有衣服卡改用文字，深度里那套的轮廓和要的样子就对不上了，照「有衣服要换」处理。
+  const textClothes = itemTexts.some(row => plan.items.find(item => item.id === row.itemId)?.kind === '衣服');
   const connected = materials.flatMap(material => {
     // 11-06：没写要换的衣服也可能连着图（从原片抽的衣服图），一样要写职责。
     const item = plan.items.find(entry => entry.id === material.itemId && (plan.replace.includes(entry.id) || entry.kind === '衣服'));
@@ -30,9 +58,9 @@ export function materialRoles({ materials, plan, keepClothes = false }, { looks 
   });
   const people = connected.filter(item => item.kind === '人物'), newScene = isNewScene(materials);
   // 11-06：衣服全跟原片时，深度里的衣服轮廓和衣服图是一致的，不用排除；有一件要换就照旧排除。
-  const outline = keepClothes && !plan.items.some(item => item.kind === '衣服' && plan.replace.includes(item.id)) ? '' : '和衣服轮廓';
+  const outline = keepClothes && !textClothes && !plan.items.some(item => item.kind === '衣服' && plan.replace.includes(item.id)) ? '' : '和衣服轮廓';
   // 11-06：分屏时按位置说谁是谁；「人物1 / 人物2」在深度剪影里对不上号。
-  const inVideo = (person, name) => person.where ? `${person.where}的${name}` : itemLabel(person, connected).replace('人物', name === '人' ? '人物' : name);
+  const inVideo = (person, name) => person.where ? `${person.where}的${name}` : itemLabel(person, peers).replace('人物', name === '人' ? '人物' : name);
   return materials.map(material => {
     const { tag, purpose } = material;
     const item = connected.find(entry => entry.id === material.itemId);
@@ -50,7 +78,7 @@ export function materialRoles({ materials, plan, keepClothes = false }, { looks 
       return `${tag}是动作参考：${STRICT}，并采用画面里东西的位置、动静和出现时机；不采用其中的灰度画面${hair}${outline}${identity}。`;
     }
     if (purpose.startsWith('背景') || item?.kind === '场景') return `${tag}是场景：只采用场景的布局、陈设、颜色和光线，不采用图中人物。`;
-    const label = item ? itemLabel(item, connected) : '参考物品';
+    const label = item ? itemLabel(item, peers) : '参考物品';
     if (item?.kind === '人物') {
       const look = looks[tag] ?? {}, hair = look.hair ? `发型（${look.hair}）` : '发型';
       // 11-08 婚礼：两个人时「画面里只出现这一个人」和「全程这2个人」打架，改说只算一个人；

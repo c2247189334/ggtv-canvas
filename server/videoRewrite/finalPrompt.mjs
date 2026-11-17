@@ -6,6 +6,7 @@ import { agentHealth } from '../agent.mjs';
 import { parseModelJson } from './modelJson.mjs';
 import { planChangeSeconds } from './rules.mjs';
 import { FAKE_SCENE_READ, fakeSceneTexts, SCENE_TEXT_EXTRA, sceneReadsOf, sceneTextFiles, sceneTextRows } from './sceneTexts.mjs';
+import { fakeItemTexts, ITEM_TEXT_EXTRA, itemTextFiles, itemTextRows } from './itemTexts.mjs';
 import { removeRewrite, rewriteFolder } from './storage.mjs';
 
 // 11-10 用户定：每次生成提示词都按官方 Seedance 2.5 提示词指南写（暂时不管选的哪个模型），再结合这次的视频。
@@ -52,8 +53,9 @@ const RULES = `官方写法（Seedance 2.5 提示词指南，必须照做；不�
 输出：只输出一个 JSON 对象，不要别的文字、不要代码围栏：
 {"prompt":"定稿全文（保留底稿的换行）","changes":[{"before":"底稿原句","after":"改后的句子","why":"为什么改","evidence":"哪张图、第几秒、看到什么"}],"unfixable":[{"what":"改字解决不了的问题","evidence":"证据","fix":"建议用户怎么处理"}],"checked":"一句话说明看了哪些文件"}`;
 
-export function finalSystem(kind, duration, sceneText = false) {
-  return [COMMON, kind === 'product' ? PRODUCT : PERSON, RULES.replace('{DURATION}', String(duration)), ...(sceneText ? [SCENE_TEXT_EXTRA] : [])].join('\n\n');
+export function finalSystem(kind, duration, sceneText = false, itemText = false) {
+  return [COMMON, kind === 'product' ? PRODUCT : PERSON, RULES.replace('{DURATION}', String(duration)),
+    ...(sceneText ? [SCENE_TEXT_EXTRA] : []), ...(itemText ? [ITEM_TEXT_EXTRA] : [])].join('\n\n');
 }
 
 /** 抽帧时刻：6～10 个，从 0 均分到结尾（留 0.15 秒免得读到黑尾）。 */
@@ -141,6 +143,7 @@ export async function finalFiles(input, { sheets }) {
     rows.push(`${material.tag}：${material.purpose}，这次没有文件`);
   }
   if (input.sceneTexts?.length) files.push(...await sceneTextFiles(input.sceneTexts, input.sourceVideo.path, join(input.folder, 'scene-text'), sheets));
+  if (input.itemTexts?.length) files.push(...await itemTextFiles(input.itemTexts, input.plan, input.sourceVideo?.path, join(input.folder, 'item-text'), sheets));
   files.push({ name: '底稿.txt', buffer: Buffer.from(input.draft) }, { name: '素材表.txt', buffer: Buffer.from(rows.join('\n')) },
     { name: '拆解单.json', buffer: Buffer.from(JSON.stringify(input.plan ?? {}, null, 1)) }, { name: '用户原话.txt', buffer: Buffer.from(input.userText || '（没写）') });
   if (input.warnings?.length) files.push({ name: '提醒.txt', buffer: Buffer.from(input.warnings.map(text => `- ${text}`).join('\n')) });
@@ -152,13 +155,15 @@ export async function finalFiles(input, { sheets }) {
  * → { videoPrompt, finalized, changes, unfixable, checked, issues, note, elapsedMs }。rules(prompt) 返回问题列表。
  * agent 出错 / 回话坏 / 改完两轮都过不了规则：退回底稿，note 写清原因，绝不拿过不了规则的稿子当定稿。
  * 11-13 背景卡用文字（input.sceneTexts）：底稿里根本没有卡上的字，失败不能悄悄退底稿——整个再跑一次，还不行就报错、提示词不动。
+ * 11-16 衣服卡 / 东西卡用文字（input.itemTexts）同样处理。
  */
+export const textCardName = input => input.itemTexts?.length ? '卡上的字' : '背景卡的字';
 export async function finalizePrompt(input, deps) {
   const first = await finalizeOnce(input, deps);
-  if (!input.sceneTexts?.length || first.finalized) return first;
+  if (!(input.sceneTexts?.length || input.itemTexts?.length) || first.finalized) return first;
   const again = await finalizeOnce(input, deps);
   if (again.finalized) return again;
-  throw Error(`背景卡的字这次没写进去（${again.note.replace(/，先用程序底稿。$/, '')}），再点一次「生成提示词」。`);
+  throw Error(`${textCardName(input)}这次没写进去（${again.note.replace(/，先用程序底稿。$/, '')}），再点一次「生成提示词」。`);
 }
 
 async function finalizeOnce(input, { call, sheets, model, rules, timeoutMs = 10 * 60 * 1000 }) {
@@ -169,7 +174,7 @@ async function finalizeOnce(input, { call, sheets, model, rules, timeoutMs = 10 
   const s = input.settings ?? {};
   const ask = [`视频设置：${modelLabel(s.model)}，参考模式，${s.ratio ?? ''}，${s.resolution ?? ''}，${target} 秒，生成音频${s.audio ? '开' : '关'}。`,
     `当前目录一共 ${files.length} 个文件。请先把它们全部 Read 一遍，再按清单核对和定稿，最后只输出 JSON。`].join('\n');
-  const system = finalSystem(input.kind, target, Boolean(input.sceneTexts?.length));
+  const system = finalSystem(input.kind, target, Boolean(input.sceneTexts?.length), Boolean(input.itemTexts?.length));
   const round = async (extraFiles, extraAsk) => parseFinal((await call({ system, prompt: extraAsk ? `${ask}\n${extraAsk}` : ask,
     files: [...files, ...extraFiles], model, timeoutMs })).text);
   let first;
@@ -179,6 +184,8 @@ async function finalizeOnce(input, { call, sheets, model, rules, timeoutMs = 10 
     try {
       final = await round([{ name: '上次定稿.txt', buffer: Buffer.from(first.prompt) }],
         `上次定稿（上次定稿.txt）过不了程序检查，问题：${issues.join('；')}。在上次定稿基础上只改这些问题，其余不动，照同样格式输出 JSON。`);
+      // 11-16：第二轮只改规则问题、常把「改字解决不了」写成空的，第一轮列的要留着（实测棒球 3 条「可能压不住」全丢）。
+      final = { ...final, unfixable: [...first.unfixable, ...final.unfixable.filter(row => !first.unfixable.some(old => old.what === row.what))] };
       issues = rules(final.prompt);
     } catch (error) { return { ...fallback(`本机 agent 第二轮没成功（${String(error.message).slice(0, 120)}），先用程序底稿。`), unfixable: first.unfixable }; }
   }
@@ -201,9 +208,10 @@ export function finalNotes(result, agent = 'Claude') {
  */
 export function createFinalizer({ dataRoot, promptImages, media, sheets, fake, agentCall }) {
   return async function finalize({ kind, input, draft, rules, source = null, settings = {}, env }) {
-    const texts = input.sceneTexts ?? [];
+    const scenes = input.sceneTexts ?? [], items = input.itemTexts ?? [], texts = [...scenes, ...items];
+    const what = textCardName(input);
     if (fake && texts.length) {
-      const videoPrompt = fakeSceneTexts(draft.videoPrompt, texts);
+      const videoPrompt = fakeItemTexts(fakeSceneTexts(draft.videoPrompt, scenes), items, input.plan);
       return { ...draft, videoPrompt, issues: rules(videoPrompt), finalized: false, changes: [], sceneReads: sceneReadsOf(texts, texts.map(({ title }) => ({ title, read: FAKE_SCENE_READ }))) };
     }
     if (fake) return { ...draft, issues: rules(draft.videoPrompt), finalized: false, changes: [] };
@@ -213,15 +221,16 @@ export function createFinalizer({ dataRoot, promptImages, media, sheets, fake, a
       try {
         materials = await resolveFinalMaterials(input.materials, source, { promptImages, media });
         if (texts.length) clip = source ? media.checkSource(source) : null;
-        if (texts.length && !clip) throw Error('这张视频卡没存原片，截不了背景卡对应的那一刻');
+        if (texts.length && !clip) throw Error('这张视频卡没存原片，截不了卡片对应的那一刻');
       } catch (error) {
-        if (texts.length) throw Error(`背景卡的字这次没写进去（准备看图的素材没成功：${error.message}），再点一次「生成提示词」。`);
+        if (texts.length) throw Error(`${what}这次没写进去（准备看图的素材没成功：${error.message}），再点一次「生成提示词」。`);
         const note = `准备看图的素材没成功（${error.message}），先用程序底稿。`;
         return { ...draft, warnings: [...draft.warnings, note], issues: rules(draft.videoPrompt), finalized: false, changes: [] };
       }
       const result = await finalizePrompt({ kind, draft: draft.videoPrompt, materials, plan: input.plan, userText: input.userText, warnings: draft.warnings,
         settings: { ...settings, model: settings.model ?? input.model }, duration: input.duration, folder,
-        ...(texts.length ? { sceneTexts: sceneTextRows(texts, input.plan, clip.duration), sourceVideo: { path: clip.path } } : {}) },
+        ...(texts.length ? { sourceVideo: { path: clip.path } } : {}), ...(scenes.length ? { sceneTexts: sceneTextRows(scenes, input.plan, clip.duration) } : {}),
+        ...(items.length ? { itemTexts: itemTextRows(items, input.plan, clip.duration) } : {}) },
       { call: agentCall(env), sheets, model: agent.agentModel, rules });
       return { ...draft, videoPrompt: result.videoPrompt, warnings: [...draft.warnings, ...finalNotes(result, agent.agentName)], issues: result.issues,
         finalized: result.finalized, changes: result.changes, ...(texts.length ? { sceneReads: sceneReadsOf(texts, result.sceneReads) } : {}) };

@@ -18,8 +18,8 @@ export function nearestPointOnPolyline(points: readonly Point[], mouse: Point): 
   return nearest;
 }
 
-export function canCutEdge(state: { refPicking: boolean; connecting: boolean; selecting: boolean; dragging: boolean }): boolean {
-  return !state.refPicking && !state.connecting && !state.selecting && !state.dragging;
+export function canCutEdge(state: { connecting: boolean; selecting: boolean; dragging: boolean }): boolean {
+  return !state.connecting && !state.selecting && !state.dragging;
 }
 
 /** 剪刀在标签 portal 中，不是 SVG 连线的 DOM 子元素。 */

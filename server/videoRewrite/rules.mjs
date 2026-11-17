@@ -42,7 +42,7 @@ export const sceneChangePoints = plan => sceneItems(plan).slice(1).map(item => (
 export const planChangeSeconds = plan => [...new Set([...outfitChangeSeconds(plan), ...sceneChangePoints(plan).map(point => point.second)])].sort((a, b) => a - b);
 
 /** 区间统一写成“0-6秒”；源视频小数时长四舍五入为生成时长（源已限 4~30 秒，结果仍在 2.5 的 4~30 秒内）。 */
-export function checkRules({ videoPrompt, materials = [], duration, changeSeconds, plan }) {
+export function checkRules({ videoPrompt, materials = [], duration, changeSeconds, plan, itemTexts = [] }) {
   const text = typeof videoPrompt === 'string' ? videoPrompt : '';
   const issues = [];
   if (!text.trim()) issues.push('请填写视频提示词。');
@@ -78,8 +78,10 @@ export function checkRules({ videoPrompt, materials = [], duration, changeSecond
   const known = new Set(materials.map(item => item.tag));
   const mentions = [...text.matchAll(/@(?:图片|视频|音频)\d+/g)];
   const mentioned = new Set(mentions.map(match => match[0]));
+  // 11-16：卡上写了字的衣服 / 东西不查原描述——用户写「跟原来一样」时照原片写是对的（实测被这条打回，多跑一轮才过）。
+  const texted = new Set(itemTexts.map(row => row.itemId));
   const originals = [...materials.map(material => ({ label: material.tag, desc: material.originalDesc })),
-    ...(plan?.items ?? []).filter(item => plan.replace?.includes(item.id)).map(item => ({
+    ...(plan?.items ?? []).filter(item => plan.replace?.includes(item.id) && !texted.has(item.id) && !texted.has(item.sameAs)).map(item => ({
       label: materials.find(material => material.itemId === item.id)?.tag ?? `${item.kind} ${item.id}`, desc: item.desc
     }))];
   for (const { label, desc } of originals) {

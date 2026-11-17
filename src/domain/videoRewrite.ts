@@ -12,6 +12,7 @@ import { clothesFrameRegion, keptClothes, REWRITE_CLOTHES_ASPECT, rewriteClothes
 import type { MotionReference } from './motionReference';
 import { missingDepthConfig, meshConfigProblem } from './health';
 import { compareCard, compareSecond, frameAspect, type RewriteRow } from './rewriteRows';
+import { rewritePeers } from './rewritePeers';
 
 export const REWRITE_VIDEO_MODEL = 'doubao-seedance-2-5-260628';
 /** 背景卡的用途以「背景」开头，小服务按这个检查提示词里有没有写它是场景；别写「去掉」（视频提示词禁用编辑词）。 */
@@ -116,7 +117,7 @@ export function replacementItems(plan: RewritePlan) {
 }
 /** 要铺图片卡的项：要换的，加上勾了「衣服和原片保持一致」时要从原片抽的衣服。 */
 const cardItems = (state: VideoRewriteState) => [...replacementItems(state.plan!), ...(state.keepClothes ? keptClothes(state.plan!) : [])].sort(byCardOrder);
-function itemPurpose(item: RewriteItem, items: readonly RewriteItem[]) {
+export function itemPurpose(item: RewriteItem, items: readonly RewriteItem[]) {
   const peers = items.filter(entry => entry.kind === item.kind).sort((a, b) => a.from - b.from);
   const number = peers.findIndex(entry => entry.id === item.id) + 1;
   if (item.kind === '衣服') return `衣服 ${number}（${Math.round(item.from * 10) / 10}-${Math.round(item.to * 10) / 10} 秒穿）`;
@@ -231,10 +232,7 @@ export function prepareRewriteCards({ state, nodes, edges, takeNumber, makeId, k
 /** 发送和免费检查依照当前入线编号。 */
 export function videoRewriteMaterials(nodes: readonly CardNode[], edges: readonly Pick<Edge, 'source' | 'target'>[], videoId: string): RewriteMaterial[] {
   const counts = { image: 0, video: 0, audio: 0 };
-  const items = edges.filter(edge => edge.target === videoId).flatMap(edge => {
-    const node = nodes.find(candidate => candidate.id === edge.source);
-    return node?.data.kind === 'image' && node.data.rewriteItem ? [node.data.rewriteItem] : [];
-  });
+  const items = rewritePeers(nodes, edges, videoId);
   return edges.filter(edge => edge.target === videoId).flatMap(edge => {
     const node = nodes.find(candidate => candidate.id === edge.source);
     if (!node) return [];

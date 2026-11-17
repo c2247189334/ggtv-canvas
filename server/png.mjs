@@ -20,6 +20,31 @@ function chunk(type, data) {
   return Buffer.concat([length, body, crc]);
 }
 
+/** 造一张带透明底的 PNG（RGBA 8 位）：中间一个实心椭圆，椭圆外全透明。假图层分离用。 */
+export function shapePng(width, height, [r, g, b]) {
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header[8] = 8;
+  header[9] = 6; // RGBA
+  const rows = [];
+  for (let y = 0; y < height; y += 1) {
+    const row = Buffer.alloc(1 + width * 4);
+    for (let x = 0; x < width; x += 1) {
+      const dx = (x + 0.5) / width - 0.5, dy = (y + 0.5) / height - 0.5;
+      if (dx * dx + dy * dy > 0.25) continue;
+      row.set([r, g, b, 255], 1 + x * 4);
+    }
+    rows.push(row);
+  }
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', header),
+    chunk('IDAT', deflateSync(Buffer.concat(rows))),
+    chunk('IEND', Buffer.alloc(0))
+  ]);
+}
+
 /** 造一张 width×height 的纯色 PNG（RGB 8 位）。 */
 export function solidPng(width, height, [r, g, b]) {
   const header = Buffer.alloc(13);

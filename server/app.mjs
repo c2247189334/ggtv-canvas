@@ -25,11 +25,14 @@ import { createUploadRecords } from './store/uploadRecords.mjs';
 import { createWorkStore } from './store/works.mjs';
 import { createCharacterStore } from './store/characters.mjs';
 import { characterRoutes } from './routes/characters.mjs';
+import { createLayerQueue } from './layerQueue.mjs';
+import { layerJobRoutes } from './routes/layerJobs.mjs';
+import { createFakeLayers, createFakeRedraw } from './fakeLayers.mjs';
 
 /** npm run dev 时页面所在的端口（vite.config.ts 里写的），它发来的写请求也放行。 */
 export const DEV_PORT = 5280;
 
-export function createApp({ dataRoot, distDir, port, fake, readEnv, generate, videoClient, uploadVideo,
+export function createApp({ dataRoot, distDir, port, fake, readEnv, generate, videoClient, uploadVideo, splitLayers, redrawLayer,
   videoPollMs = 10000, fakeDelayMs = 0, logError, log, concurrency = DEFAULT_CONCURRENCY, executor, rewrite, videoRewrite = {} }) {
   const stores = {
     canvases: createCanvasStore(dataRoot),
@@ -45,12 +48,17 @@ export function createApp({ dataRoot, distDir, port, fake, readEnv, generate, vi
     pollMs: videoPollMs, logError, log });
   const media = createLocalMedia({ ...stores, dataRoot, readEnv, fake, executor, logError });
   const depthQueue = createDepthQueue({ ...stores, media });
+  // 没注入时：假模式用假图层分离；真模式由 start.mjs 注入真的（测试里不注入又不是假模式，交单会在这里报错，不会花钱）。
+  const layerQueue = createLayerQueue({ ...stores, logError, log,
+    split: splitLayers ?? (fake ? createFakeLayers({ delayMs: fakeDelayMs }) : async () => { throw new Error('UNKNOWN'); }),
+    redraw: redrawLayer ?? (fake ? createFakeRedraw({ delayMs: fakeDelayMs }) : async () => { throw new Error('UNKNOWN'); }) });
   const router = createRouter();
   canvasRoutes(router, { ...stores, depthQueue });
   assetRoutes(router, stores);
   jobRoutes(router, { ...stores, queue, readEnv, fake });
   characterRoutes(router, { ...stores, queue, readEnv, fake });
   videoJobRoutes(router, { ...stores, videoQueue, readEnv, fake });
+  layerJobRoutes(router, { ...stores, layerQueue, readEnv, fake });
   localMediaRoutes(router, { media, depthQueue });
   const sheets = videoRewrite.sheets ?? createSheets({ executor });
   const promptImages = videoRewrite.promptImages ?? createPromptImages({ ...stores, executor });
@@ -65,5 +73,5 @@ export function createApp({ dataRoot, distDir, port, fake, readEnv, generate, vi
   };
   rewriteRoutes(router, { readEnv, fake, spend: stores.spend, rewrite: rewrite ?? (fake ? fakeRewrite : agentRewrite) });
   const handler = createHandler({ router, distDir, allowedPorts: [port, DEV_PORT], logError });
-  return { handler, queue, videoQueue, depthQueue, stores, stopVideoRewrite: () => { sheets.stop(); promptImages.stop(); } };
+  return { handler, queue, videoQueue, depthQueue, layerQueue, stores, stopVideoRewrite: () => { sheets.stop(); promptImages.stop(); } };
 }

@@ -60,6 +60,12 @@ type CardBase = {
 /** refs：按连线顺序每张参考当时那张（`upload:编号` / `work:编号` / `none`）；prompt：当时的提示词。 */
 export type SentInputs = { refs: string[]; prompt: string };
 
+/** 11-16 图层分离的结果：拆的是哪张图、底图（零件拿走后补好的）和各层（都是作品），box 是在底图上的像素位置（左上右下）。 */
+export type LayerItem = { work: string; name: string; box: [number, number, number, number] };
+export type LayerSplit = { source: AssetRef; base: string; width: number; height: number; items: LayerItem[] };
+/** 11-16 图层重绘在跑的单：from 是送去重绘的那层作品，box / name 是出好后落回卡上用的（box 在这张卡的底图像素上）。 */
+export type LayerRedrawPending = { job: string; from: string; name: string; box: [number, number, number, number] };
+
 export type VideoGenSettings = VideoSettings & { count: 1 | 2 | 4 };
 export type ImageCardData = CardBase & { kind: "image"; gen: GenSettings; video?: never; assetId?: string;
   productRole?: ProductRole;
@@ -70,8 +76,10 @@ export type ImageCardData = CardBase & { kind: "image"; gen: GenSettings; video?
   rewriteSceneId?: string;
   /** 11-11：还没图时卡框的宽高比（宽 ÷ 高），和左边的原片截图一样大；有图后照图的比例。 */
   emptyAspect?: number;
-  /** 11-13 改写背景卡「不出图，用文字」：开着时线剪掉、卡上写的字（rewriteSceneText）交给本机 agent 结合原片写；改回用图后字留着。 */
-  rewriteTextOn?: boolean; rewriteSceneText?: string };
+  /** 11-13 改写背景卡「不出图，用文字」：开着时线剪掉、卡上写的字（rewriteSceneText）交给本机 agent 结合原片写；改回用图后字留着。11-16 起衣服卡、东西卡也用这两个字段。 */
+  rewriteTextOn?: boolean; rewriteSceneText?: string;
+  /** 11-16 图层分离：在拆的单号；拆好的结果留在卡上，下次点开直接摆，不用再花钱。 */
+  layerJob?: string; layerSplit?: LayerSplit; layerRedraw?: LayerRedrawPending };
 /** 11-13 生成提示词时 agent 对每张背景卡的字怎么理解（text 是当时卡上的字，用来发现之后又改过）。 */
 export type SceneRead = { title: string; text: string; read: string; cardId?: string };
 export type VideoCardData = CardBase & { kind: "video"; video: VideoGenSettings; gen?: never; assetId?: never; rewriteId?: string; rewriteSourceId?: string; rewriteSource?: AssetRef; rewriteChangeSeconds?: number[];
@@ -85,7 +93,8 @@ export type AudioCardData = CardBase & { kind: "audio"; gen?: never; video?: nev
 export type CardData = ImageCardData | VideoCardData | AudioCardData;
 export type CardPatch = Partial<Omit<CardBase, "source" | "number">> & { gen?: GenSettings; video?: VideoGenSettings; assetId?: string;
   rewriteItem?: RewriteItem; rewritePlan?: RewritePlan; rewriteUserText?: string; rewriteWarnings?: string[]; productPlan?: ProductPlan;
-  rewriteTextOn?: boolean; rewriteSceneText?: string; rewriteSceneReads?: SceneRead[] };
+  rewriteTextOn?: boolean; rewriteSceneText?: string; rewriteSceneReads?: SceneRead[];
+  layerJob?: string; layerSplit?: LayerSplit; layerRedraw?: LayerRedrawPending };
 
 export type CardNode = Node<CardData, "card">;
 
@@ -106,6 +115,14 @@ export type CanvasSummary = { id: string; name: string; updatedAt: string };
 export type JobStatus = "queued" | "running" | "succeeded" | "failed" | "uncertain" | "missing";
 
 export type JobPhase = "uploading" | "submitting" | "waiting" | "downloading" | null;
+export type LayerJobView = { id: string; kind: "layers"; status: JobStatus; error: string | null; errorCode?: string | null;
+  source?: AssetRef; layers?: Omit<LayerSplit, "source"> | null };
+export type LayerRedrawView = { id: string; kind: "layer-redraw"; status: JobStatus; error: string | null; errorCode?: string | null;
+  redraw?: { from: string; work: string } | null };
+export type LayerRedrawRequest = { canvasId: string; cardId: string; layer: string; name: string; text: string };
+export type LayerJobRequest = { canvasId: string; cardId: string; source: { type: "upload" | "work"; id: string };
+  origin: { type: "upload" | "work"; id: string }; text: string;
+  boxes: Array<[number, number, number, number]> };
 export type JobView = { id: string; kind?: "image" | "video"; status: JobStatus; phase?: JobPhase; warning?: string | null; blocked?: number[]; createdAt: string; count: number; works: string[]; error: string | null; errorCode?: string | null; workMeta?: Array<{ id: string; duration: number; width: number; height: number; hasAudio?: boolean; fps?: number | null }> };
 export type DepthJobView = Omit<JobView, "kind" | "phase"> & { kind: "depth" | "mesh"; phase: "processing" | null;
   errorCode: string | null; source: LocalMediaSource; resolution: "480p" | "720p" };
@@ -131,6 +148,8 @@ export type WorkView = {
   source?: LocalMediaSource;
   resolution?: string;
   elapsedSeconds?: number;
+  /** 11-16 图层分离存的底图 / 图层（作品库不显示）。 */
+  layer?: { role: "base" | "layer" };
 };
 
 export type ConfigPresence = { filled: boolean; found: boolean };

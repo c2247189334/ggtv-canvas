@@ -4,6 +4,7 @@ export const SERVER_FILES = [
   'mp4', 'net', 'png', 'pricing', 'queue', 'rewrite', 'seedance', 'seedream',
   'soundtrack', 'start', 'tos', 'videoJobInput', 'videoModels', 'videoQueue',
   'videoReferences', 'wav', 'characterInput', 'characterPolicy',
+  'fakeLayers', 'layerInput', 'layerQueue', 'layerSplit', 'routes/layerJobs',
   'depth/executor', 'depth/local', 'depth/queue', 'depth/videoClip',
   'mesh/cleanup', 'mesh/client', 'mesh/errors', 'mesh/local', 'mesh/process', 'mesh/purpose',
   'mesh/segments', 'mesh/workflow',
@@ -15,7 +16,7 @@ export const SERVER_FILES = [
   'store/uploadRecords', 'store/uploads', 'store/works',
   'agent', 'agentProcess', 'claude', 'codex',
   'videoRewrite/analysisImages', 'videoRewrite/analyze', 'videoRewrite/claudeAsk', 'videoRewrite/finalPrompt', 'videoRewrite/fake', 'videoRewrite/input', 'videoRewrite/backgroundFrames',
-  'videoRewrite/lookPeople', 'videoRewrite/modelJson', 'videoRewrite/promptImages',
+  'videoRewrite/itemTexts', 'videoRewrite/lookPeople', 'videoRewrite/modelJson', 'videoRewrite/promptImages',
   'videoRewrite/roles', 'videoRewrite/rules', 'videoRewrite/sceneTexts', 'videoRewrite/session', 'videoRewrite/sheets', 'videoRewrite/storage',
   'videoRewrite/writePrompt',
 ].map(name => `server/${name}.mjs`).concat('server/depth/depth_video.py');

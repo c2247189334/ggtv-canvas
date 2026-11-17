@@ -26,13 +26,13 @@ describe("nearestPointOnPolyline", () => {
 });
 
 describe("edge cut policy", () => {
-  const idle = { refPicking: false, connecting: false, selecting: false, dragging: false };
+  const idle = { connecting: false, selecting: false, dragging: false };
   it("空闲时允许悬停和剪断", () => expect(canCutEdge(idle)).toBe(true));
-  it.each(["refPicking", "connecting", "selecting", "dragging"] as const)("%s 时同时禁止悬停和剪断", key => {
+  it.each(["connecting", "selecting", "dragging"] as const)("%s 时同时禁止悬停和剪断", key => {
     expect(canCutEdge({ ...idle, [key]: true })).toBe(false);
   });
   it("多个受限状态同时存在也禁止", () => {
-    expect(canCutEdge({ refPicking: true, connecting: true, selecting: true, dragging: true })).toBe(false);
+    expect(canCutEdge({ connecting: true, selecting: true, dragging: true })).toBe(false);
   });
   it.each([
     [true, false, true], [false, true, true], [true, true, true], [false, false, false]

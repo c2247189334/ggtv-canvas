@@ -29,6 +29,7 @@ The motion reference (a depth map or a 3D body mesh) is computed on your own NVI
 - **Motion reference (optional, runs on your GPU, free)** — a depth map (Video-Depth-Anything Small) or a body mesh (ComfyUI + SAM 3D Body).
 - **Infinite canvas** — multiple canvases; place image and video cards anywhere and connect them to use one as a reference for another; group cards with Ctrl+G.
 - **Image generation / editing** — Seedream 5.0 (Flash / Lite).
+- **Layer split** — split an image into a base plus transparent layers; move, scale, rotate and flip them, add layers split from another image, have the AI redraw a single layer, then merge into a new image.
 - **Video generation** — Seedance 2.0 Mini / Fast / 2.0 / 2.5; images, videos and audio can all serve as references.
 - **Library** — generated images, videos and audio are collected automatically and can be dragged back onto the canvas; "My uploads" keeps the images and videos you uploaded (one copy per file), and a "Characters" page stores reusable characters.
 - **Video utilities** — extract the original soundtrack, trim a clip, capture a frame (current / first / last); a "rewrite for me" button asks your local AI agent to polish your prompt.
@@ -73,7 +74,7 @@ You need: Windows, [Node.js](https://nodejs.org/) 22.12 or newer, ffmpeg (with f
 3. Copy `.env.example` to `.env.local` and fill in your Ark key and TOS settings.
 4. Double-click `一键启动.bat` (one-click start). Your browser opens `http://127.0.0.1:5290`. When you are done, close the console window or double-click `停止.bat` (stop).
 
-The start script never installs anything on its own; if something is missing it stops and tells you what. Step-by-step details, the optional depth / mesh installs and troubleshooting are in the **[installation guide](docs/安装说明.md)** (Chinese).
+The start script never installs anything on its own; if something is missing it stops and tells you what. Step-by-step details, the optional depth / mesh installs and troubleshooting are in the **[installation guide](docs/安装说明.md)** (Chinese). Once it is running, the **[usage guide](docs/使用教程.md)** (Chinese, with screenshots) walks through the first image, a full video rewrite and the rules that are easy to miss.
 
 | Optional | Needs | How |
 | --- | --- | --- |
@@ -103,6 +104,7 @@ Day-to-day development: `npm run dev` (web, port 5280) and `npm start` (local se
 | `server/` | Local server: Node built-in modules only, no third-party runtime dependency |
 | `scripts/` | Packaging, smoke test, depth installer, mesh environment check |
 | `docs/安装说明.md` | Full installation guide for end users (Chinese) |
+| `docs/使用教程.md` | Usage guide: first image, video rewrite walkthrough, rules and common messages (Chinese) |
 
 ## Security and privacy
 

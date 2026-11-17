@@ -42,7 +42,7 @@ it('用文字的卡面板：写字框、占位提示、字数、改回用图；�
   expect(html).toContain('改回用图'); expect(html).toContain('球都换成篮球'); expect(html).toContain('6/300');
   expect(html).toContain('写这一段想要的背景，大白话就行'); expect(html).not.toContain('发送');
   const reads = renderToStaticMarkup(<SceneReads reads={[{ title: '背景 2', text: '球都换成篮球', read: '脚下和身后都是篮球' }]} />);
-  expect(reads).toContain('背景卡的字我是这么理解的'); expect(reads).toContain('背景 2：你写「球都换成篮球」→ 脚下和身后都是篮球');
+  expect(reads).toContain('卡上的字我是这么理解的'); expect(reads).toContain('背景 2：你写「球都换成篮球」→ 脚下和身后都是篮球');
   expect(renderToStaticMarkup(<SceneReads />)).toBe('');
 });
 
@@ -60,4 +60,17 @@ it('线就是开关：用文字的背景卡自己拖线连回视频卡 = 改回�
   expect(graph.edges.map(edge => [edge.source, edge.target])).toEqual([['bg', 'video']]);
   expect((graph.nodes[0].data as ImageCardData).rewriteTextOn).toBe(false);
   expect((graph.nodes[0].data as ImageCardData).rewriteSceneText).toBe('篮球');
+});
+
+// 11-16 衣服卡、东西卡也能用文字（设计 docs/specs/2026-11-16-衣服卡和东西卡用文字-design.md）；人物卡不行（上面那条测了）。
+it('衣服卡、东西卡也有这个按钮：点了剪线、开用文字；面板占位字按类分', () => {
+  const item = (kind: '衣服' | '道具') => ({ ...newCard('generate', 3), rewriteId: 'batch', title: kind, rewriteItem: { id: 'X1', kind, desc: '原片的样子', from: 0, to: 4, frame: 1 } }) as ImageCardData;
+  click(item('衣服'));
+  expect(board.disconnect).toHaveBeenCalledWith('bg', 'video');
+  expect(board.updateCard).toHaveBeenCalledWith('bg', { rewriteTextOn: true, rewriteSceneText: '' });
+  expect(SceneTextToggle({ id: 'bg', data: item('道具') })).not.toBeNull();
+  expect(SceneTextToggle({ id: 'bg', data: { ...item('衣服'), productRole: { role: 'product' } } as ImageCardData })).toBeNull();
+  const clothes = renderToStaticMarkup(<SceneTextPanel id="bg" data={{ ...item('衣服'), rewriteTextOn: true, rewriteSceneText: '黑色小礼服' }} />);
+  expect(clothes).toContain('写这套衣服想要的样子'); expect(clothes).toContain('黑色小礼服'); expect(clothes).toContain('对照原片写进提示词');
+  expect(renderToStaticMarkup(<SceneTextPanel id="bg" data={{ ...item('道具'), rewriteTextOn: true }} />)).toContain('写这样东西想换成什么');
 });

@@ -10,6 +10,8 @@
 
 **[⬇ 下载最新整合包（Windows）](../../releases/latest)**　页面已经打包好，不用 `npm install`：解压、填密钥、双击 `一键启动.bat` 就能用。
 
+**[📖 使用教程](docs/使用教程.md)**　装好以后怎么用：5 分钟出第一张图、一步步走一遍视频改写、不看说明不知道的规矩。
+
 > **English** — GG TV (`ggtv-canvas`) does motion-preserving AI video rewrite on a local, Windows-first infinite canvas: turn a 4–30 s clip into a new video with a different person, outfit or background while keeping the original motion. The motion reference is a local depth map (Video-Depth-Anything Small) or a 3D body mesh (ComfyUI + SAM 3D Body); generation uses Volcengine Ark models (Seedream 5.0, Seedance 2.0 / 2.5); clip analysis and prompt writing run through a local AI agent (Claude Code and Codex built in, pluggable for others). The UI is in Chinese. Free for noncommercial use (PolyForm Noncommercial 1.0.0). Individuals may publish and monetize what they generate.
 
 ![GG TV 画布：白模、背景、人物三视图和改写出来的视频连在一张画布上](docs/images/canvas.png)
@@ -31,6 +33,7 @@
 - **动作参考（选装，用本机显卡算，不花钱）**：深度图（Video-Depth-Anything Small）或白模（ComfyUI + SAM 3D Body）。
 - **无限画布**：多张画布，图片卡、视频卡随便摆，连线就能当参考；卡片可以打组（Ctrl+G）。
 - **出图 / 改图**：Seedream 5.0（Flash / Lite）。
+- **图层分离**：把一张图拆成底图和几个透明图层，拖动、缩放、旋转、翻转，能加进别的图拆出来的图层，也能让 AI 单独重画某一层，摆好后合并成一张新图。
 - **出视频**：Seedance 2.0 Mini / Fast / 2.0 / 2.5；图片、视频、声音都能当参考。
 - **作品库**：生成的图、视频、声音自动入库，能拖回画布接着用；「我上传的」留着你从电脑传过的图和视频，同一个文件只存一份；「人物」页能把图存为人物反复用。
 - **视频小工具**：提取原声、片段截取、视频截图（当前帧 / 首帧 / 尾帧）；写提示词时点「帮我改写」让本机 AI 助手润色。
@@ -59,6 +62,8 @@
 出图、出视频调用火山方舟，按量计费，费用从**你自己的火山账号**扣，中间没有任何加价。作者 2026-11 实测：一条 15 秒 480P 的视频改写约 ¥11.72。深度和白模在本机显卡上算，AI 助手用你自己的订阅额度，都不产生额外费用。
 
 ## 使用小贴士
+
+一步步怎么操作、每个按钮和勾选项是什么意思，见 **[使用教程](docs/使用教程.md)**。这里只列三条最容易花冤枉钱的：
 
 - **点「发送」就会交单计费**（Ctrl+Enter 同样），发之前看一眼提示词和设置。卡片显示「可能已建任务」时，先去火山控制台的任务列表看一眼再决定要不要重发。
 - **参考视频建议压到 64MB 以内**，上传更稳。
@@ -105,6 +110,7 @@ npm run smoke       # 整合包冒烟测试：解压、不装依赖、假火山�
 | `server/` | 本机小服务：只用 Node 自带模块，没有第三方运行依赖 |
 | `scripts/` | 打包、冒烟测试、深度安装、白模体检 |
 | `docs/安装说明.md` | 给普通用户的完整安装说明 |
+| `docs/使用教程.md` | 装好以后怎么用：出图、视频改写、规矩和常见提示 |
 
 ## 安全和隐私
 

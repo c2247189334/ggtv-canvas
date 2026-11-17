@@ -3,6 +3,21 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号按 [语义化版本](https://semver.org/lang/zh-CN/)。
 Format follows Keep a Changelog; versions follow Semantic Versioning.
 
+## [未发布] / Unreleased
+
+这一节的内容在源码里已经有了，0.1.1 的整合包里还没有。Everything in this section is in the source tree but not yet in the 0.1.1 bundle.
+
+### 新增 / Added
+
+- 使用教程：`docs/使用教程.md`，带截图，讲怎么出第一张图、一步步走视频改写、容易漏掉的规矩和常见提示。Usage guide (`docs/使用教程.md`, Chinese, with screenshots): the first image, a full video rewrite walkthrough, easy-to-miss rules and common messages.
+- 图层分离：图片卡工具条点「图层分离」，把图拆成底图和几个透明图层；图层能拖动、缩放、旋转、翻转、调上下层，能加进别的图拆出来的图层，摆好后合并成一张新图。拆分按出图计费，摆放和合并在本机完成、不花钱。Layer split: split an image into a base plus transparent layers from the image card toolbar; move, scale, rotate, flip and reorder layers, add layers split from another image, then merge into a new image. Splitting is billed as image generation; arranging and merging run locally at no cost.
+- 图层重绘：在图层编辑里选中一层、写一句话，只重画这一层（透明底）。Layer redraw: pick one layer, describe the change, and only that layer is redrawn on a transparent background.
+- 视频改写的衣服卡和道具、遮挡物这类东西的卡也能选「不出图，用文字」（之前只有背景卡能用）：卡上写一句大白话，生成提示词时由本机 agent 对照原片写进去；人物卡仍然必须有图。Outfit cards and prop / occluder cards in video rewrite can now use "text instead of an image" (previously background cards only): write a plain sentence and the local agent works it into the prompt against the source clip. Person cards still need an image.
+
+### 改动 / Changed
+
+- 去掉提示词面板左上角的「＋参考」按钮和点选参考模式：加参考改为从别的卡拖线到目标卡左边的小圆点，或点卡旁边的 ＋。Removed the "+ Reference" button and its pick mode from the prompt panel: add a reference by dragging a line from another card onto the target card's left dot, or with the + beside a card.
+
 ## [0.1.1] - 2026-11-15
 
 ### 新增 / Added

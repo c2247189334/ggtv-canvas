@@ -25,9 +25,7 @@ import { useBoardMenus, type PendingLink } from "@/canvas/useBoardMenus";
 import { PendingConnection } from "@/canvas/PendingConnection";
 import { ShortcutHelp } from "@/canvas/ShortcutHelp";
 import { useAltDrag } from "@/canvas/useAltDrag";
-import { useRefPick } from "@/canvas/useRefPick";
-import { RefPickBar } from "@/canvas/RefPickBar";
-import { CutEdge, EdgeCutRefPickContext } from "@/canvas/CutEdge";
+import { CutEdge } from "@/canvas/CutEdge";
 import type { Notify } from "@/common/Toast";
 import { boardPointerControls, shouldShowMultiSelection } from "@/domain/boardControls";
 import { boardKeyboardControls } from "@/domain/selection";
@@ -48,6 +46,8 @@ import { useBoardCharacters } from './useBoardCharacters';
 import { SaveCharacterDialog } from '@/library/SaveCharacterDialog';
 import { CHARACTER_DRAG_TYPE } from '@/library/characterEvents';
 import { useProductRemake } from './useProductRemake';
+import { useLayers } from './useLayers';
+import { LayerEditor } from './LayerEditor';
 
 function CardView(props: NodeProps<CardNode>) {
   return props.data.kind === "audio" ? <AudioCard {...props} /> : props.data.kind === "video" ? <VideoCard {...props} /> : <ImageCard {...props} />;
@@ -111,13 +111,14 @@ function Board(props: BoardProps) {
   const actions = useBoardActions(doc, history, () => closeMenu.current(), notify, stopLocal, groups);
   const characters = useBoardCharacters(doc, notify, actions.selectedNodes, groups.clear);
   const altDrag = useAltDrag(doc);
-  const refPick = useRefPick(doc, cards, () => closeMenu.current());
   const menus = useBoardMenus(cards, doc, actions, history, pending, () => setPending(null), groups, characters);
   closeMenu.current = menus.close;
   useJobPolling(doc.nodes, doc.setNodes);
   const localMedia = useLocalMedia({ canvasId: canvas.id, nodes: doc.nodes, setNodes: doc.setNodes, setEdges: doc.setEdges, takeNumber: doc.takeNumber, notify });
   const videoClip = useVideoClip({ canvasId: canvas.id, nodes: doc.nodes, setNodes: doc.setNodes, setEdges: doc.setEdges, notify });
   const captureFrame = useFrameCapture({ setNodes: doc.setNodes, setEdges: doc.setEdges, notify });
+  const layers = useLayers({ canvasId: canvas.id, nodes: doc.nodes, setNodes: doc.setNodes, notify });
+  const layerNode = layers.openId ? doc.nodes.find(node => node.id === layers.openId) : undefined;
 
   useEffect(() => {
     if (doc.ready && flow.getNodes().length) void flow.fitView({ padding: 0.2, maxZoom: 1 });
@@ -137,6 +138,7 @@ function Board(props: BoardProps) {
       stopLocal,
       videoClip,
       captureFrame,
+      openLayers: layers.open,
       videoRewrite,
       productRemake,
       turnPage: cards.turnPage,
@@ -144,11 +146,10 @@ function Board(props: BoardProps) {
       disconnect: cards.disconnect,
       connect: cards.connect,
       send,
-      startRefPick: refPick.start,
       openRefMenu: menus.openRefMenu,
       openNextMenu: menus.openNextMenu
     }),
-    [openViewer, notify, localMedia, stopLocal, videoClip, captureFrame, videoRewrite, productRemake, cards, send, refPick.start, menus.openRefMenu, menus.openNextMenu]
+    [openViewer, notify, localMedia, stopLocal, videoClip, captureFrame, layers.open, videoRewrite, productRemake, cards, send, menus.openRefMenu, menus.openNextMenu]
   );
 
   /** 改写图片卡原位补图；其他落点沿用新建卡。 */
@@ -183,12 +184,11 @@ function Board(props: BoardProps) {
 
   return (
     <BoardContext.Provider value={board}>
-      <EdgeCutRefPickContext.Provider value={refPick.active}>
       <ReactFlow<CardNode, Edge>
         {...boardPointerControls}
         {...boardKeyboardControls}
         panActivationKeyCode={videoClip.session ? null : boardPointerControls.panActivationKeyCode}
-        className={`board${showMultiSelection ? " board--multi-selection" : ""}${refPick.active ? " board--ref-pick" : ""}${groups.selected ? ' board--group-selected' : ''}`}
+        className={`board${showMultiSelection ? " board--multi-selection" : ""}${groups.selected ? ' board--group-selected' : ''}`}
         colorMode="dark"
         nodes={doc.nodes.map(node => node.id === dropHighlight && !node.data.jobs.length
           ? { ...node, className: `${node.className ?? ''} rewrite-drop-target` } : node)}
@@ -196,13 +196,9 @@ function Board(props: BoardProps) {
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         defaultEdgeOptions={defaultEdgeOptions}
-        nodesDraggable={!refPick.active}
-        nodesConnectable={!refPick.active}
-        elementsSelectable={!refPick.active}
-        selectionOnDrag={!refPick.active}
-        onNodeClick={refPick.active ? refPick.onClickCapture : (_event, node) => groups.selectCard(node.id)}
+        onNodeClick={(_event, node) => groups.selectCard(node.id)}
         onSelectionStart={groups.clear}
-        onNodesChange={changes => actions.onNodesChange(refPick.active ? changes.filter(c => c.type !== "select") : changes)}
+        onNodesChange={changes => actions.onNodesChange(changes)}
         onEdgesChange={doc.onEdgesChange}
         onConnect={cards.onConnect}
         onConnectStart={() => closeMenu.current()}
@@ -213,24 +209,19 @@ function Board(props: BoardProps) {
         minZoom={0.1}
         maxZoom={MAX_ZOOM}
         onDoubleClick={menus.onDoubleClick}
-        onDoubleClickCapture={refPick.onDoubleClickCapture}
         onNodeDoubleClick={(event, node) => { if (!(event.target instanceof Element && event.target.closest(NOT_FOCUS))) cardFocus(node.id); }}
         onContextMenu={menus.onContextMenu}
-        onPaneClick={refPick.active ? undefined : () => { videoRewrite.close(); productRemake.close(); actions.deselect(); }}
+        onPaneClick={() => { videoRewrite.close(); productRemake.close(); actions.deselect(); }}
         onClick={actions.onClick}
-        onClickCapture={event => {
-          altDrag.onClickCapture(event);
-          if (!event.defaultPrevented) refPick.onClickCapture(event);
-        }}
+        onClickCapture={altDrag.onClickCapture}
         onPointerDownCapture={event => {
-          if (refPick.active) { refPick.onPointerDownCapture(event); return; }
           altDrag.onPointerDownCapture(event);
           const id = cardAtPointer(event.target, { x: event.clientX, y: event.clientY });
           if (!event.defaultPrevented && id) groups.selectCard(id);
           if (!event.defaultPrevented) actions.onPointerDownCapture(event);
         }}
-        onPointerMove={event => { actions.onPointerMove(event); refPick.onPointerMove(event); }}
-        onPointerLeave={() => { actions.onPointerLeave(); refPick.onPointerLeave(); }}
+        onPointerMove={actions.onPointerMove}
+        onPointerLeave={actions.onPointerLeave}
         onDragOver={(event) => {
           event.preventDefault();
           event.dataTransfer.dropEffect = "copy";
@@ -245,11 +236,9 @@ function Board(props: BoardProps) {
         onDrop={onDrop}
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1.6} color="#2b2b33" bgColor="#0e0e11" />
-        {!refPick.active ? <GroupFrames nodes={doc.nodes} selected={groups.selected} onPointerDown={groups.onPointerDown}
+        <GroupFrames nodes={doc.nodes} selected={groups.selected} onPointerDown={groups.onPointerDown}
           onContextMenu={menus.onContextMenu} onUngroup={groups.ungroup} onArrange={groups.arrange} onAddImage={productRemake.addImage}
-          onAddGroup={productRemake.addProduct} onSameAs={productRemake.setSameAs} /> : null}
-        {refPick.active ? <RefPickBar onReturn={refPick.returnToNode} onExit={refPick.exit}
-          label={refPick.label} onCancel={refPick.cancel} /> : null}
+          onAddGroup={productRemake.addProduct} onSameAs={productRemake.setSameAs} />
         <Panel position="top-left" className="board__corner">
           <BrandMark />
           <CanvasMenu current={canvas} canvases={props.canvases} onSwitch={props.onSwitch} onCreate={props.onCreate}
@@ -266,13 +255,14 @@ function Board(props: BoardProps) {
         {doc.nodes.length === 0 ? <div className="board__hint">双击空白处添加卡片，或者把图片拖进来</div> : null}
         <PendingConnection pending={pending} nodes={doc.nodes} />
       </ReactFlow>
-      </EdgeCutRefPickContext.Provider>
       {menus.menu ? <PopMenu at={{ x: menus.menu.x, y: menus.menu.y }} items={menus.menu.items} onClose={menus.close} /> : null}
       {actions.pendingRemove ? <Confirm text={stopConfirmText(actions.pendingRemove.count)} okLabel="删除并停止"
         onOk={actions.confirmRemove} onCancel={actions.cancelRemove} /> : null}
       {menus.assetDialog ? <AssetIdDialog value={menus.assetDialog.value} onSave={menus.saveAssetId} onClose={menus.closeAssetDialog} /> : null}
       {characters.images ? <SaveCharacterDialog images={characters.images} busy={characters.busy} error={characters.error}
         onSave={fields => void characters.save(fields)} onClose={characters.closeSave} /> : null}
+      {layerNode ? <LayerEditor node={layerNode} nodes={doc.nodes} onClose={layers.close} split={layers.split} merge={layers.merge}
+        redraw={layers.redraw} redrawn={layers.redrawn} /> : null}
       {picking ? (
         <WorksPicker
           includeVideo={picking.includeVideo}

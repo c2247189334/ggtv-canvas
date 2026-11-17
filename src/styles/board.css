@@ -54,14 +54,6 @@
 .shortcut-help__panel h3 { margin: 12px 0 6px; font-size: 12px; color: var(--muted); }
 .shortcut-help__row { padding: 4px 0; font-size: 13px; }
 .shortcut-help__row kbd { color: var(--muted); font-family: inherit; }
-.board--ref-pick .react-flow__node-card { cursor: pointer; }
-.ref-pick-bar { display: flex; align-items: center; gap: 12px; min-width: 480px; padding: 10px 14px; border-radius: 10px; background: #225ddb; color: #fff; box-shadow: var(--shadow); }
-.ref-pick-bar span { flex: 1; }
-.ref-pick-bar button { border-color: #ffffff66; background: #ffffff18; color: #fff; }
-.ref-pick-label { position: fixed; z-index: 900; padding: 14px 0 0 14px; max-width: 300px; color: #fff; font-size: 12px; pointer-events: none; }
-.ref-pick-label.is-cancel { pointer-events: auto; }
-.ref-pick-label span, .ref-pick-label button { display: block; padding: 6px 10px; border: 0; border-radius: 6px; background: #08080b; color: inherit; font-size: inherit; }
-.ref-pick-label button { cursor: pointer; }
 
 .board, .pop-menu { user-select: none; }
 .board input, .board textarea, .board [contenteditable],
