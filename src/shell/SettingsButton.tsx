@@ -4,6 +4,7 @@ import { useEscapeLayer } from "@/common/useEscapeLayer";
 import { subscribeOpenSettings } from "@/common/keyNeeded";
 import { featureChecklist, type FeatureRow } from "@/domain/featureChecklist";
 import type { Health } from "@/types";
+import { AgentPicker } from "./AgentPicker";
 import { KeyForm } from "./KeyForm";
 
 function Feature({ row }: { row: FeatureRow }) {
@@ -103,7 +104,7 @@ export function SettingsButton() {
             // （开着的时候不挪，「已保存」那句话才不会被挤到屏幕外）。
             (formFirst(health) ? ["keys", "health"] : ["health", "keys"]).map(part => part === "keys"
               ? <KeyForm key="keys" health={health} onSaved={check => { if (check) setKeyRejected(check === "rejected"); setReload(n => n + 1); }} />
-              : <HealthDetails key="health" health={health} keyRejected={keyRejected} />)
+              : <div key="health"><HealthDetails health={health} keyRejected={keyRejected} /><AgentPicker health={health} onChanged={() => setReload(n => n + 1)} /></div>)
           )}
         </div>
       ) : null}

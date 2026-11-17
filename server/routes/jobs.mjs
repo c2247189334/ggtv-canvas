@@ -1,5 +1,5 @@
 // 出图接口：交单、查进度；还有设置面板用的 health（Key 填没填、今天花了多少）。
-import { agentHealth } from '../agent.mjs';
+import { agentHealth, agentSettings } from '../agent.mjs';
 import { depthHealth, keyFilled, keyMissingText, meshHealth, tosFilled } from '../config.mjs';
 import { HttpError, readJson, sendJson } from '../http.mjs';
 import { checkJobInput } from '../jobInput.mjs';
@@ -77,6 +77,6 @@ export function jobRoutes(router, { jobs, queue, uploads, works, spend, readEnv,
     const env = readEnv(), local = agentHealth(env);
     // 本机 agent（拆解 / 看图 / 定稿提示词）用谁、好没好见 agent.mjs；假模式按就绪，页面按钮走假结果。
     sendJson(res, 200, { ok: true, fake, keyReady: keyFilled(env), tosReady: tosFilled(env), ...depthHealth(env), ...await meshHealth(env, { fake }),
-      ...local, agentReady: fake || local.agentReady, agentProblem: fake ? null : local.agentProblem, todayYuan: spend.totalOn(new Date()), uncertainToday });
+      ...local, ...agentSettings(env), agentReady: fake || local.agentReady, agentProblem: fake ? null : local.agentProblem, todayYuan: spend.totalOn(new Date()), uncertainToday });
   });
 }

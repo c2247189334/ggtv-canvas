@@ -77,3 +77,34 @@ test('接口：填好 health 立刻变已填，回包只有填没填、不带值
   assert.equal(refused.status, 400); assert.match(refused.json.error, /手动填/);
   await b.close();
 });
+
+// 11-17 用户定：本机 AI 助手用谁也在设置里点选，不用手改 .env.local。
+test('接口：选本机 AI 助手写进 AGENT_ENGINE、别的行不动，health 跟着变；只收 自动 / Claude / Codex', async () => {
+  const dir = tempDir(), file = join(dir, '.env.local');
+  writeFileSync(file, 'ARK_API_KEY=ark-keep\nAGENT_ENGINE=请填本机用哪个agent\n');
+  const app = createApp({ dataRoot: tempDir(), distDir: tempDir(), port: 5290, fake: false, readEnv: () => readEnvAt(file),
+    envFile: file, logError: () => {}, log: () => {} });
+  const s = await listen(app.handler);
+  const post = body => call(s.port, { method: 'POST', path: '/api/settings/agent', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const before = (await call(s.port, { path: '/api/health' })).json;
+  assert.equal(before.agentChoice, 'auto');
+  assert.deepEqual(before.agents.map(agent => agent.id), ['claude', 'codex']);
+  const saved = await post({ engine: 'codex' });
+  assert.equal(saved.status, 200);
+  assert.equal(saved.json.agentChoice, 'codex'); assert.equal(saved.json.agent, 'codex');
+  assert.equal(readFileSync(file, 'utf8'), 'ARK_API_KEY=ark-keep\nAGENT_ENGINE=codex\n');
+  assert.equal(JSON.stringify(saved.json).includes('ark-keep'), false);
+  assert.equal((await call(s.port, { path: '/api/health' })).json.agentChoice, 'codex');
+  assert.equal((await post({ engine: 'auto' })).json.agentChoice, 'auto');
+  for (const engine of ['gemini', '', 7, 'claude\nARK_API_KEY=x']) {
+    const bad = await post({ engine });
+    assert.equal(bad.status, 400); assert.match(bad.json.error, /只能选/);
+  }
+  assert.equal(readEnvAt(file).AGENT_ENGINE, 'auto'); assert.equal(readEnvAt(file).ARK_API_KEY, 'ark-keep');
+  await s.close();
+
+  const bare = createApp({ dataRoot: tempDir(), distDir: tempDir(), port: 5290, fake: false, readEnv: () => ({}), logError: () => {}, log: () => {} });
+  const b = await listen(bare.handler);
+  assert.equal((await call(b.port, { method: 'POST', path: '/api/settings/agent', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ engine: 'codex' }) })).status, 400);
+  await b.close();
+});

@@ -156,8 +156,11 @@ export type ConfigPresence = { filled: boolean; found: boolean };
 export type Health = { ok: boolean; fake: boolean; keyReady: boolean; tosReady: boolean; todayYuan: number; uncertainToday: number;
   depth?: { python: ConfigPresence; modelDir: ConfigPresence; extraPackages: ConfigPresence };
   mesh?: { ready?: boolean; url: ConfigPresence; directory: ConfigPresence }; ffmpegFound?: boolean; ffprobeFound?: boolean;
-  /** 本机 agent（拆解 / 看图 / 定稿提示词）：.env.local 的 AGENT_ENGINE 选，默认 Claude；agentProblem 是没配好时给人看的话；假模式按就绪。 */
-  agent?: string; agentName?: string; agentReady?: boolean; agentModel?: string; agentProblem?: string | null };
+  /** 本机 agent（拆解 / 看图 / 定稿提示词）：这次用的是谁、好没好；agentProblem 是没配好时给人看的话；假模式按就绪。 */
+  agent?: string; agentName?: string; agentReady?: boolean; agentModel?: string; agentProblem?: string | null;
+  /** 11-17 设置里点选用谁：agentChoice 是 auto（自动，默认）或指定的那个；agents 是每个助手装没装、登没登录。 */
+  agentChoice?: string; agents?: AgentState[] };
+export type AgentState = { id: string; name: string; cli: boolean; login: boolean; ready: boolean };
 
 export type LocalMediaSource = { type: "upload" | "work"; id: string };
 export type LocalMediaRequest = { source: LocalMediaSource; canvasId?: string; cardId?: string };

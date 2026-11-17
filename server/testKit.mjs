@@ -25,6 +25,9 @@ export function tempDir(prefix = 'canvas-test-') {
 // 本机 Claude 就绪要看用户自己的官方登录（CLAUDE_CONFIG_DIR 或 ~/.claude 下有没有 .credentials.json）。
 // 测试一律先指到空的临时目录，免得登录过 Claude 的电脑上测出来和别处不一样；要「已登录」的用 fakeClaudeLogin()。
 process.env.CLAUDE_CONFIG_DIR = tempDir('canvas-claude-');
+// 11-17 起没指定助手会自动选：Claude 没好就看 Codex。Codex 的登录（CODEX_HOME 或 ~/.codex 下的 auth.json）也一样指到空目录，
+// 否则登录过 Codex 的电脑上，测试会选中真 Codex、甚至真去调它。
+process.env.CODEX_HOME = tempDir('canvas-codex-');
 
 /** 假装用户已用官方方式登录过本机 Claude，返回还原函数（交给 t.after，或中途手动调一次变回「没登录」）。 */
 export function fakeClaudeLogin() {

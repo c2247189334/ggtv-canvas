@@ -53,7 +53,12 @@ export function mergeEnvText(text, values) {
  * 写完立刻读回核对；读回来对不上就把原文件放回去再报错。只回「填没填」，不回值。
  */
 export function saveKeys(file, body, { template } = {}) {
-  const values = checkKeyValues(body);
+  const env = writeEnvValues(file, checkKeyValues(body), { template });
+  return { saved: Object.keys(checkKeyValues(body)), keyReady: keyFilled(env), tosReady: tosFilled(env) };
+}
+
+/** 把几项配置写进 .env.local 并读回核对，返回写完后的配置。values 由调用的人先查好（只给认识的名字和安全的值）。 */
+export function writeEnvValues(file, values, { template } = {}) {
   const existed = existsSync(file);
   const before = existed ? readFileSync(file, 'utf8') : (template && existsSync(template) ? readFileSync(template, 'utf8') : '');
   writeTextAtomic(file, mergeEnvText(before, values));
@@ -62,5 +67,5 @@ export function saveKeys(file, body, { template } = {}) {
     if (existed) writeTextAtomic(file, before);
     throw Error('写进 .env.local 后读回来对不上，已经放回原样。可以用记事本打开 .env.local 手动填。');
   }
-  return { saved: Object.keys(values), keyReady: keyFilled(env), tosReady: tosFilled(env) };
+  return env;
 }

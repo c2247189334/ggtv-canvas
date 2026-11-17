@@ -54,7 +54,7 @@ See the [CHANGELOG](CHANGELOG.md) for what each version added or changed.
 
 Clip analysis, image lookups and prompt writing for video rewrite and product remake, plus "rewrite for me", run through the AI coding agent on your machine, using your own subscription rather than Ark credit. Plain image and video generation do not need it.
 
-- **Built in**: Claude Code (default; the copy bundled with the Claude desktop app is detected too) and Codex (set `AGENT_ENGINE=codex` in `.env.local`).
+- **Built in**: Claude Code (the copy bundled with the Claude desktop app is detected too) and Codex. Whichever is installed and signed in is used automatically, or pick one in the Settings panel.
 - **Pluggable**: to add another command-line agent, write one adapter modelled on `server/codex.mjs` and register it in `server/agent.mjs`. Pull requests are welcome.
 - **Setup**: run `claude` (or `codex login`) once in a terminal and sign in with your own account. Only the `.exe` builds work; an npm-installed `.cmd` cannot be launched. If it is not set up, those buttons show a dialog explaining what is missing.
 - GG TV only launches the agent on your machine; it never reads, stores or forwards your credentials.

@@ -1,7 +1,7 @@
 // 调本机 Claude Code 命令行（claude -p）：拆解、看人物图、看图定稿都走它，用的是用户自己在 Claude Code 里登录的账号，不走 API Key。
 // 11-14 官方条款（legal-and-compliance）：开发者不能收集、存储、转交 Claude 的登录凭证，登录必须走官方流程。所以本程序不读、不存、不转交任何令牌，
 // 只看用户有没有用官方方式登录过（.credentials.json 在不在，不读内容），子进程里还会去掉令牌和 API Key 变量，只用用户自己的官方登录。
-// 找 claude.exe 的顺序：.env.local 的 CLAUDE_CLI → PATH 里的 claude → 桌面版 Claude 自带的那份（路径带版本号，挑最新）。别用 --bare（只认 API Key）。
+// 找 claude.exe 的顺序：.env.local 的 CLAUDE_CLI → PATH 里的 claude → 用户文件夹 .local/bin（官方安装器默认位置）→ 桌面版 Claude 自带的那份（路径带版本号，挑最新）。别用 --bare（只认 API Key）。
 import { spawn } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -26,13 +26,15 @@ function newest(names) {
 
 /** 返回 claude 可执行文件的完整路径，找不到返回 ''。不执行任何程序。 */
 export function findClaudeCli(env, { exists = existsSync, readdir = dir => readdirSync(dir), path = process.env.PATH ?? '',
-  localAppData = process.env.LOCALAPPDATA ?? '', platform = process.platform } = {}) {
+  localAppData = process.env.LOCALAPPDATA ?? '', platform = process.platform, userHome = homedir() } = {}) {
   const filled = configured(env, 'CLAUDE_CLI');
   if (filled) return startable(filled) && exists(filled) ? filled : '';
   const names = platform === 'win32' ? ['claude.exe'] : ['claude'];
   for (const dir of path.split(delimiter).filter(Boolean)) {
     for (const name of names) { const file = join(dir.replace(/^"|"$/g, ''), name); if (exists(file)) return file; }
   }
+  // 官方安装器默认装在用户文件夹的 .local/bin。刚装完时本进程的 PATH 还是旧的，直接看这里，设置里点「重新检查」就认得到。
+  if (userHome) { const file = join(userHome, '.local', 'bin', names[0]); if (exists(file)) return file; }
   if (!localAppData) return '';
   const data = join(localAppData, 'Claude-Data');
   if (!exists(data)) return '';

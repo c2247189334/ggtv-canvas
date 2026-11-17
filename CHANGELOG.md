@@ -3,6 +3,18 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号按 [语义化版本](https://semver.org/lang/zh-CN/)。
 Format follows Keep a Changelog; versions follow Semantic Versioning.
 
+## [未发布] / Unreleased
+
+### 新增 / Added
+
+- 设置里加「本机 AI 助手用谁」：能看到 Claude、Codex 各自装没装、登没登录，点一下就换，不用改 `.env.local`、不用重启。Settings gains a "local AI agent" picker showing whether Claude and Codex are installed and signed in; switching takes effect at once.
+
+### 改动 / Changed
+
+- 本机 AI 助手默认自动选：Claude 装好并登录了就用 Claude，否则用 Codex（原来默认只认 Claude，用 Codex 要手改配置）。The local agent is now picked automatically: Claude if it is installed and signed in, otherwise Codex.
+- 刚装好 Claude Code 不用重启就能认到（会直接看官方安装器默认的位置）。A freshly installed Claude Code is detected without restarting.
+- 给 AI 助手的安装说明：装完 Node.js / ffmpeg 后给出在当前终端刷新的命令，不再要求新开窗口；电脑上已有一份在运行时不再让人去双击 `停止.bat`。Install guide for AI agents: a command to refresh the current terminal after installing Node.js / ffmpeg, and safer wording when a copy is already running.
+
 ## [0.1.3] - 2026-11-17
 
 ### 新增 / Added

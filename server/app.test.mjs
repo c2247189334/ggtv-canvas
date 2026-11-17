@@ -23,7 +23,11 @@ test('health：报假火山、Key 填没填、今天花了多少', async () => {
     depth: { python: {filled:false,found:false}, modelDir: {filled:false,found:false}, extraPackages: {filled:false,found:false} },
     mesh: { ready: true, url: { filled: false, found: true }, directory: { filled: false, found: true } },
     ffmpegFound:r.json.ffmpegFound,ffprobeFound:r.json.ffprobeFound,
-    agent: 'claude', agentName: 'Claude', agentReady: true, agentModel: 'sonnet', agentProblem: null });
+    agent: 'claude', agentName: 'Claude', agentReady: true, agentModel: 'sonnet', agentProblem: null,
+    // 11-17 设置里点选助手用：选的是自动，每个助手装没装、登没登录（装没装看这台电脑，登录在测试里一律算没登录）。
+    agentChoice: 'auto', agents: [
+      { id: 'claude', name: 'Claude', cli: r.json.agents[0].cli, login: false, ready: false },
+      { id: 'codex', name: 'Codex', cli: r.json.agents[1].cli, login: false, ready: false }] });
   assert.equal(typeof r.json.ffmpegFound,'boolean');assert.equal(typeof r.json.ffprobeFound,'boolean');
   await s.close();
 });

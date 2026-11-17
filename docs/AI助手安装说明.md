@@ -29,7 +29,16 @@ node --version
 winget install OpenJS.NodeJS.LTS
 ```
 
-装完 **当前终端认不到**，要新开一个终端窗口再继续。
+装完 **当前终端认不到**是正常的。不用让用户新开窗口：在当前 PowerShell 里运行下面这句，把系统里最新的 PATH（找程序的路径清单）读进来，再查一次版本：
+
+```powershell
+$env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
+node --version
+```
+
+- 这句只对它所在的那个 PowerShell 进程有效。很多 AI 助手每跑一条命令都是新开的进程，或者用的不是 PowerShell（比如 Git Bash）：那就把这句放在后面每条命令的最前面，写在同一条命令里跑，例如 `powershell -NoProfile -Command "<上面那句>; npm ci"`。
+- 刷新后还是认不到：停下来，请用户把你（AI 助手）所在的终端或软件整个关掉重开，再接着做。
+- 没有 `winget`（提示找不到这个命令）：请用户到 <https://nodejs.org> 下载 LTS 安装包，一路点「下一步」装好，再照上面刷新。
 
 ### 2. 拿到代码
 
@@ -56,7 +65,7 @@ npm run doctor
 - `[缺]` 而且「怎么办」是装软件的（比如 ffmpeg）：问用户要不要现在装。ffmpeg 可以晚点装，不影响打开画布、出图、出视频。
 - 「怎么办」写着 **由用户本人** 的（火山 Key、TOS、登录 AI 助手）：只转告用户，不要代办。
 - `[选装]`、`[可晚点]`：告诉用户有这回事就行。
-- 端口 5290 那一行：写着「GG TV 已经开着」就不用处理，告诉用户直接打开那个网址；写着「被别的程序占着」就把这一条原样告诉用户，不要自己去结束进程。
+- 端口 5290 那一行：写着「GG TV 已经开着」，说明这台电脑上已经有一份在运行（可能是用户以前装在别的文件夹的）。不要去关它，也 **不要运行 `停止.bat`**：它按端口找进程，会把用户正在用的那一份关掉。把情况告诉用户：同一台电脑一次只能开一份，想用新装的这份，先自己关掉正开着那份的黑窗口，再双击新文件夹里的 `一键启动.bat`。写着「被别的程序占着」就把这一条原样告诉用户，不要自己去结束进程。
 
 装 ffmpeg（用户同意后）：
 
@@ -64,7 +73,7 @@ npm run doctor
 winget install Gyan.FFmpeg
 ```
 
-同样要新开终端窗口、重新启动 GG TV 才认得到。
+装完同样照第 1 步那句刷新当前终端的 PATH，再跑一次 `npm run doctor` 确认找到了。用户已经开着的 GG TV 要关掉黑窗口、重新双击 `一键启动.bat` 才认得到。
 
 ### 4. 交给用户
 
@@ -83,10 +92,11 @@ winget install Gyan.FFmpeg
 
 视频改写、拆解、帮我改写是让用户电脑上的 Claude 或 Codex 看视频和写提示词，用的是用户自己账号的额度。只出图、出视频用不到。
 
-- 默认找 Claude：`claude.exe`（Claude Code 的安装版，或 Claude 桌面版自带的那份）。**只认 `.exe`**，用 `npm install -g` 装出来的 `claude.cmd` 启动不了。
+- 用谁是自动的：电脑上 Claude 装好并登录了就用 Claude，否则 Codex 装好并登录了就用 Codex。你（AI 助手）自己就是 Claude Code 或 Codex 的话，多半已经满足，不用再配。
+- 找的是 `claude.exe`（Claude Code 的安装版，或 Claude 桌面版自带的那份）和 `codex.exe`。**只认 `.exe`**，用 `npm install -g` 装出来的 `claude.cmd`、`codex.cmd` 启动不了。
 - 登录要用户本人来：在终端运行一次 `claude`（或 `codex login`），按提示登录。
-- 想用 Codex：在项目文件夹的 `.env.local` 里写一行 `AGENT_ENGINE=codex`（没有这个文件就把 `.env.example` 复制一份改名）。只动这一行，别碰里面的密钥行。
-- 装好或登录后要关掉黑窗口、重新双击 `一键启动.bat`，再跑一次 `npm run doctor` 确认。
+- 想指定用哪个：告诉用户在页面右上角「设置」的「本机 AI 助手用谁」里点选，点了立刻生效。不用改 `.env.local`。
+- 装好或登录后再跑一次 `npm run doctor` 确认。用户已经开着 GG TV 的话，让他在「设置」里点「重新检查」；还认不到再关掉黑窗口、重新双击 `一键启动.bat`。
 
 ## 以后升级
 
@@ -100,4 +110,5 @@ npm ci
 ## 出问题时
 
 - 把黑窗口里的原始报错原样告诉用户，不要猜。常见问题在 [安装说明](安装说明.md) 最后一节。
+- 项目里的 `.bat` 文件是 GBK 编码，按 UTF-8 读出来是乱码，这是正常的：不用读它们，照本说明做就行。
 - 不要为了「让它能跑」去改项目代码、关掉检查或换依赖版本；解决不了就停下来，让用户到 <https://github.com/c2247189334/ggtv-canvas/issues> 反馈。

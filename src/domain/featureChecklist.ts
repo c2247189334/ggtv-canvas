@@ -21,7 +21,7 @@ export function featureChecklist(health: Health, keyRejected = false): { main: F
   const noKey = !fake && (!health.keyReady || keyRejected), noTos = !fake && !health.tosReady;
   const keyName = badKey ? "对的火山 Key（现在填的火山不认）" : "火山 Key";
   const noFfmpeg = !fake && !health.ffmpegFound, noAgent = !fake && !health.agentReady;
-  const agentFix = `${health.agentProblem || "本机 Claude 或 Codex 没配好。"}装好并用自己的账号登录一次，再${RESTART}。只出图出视频不需要。`;
+  const agentFix = `${health.agentProblem || "本机 Claude 或 Codex 没配好。"}装好并用自己的账号登录一次，在下面「本机 AI 助手用谁」点「重新检查」；还认不到再${RESTART}。只出图出视频不需要。`;
   const agentOk = health.agentName ? `能用（${health.agentName}${health.agentModel ? `，模型 ${health.agentModel}` : ""}）` : "能用";
   const depthMissing = fake ? [] : missingDepthConfig(health.depth);
   const meshProblem = fake ? null : meshConfigProblem(health.mesh);

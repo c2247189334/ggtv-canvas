@@ -101,3 +101,11 @@ test('调用：文件写进临时目录当工作目录、跑完删掉；模型�
   await assert.rejects(broken({ system: 's', prompt: 'p' }), /启动 claude 失败：spawn EINVAL/, '启动那一下就抛错也要说人话');
   assert.deepEqual(readdirSync(tmpRoot), []);
 });
+
+// 11-17：刚用官方安装器装完 Claude Code，小服务进程里的 PATH 还是旧的。直接看它默认装的地方，设置里点「重新检查」就能认到，不用重启。
+test('PATH 里没有：再看用户文件夹的 .local\\bin（官方安装器默认位置），排在桌面版自带那份前面', () => {
+  const local = 'C:\\Users\\me\\.local\\bin\\claude.exe';
+  const options = { exists: file => file === local, readdir: () => [], path: 'C:\\bin', localAppData: '', platform: 'win32', userHome: 'C:\\Users\\me' };
+  assert.equal(findClaudeCli({}, options), local);
+  assert.equal(findClaudeCli({}, { ...options, userHome: '' }), '');
+});

@@ -36,7 +36,7 @@ export function doctorReport(facts) {
     '装 Node.js 22.12 或以上（winget install OpenJS.NodeJS.LTS，或到 https://nodejs.org 下载）；装完新开一个终端窗口');
   item(pageOk, '页面', facts.hasDeps ? '依赖已装，启动时自动打包' : '已打包好（整合包）', '没有装依赖，也没有打包好的页面',
     '在项目文件夹运行 npm ci（只照 package-lock.json 装，不改版本）');
-  item(facts.portFree || facts.ggtvRunning, `端口 ${PORT}`, facts.portFree ? '空着' : `GG TV 已经开着，直接打开 http://127.0.0.1:${PORT} 就行；想重开先双击 停止.bat`,
+  item(facts.portFree || facts.ggtvRunning, `端口 ${PORT}`, facts.portFree ? '空着' : `GG TV 已经开着，直接打开 http://127.0.0.1:${PORT} 就行；同一台电脑一次只能开一份，想换开这个文件夹里的这份，先关掉正开着那份的黑窗口`,
     '被别的程序占着（不是 GG TV）', '先关掉占着它的那个程序再启动。不确定是什么程序就把这一条原样告诉用户，不要自己去结束进程', '注意');
 
   lines.push('', '二、出图、出视频（火山方舟，按量计费，从用户自己的火山账号扣）');

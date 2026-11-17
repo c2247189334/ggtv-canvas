@@ -50,6 +50,10 @@ test('Node 太旧或没有页面：结论是还不能启动；端口被占只提
   const running = doctorReport({ ...ready, portFree: false, ggtvRunning: true });
   assert.equal(running.canStart, true); assert.equal(running.todo, 0);
   assert.match(running.lines.join('\n'), /\[OK\] 端口 5290：GG TV 已经开着，直接打开 http:\/\/127\.0\.0\.1:5290 就行/);
+  // 11-17 真让 AI 助手试装发现：开着的可能是用户装在别处、正在用的另一份，不能教人去双击 停止.bat（它按端口找进程，会把那份关掉）。
+  const portLine = running.lines.find(line => line.includes('端口 5290'));
+  assert.equal(portLine.includes('停止.bat'), false);
+  assert.match(portLine, /一次只能开一份.*先关掉正开着那份的黑窗口/);
   const busy = doctorReport({ ...ready, portFree: false, ggtvRunning: false });
   assert.equal(busy.canStart, true); assert.equal(busy.todo, 0);
   assert.match(busy.lines.join('\n'), /\[注意\] 端口 5290：被别的程序占着（不是 GG TV）\n {8}怎么办：先关掉占着它的那个程序再启动。.*不要自己去结束进程/);
