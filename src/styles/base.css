@@ -79,28 +79,53 @@ select { padding: 5px 6px; border: 1px solid var(--line); border-radius: 8px; ba
 .settings { position: absolute; top: 12px; right: 12px; z-index: 10; display: flex; align-items: center; gap: 8px; }
 .settings__chip { padding: 5px 10px; border-radius: 999px; background: #3a2f12; color: var(--warn); font-size: 12px; }
 .settings__chip--warn { border: 0; cursor: pointer; font: inherit; font-size: 12px; }
-.settings__panel { position: absolute; top: 42px; right: 0; width: 320px; max-height: calc(100vh - 70px); overflow-y: auto; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); box-shadow: var(--shadow); }
-.settings__panel p { margin: 6px 0; line-height: 1.6; }
+.settings__panel { position: absolute; top: 42px; right: 0; width: min(360px, calc(100vw - 24px)); max-height: calc(100vh - 70px); overflow-y: auto; padding: 2px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); box-shadow: var(--shadow); }
+.settings__panel p { margin: 6px 0 0; line-height: 1.6; }
 .settings__hint { color: var(--muted); font-size: 12px; }
 .settings__error { color: var(--danger); }
-.keys { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; padding: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.keys:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
-.keys:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
-.features { display: grid; gap: 8px; margin: 8px 0; padding: 0; list-style: none; }
-.features__row { display: grid; grid-template-columns: 16px 1fr; gap: 6px; line-height: 1.6; }
-.features__row .settings__hint { margin: 2px 0 0; }
-.features__mark { color: var(--warn); font-weight: 700; text-align: center; }
-.features__row.is-ok .features__mark { color: #5fd08a; }
+/* 面板里三块：功能 / 火山 Key / 本机 AI 助手，中间一条细线隔开。 */
+.setp__sec { padding: 10px 0; border-top: 1px solid var(--line); }
+.setp__sec:first-child { border-top: 0; }
+.setp__head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+.setp__head h3 { margin: 0; font-size: 13px; font-weight: 600; }
+.setp__state { font-size: 12px; }
+.setp__state.is-ok { color: #5fd08a; }
+.setp__state.is-warn { color: var(--warn); }
+.setp__link { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-size: 12px; cursor: pointer; }
+.setp__group { display: grid; gap: 8px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.setp__group p { margin: 0; }
+.setp__actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.settings__hint.is-ok { color: #5fd08a; }
+.setp__strength { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 10px; }
+.setp__strength.is-off { opacity: 0.45; }
+.setp__label { color: var(--muted); font-size: 12px; }
+/* 横排单选：一排按钮，选中的那个亮起来。 */
+.seg { display: flex; gap: 2px; padding: 2px; border-radius: 8px; background: var(--bg); }
+.seg__item { position: relative; flex: 1; display: grid; justify-items: center; padding: 5px 6px; border-radius: 6px; font-size: 13px; line-height: 1.35; text-align: center; cursor: pointer; }
+.seg__item:hover { background: var(--panel); }
+.seg__item.is-on { background: var(--panel-2); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.seg__item input { position: absolute; width: 0; height: 0; margin: 0; opacity: 0; pointer-events: none; }
+.seg__item:has(input:focus-visible) { outline: 2px solid var(--accent); }
+.seg__item:has(input:disabled) { cursor: default; }
+.seg__item small { color: var(--muted); font-size: 11px; }
+.keys { display: flex; flex-direction: column; gap: 8px; }
+.features { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.features--optional { margin-top: 6px; }
+.features__pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; background: var(--bg); font-size: 12px; line-height: 1.5; }
+.features__pill.is-optional { color: var(--muted); }
+.features__mark { color: var(--warn); font-weight: 700; }
+.features__pill.is-ok .features__mark { color: #5fd08a; }
+.features__label { align-self: center; color: var(--muted); font-size: 12px; }
+.features__fixes { display: grid; gap: 4px; margin: 8px 0 0; padding-left: 16px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.features__fixes b { color: var(--text); font-weight: 600; }
+.features__optional { margin-top: 6px; }
 .features__optional summary { cursor: pointer; color: var(--muted); font-size: 12px; }
-.agents { display: grid; gap: 6px; margin: 10px 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
-.agents legend { padding: 0 4px; font-size: 12px; color: var(--muted); }
-.agents__row { display: grid; grid-template-columns: 16px 1fr; gap: 6px; align-items: start; line-height: 1.6; cursor: pointer; }
-.agents__row input { margin: 4px 0 0; }
-.agents__row .settings__hint { margin: 2px 0 0; }
-.agents > button { justify-self: start; }
-.keys__guide summary { cursor: pointer; color: var(--accent); font-size: 12px; }
-.keys__guide ol { margin: 6px 0; padding-left: 18px; color: var(--muted); font-size: 12px; line-height: 1.7; }
-.keys__guide a { color: var(--accent); }
-.keys__field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
-.keys__field input { padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: inherit; font: inherit; }
-.keys button[type="submit"] { align-self: flex-end; }
+/* 每栏名字后面跟一个「?」（HelpTip），步骤和网址收在气泡里。 */
+.keys__name { display: flex; align-items: center; gap: 4px; }
+.help-tip__bubble a { color: var(--accent); }
+.keys__grid { display: grid; grid-template-columns: 1fr 1fr; align-items: end; gap: 8px; }
+.keys__grid .is-wide { grid-column: 1 / -1; }
+.keys__grid > button { justify-self: end; }
+.keys__grid .keys__group { margin: 2px 0 -4px; color: var(--muted); font-size: 12px; }
+.keys__field { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 12px; }
+.keys__field input { min-width: 0; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: inherit; font: inherit; }

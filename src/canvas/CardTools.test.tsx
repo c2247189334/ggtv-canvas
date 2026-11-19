@@ -32,13 +32,17 @@ it("11-08 用户定：下载、预览是最右两个小图标；下载带 downlo
   expect(opened).toEqual([["/api/works/file?id=w1", "图片 1", "image"]]);
 });
 
-it("原视频卡左边依次「视频改写 / 拆解（无人物）/ 更多 ▾」，竖线后才是图标；深度、白模、原声、截取不摆在外面", () => {
+it("原视频卡左边依次「视频改写 / 片段截取 / 更多 ▾」（11-19 用户定：片段截取摆在外面），竖线后才是图标；深度、白模、原声不摆在外面", () => {
   const video = renderToStaticMarkup(<CardTools asset={{ type: "upload", id: "v", media: "video", hasAudio: false }} title="视频 1" media="video" cardId="v" />);
-  const order = [">视频改写<", ">拆解（无人物）<", ">更多 ▾<", "card-tools__sep", 'aria-label="下载"', 'aria-label="预览"'].map(part => video.indexOf(part));
+  expect(video).not.toContain("拆解（无人物）");
+  const order = [">视频改写<", ">片段截取<", ">更多 ▾<", "card-tools__sep", 'aria-label="下载"', 'aria-label="预览"'].map(part => video.indexOf(part));
   expect(order.every(index => index >= 0)).toBe(true);
   expect([...order].sort((a, b) => a - b)).toEqual(order);
   expect(video).toMatch(/aria-haspopup="menu" aria-expanded="false"/);
-  for (const hidden of ["深度动作捕捉", "白模动作捕捉", "提取原声", "片段截取"]) expect(video).not.toContain(hidden);
+  for (const hidden of ["深度动作捕捉", "白模动作捕捉", "提取原声"]) expect(video).not.toContain(hidden);
+  const short = renderToStaticMarkup(<CardTools asset={{ type: "upload", id: "v", media: "video", seconds: 0.9 }} title="视频 1" media="video" cardId="v" />);
+  expect(short).toMatch(/<button[^>]*disabled=""[^>]*title="视频不到 1 秒，不能截取"[^>]*>片段截取/);
+  expect(renderToStaticMarkup(<CardTools asset={{ type: "work", id: "d", depth: true }} title="深度" media="video" cardId="d" />)).not.toContain("片段截取");
   const depth = renderToStaticMarkup(<CardTools asset={{ type: "work", id: "d", depth: true }} title="视频 2 · 深度" media="video" cardId="d" />);
   expect(text(depth)).toBe("");
   const audio = renderToStaticMarkup(<CardTools asset={{ type: "work", id: "a", media: "audio" }} title="音频 1" media="audio" />);
@@ -46,20 +50,19 @@ it("原视频卡左边依次「视频改写 / 拆解（无人物）/ 更多 ▾�
   expect(audio).toContain('aria-label="下载"');
 });
 
-it("「更多」里四项：深度、白模、提取原声、片段截取；没声音、不到 1 秒各自禁用并写原因", () => {
+it("「更多」里三项：深度、白模、提取原声（片段截取不在里面）；没声音时提取原声禁用并写原因", () => {
   const html = renderToStaticMarkup(<VideoMoreItems asset={{ type: "upload", id: "v", media: "video", seconds: 9 }} busy={false}
-    onDepth={noop} onMesh={noop} onAudio={noop} onClip={noop} />);
-  const order = ["深度动作捕捉", "白模动作捕捉", "提取原声", "片段截取"].map(name => html.indexOf(`>${name}<`));
+    onDepth={noop} onMesh={noop} onAudio={noop} />);
+  const order = ["深度动作捕捉", "白模动作捕捉", "提取原声"].map(name => html.indexOf(`>${name}<`));
   expect(order.every(index => index >= 0)).toBe(true);
   expect([...order].sort((a, b) => a - b)).toEqual(order);
-  expect(html).toContain('aria-label="片段截取"');
+  expect(html).not.toContain('片段截取');
   expect(html).not.toContain('disabled=""');
   const limited = renderToStaticMarkup(<VideoMoreItems asset={{ type: "upload", id: "v", media: "video", seconds: 0.9, hasAudio: false }} busy={false}
-    onDepth={noop} onMesh={noop} onAudio={noop} onClip={noop} />);
+    onDepth={noop} onMesh={noop} onAudio={noop} />);
   expect(limited).toMatch(/disabled=""[^>]*title="这段视频没有声音"/);
-  expect(limited).toMatch(/<button[^>]*disabled=""[^>]*title="视频不到 1 秒，不能截取"[^>]*>片段截取/);
   const busy = renderToStaticMarkup(<VideoMoreItems asset={{ type: "upload", id: "v", media: "video", seconds: 9 }} busy
-    onDepth={noop} onMesh={noop} onAudio={noop} onClip={noop} />);
+    onDepth={noop} onMesh={noop} onAudio={noop} />);
   expect(busy.match(/disabled=""/g)).toHaveLength(3);
 });
 

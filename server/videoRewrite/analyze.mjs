@@ -1,5 +1,8 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { analysisImages } from './analysisImages.mjs';
 import { backgroundFrames, checkSceneFrames, SCENES_QUESTION } from './backgroundFrames.mjs';
+import { blankLines, LINES_QUESTION, OFF_CAMERA, readLines, validateLines } from './lines.mjs';
 
 export const validCardId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(value);
 const text = value => typeof value === 'string' && Boolean(value.trim());
@@ -30,6 +33,7 @@ export function validatePlan(plan, duration) {
     && action.to > action.from && text(action.desc), '动作时间轴不合法。');
   requireValue(plan.replace.every(id => typeof id === 'string' && ids.has(id)) && new Set(plan.replace).size === plan.replace.length, 'replace必须引用存在且不重复的item id。');
   requireValue(plan.unsure.every(text), 'unsure每项必须是文字。');
+  validateLines(plan, duration);
   return plan;
 }
 
@@ -124,8 +128,11 @@ export function planFromReply(reply, duration) {
  */
 export async function analyze(input, { sheets, ask }) {
   const { duration, ratio, userText } = input;
-  const { timeline, cuts, times, frames, images } = await analysisImages(input, sheets);
-  const context = { duration, ratio, userText, cuts };
+  const { timeline, cuts, times, frames, images: base } = await analysisImages(input, sheets);
+  // 11-19 说话版：再附字幕连拍（每 0.5 秒一帧、比总览图大，看得清字）和量出来的人声时段，多问一项 lines。
+  const talk = input.talking ? await talkingImages(input, sheets) : null;
+  const images = talk ? [...base, ...talk.images] : base;
+  const context = { duration, ratio, userText, cuts, ...(talk ? { talking: true, speech: talk.speech } : {}) };
   const pages = timeline.length > 1 ? `共${timeline.length}张，按时间先后排列；` : '';
   const big = frames.length ? `另附${frames.length}张原片清楚大图，依次是${times.join('、')}秒的画面。认东西两种图一起看：叫什么，要结合它在总览大图里怎么动、和什么连在一起来认；清楚大图只拍到某一瞬间，用来看清外观细节和小东西。两种图看着不像同一样东西，或又小又暗看不清是什么，写进unsure，不要猜成别的。` : '';
   const reply = await ask({ round: 'analyze', context, images,
@@ -135,13 +142,31 @@ export async function analyze(input, { sheets, ask }) {
       + '②clothes：每个人的每一套衣服各一项，同一时段穿在身上的上衣、裤子、鞋算一套写在一项里；person写是谁的；desc先写通用名称，逗号后写颜色、款式、长短、材质；from、to写穿这套的起止秒数，换装从第一次看到新衣服的那一帧算起。同一套衣服只因动作、遮挡或光线看起来不同，不算换装、不拆成多套。frame写这套衣服露得最全最清楚的一帧的秒数（人没被手或东西挡住，不在转场和黑屏里）。隔了一段又穿回款式颜色完全一样的衣服时，sameAs写前面那项的id，否则不写。'
       + '③things：人、衣服和场景以外，画面里会动的、被人拿着或用到的、从镜头前经过挡住人的东西各一项；desc先写通用名称（日常叫法），逗号后写外观（颜色、材质、样式），不写位置和动作；背景里不起作用的陈设不列。'
       + '④replace：按用户原话列要换的id，只能用people、clothes、things里的id。'
-      + `${SCENES_QUESTION}${big}没把握的写进unsure。只输出JSON对象：{people:[{id:P1起依次编号,desc,where,from:秒数,to:秒数}],clothes:[{id:C1起依次编号,person:人物id,desc,from:秒数,to:秒数,frame:秒数,sameAs}],things:[{id:D1起依次编号,desc}],replace:[id],scenes:[{id:S1起依次编号,desc,from:秒数,to:秒数,frame:秒数,empty:true或false}],unsure:[文字]}。所有秒数必须在视频时长内。`
+      + `${SCENES_QUESTION}${big}${talk ? talk.question : ''}没把握的写进unsure。只输出JSON对象：{people:[{id:P1起依次编号,desc,where,from:秒数,to:秒数}],clothes:[{id:C1起依次编号,person:人物id,desc,from:秒数,to:秒数,frame:秒数,sameAs}],things:[{id:D1起依次编号,desc}],replace:[id],scenes:[{id:S1起依次编号,desc,from:秒数,to:秒数,frame:秒数,empty:true或false}],${talk ? 'lines:[{who:人物id或镜头外,text,from:秒数,to:秒数}],' : ''}unsure:[文字]}。所有秒数必须在视频时长内。`
       + `\n${JSON.stringify(context)}` });
   // 背景帧兜底量亮度只在本机算；量完的场景写回回话，改写单里场景的截图时刻和回给页面的背景帧才一致。
   const places = await checkSceneFrames(scenePlaces(reply?.scenes, duration), duration, second => sheets.peak?.(input, second));
   const checked = reply && typeof reply === 'object' && !Array.isArray(reply) ? { ...reply, scenes: places } : reply;
   try {
-    const plan = validatePlan(uniqueItemIds(planFromReply(checked, duration)), duration);
+    const read = validatePlan(uniqueItemIds(planFromReply(checked, duration)), duration);
+    const plan = talk ? validatePlan(withLines(read, reply?.lines, duration, talk.speech), duration) : read;
     return { plan, cuts, backgroundFrames: backgroundFrames(places) };
   } catch (error) { throw Error(`${error.message}\n原话：${JSON.stringify(reply)}`); }
+}
+
+/** 字幕连拍：从头到尾每 0.5 秒一帧，每张 4×3 帧、每帧约 360×640（竖屏），图上印秒数。 */
+async function talkingImages(input, sheets) {
+  const made = await sheets.contact({ source: input.source, folder: input.folder }, { end: input.duration, step: 0.5, columns: 4, rows: 3, area: 360 * 640, prefix: 'subtitle' });
+  const speech = await sheets.speech(input, input.duration);
+  const images = made.map(({ name }) => `data:image/jpeg;base64,${readFileSync(join(input.folder, name)).toString('base64')}`);
+  const ranges = made.map(({ from, to }) => `${from}～${to}秒`).join('、');
+  return { images, speech, question: `再附${made.length}张字幕连拍（依次是${ranges}，每0.5秒一帧，每格左上角印有秒数，比总览大图大，用来看清字幕）。${LINES_QUESTION}` };
+}
+
+/** 11-19：台词进单子；没读出字幕就按人声时段铺空行，提醒用户自己填。 */
+function withLines(plan, list, duration, speech) {
+  const people = plan.items.filter(item => item.kind === '人物').map(item => item.id);
+  const read = readLines(list, duration, people);
+  if (read.lines.length) return { ...plan, lines: read.lines, unsure: [...plan.unsure, ...read.notes] };
+  return { ...plan, lines: blankLines(speech, duration, people[0] ?? OFF_CAMERA), unsure: [...plan.unsure, '没认出字幕：按有人声的时段铺了空行，请在台词表里自己填台词'] };
 }

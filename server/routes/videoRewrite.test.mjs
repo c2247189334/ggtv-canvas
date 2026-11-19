@@ -259,9 +259,9 @@ test('AGENT_ENGINE 选 codex：health 报 Codex 就绪，不要 Claude 登录也
     const env = { AGENT_ENGINE: 'codex', CODEX_CLI: bin };
     const s = setup({ fake: false, readEnv: () => env });
     const notLogged = (await s.call('GET', '/api/health')).json;
-    assert.equal(notLogged.agentReady, false); assert.match(notLogged.agentProblem, /codex login/);
+    assert.equal(notLogged.agentReady, false); assert.match(notLogged.agentProblem, /点「登录 Codex」/);
     const refused = await s.call('POST', '/api/video-rewrite/analyze', analyzeBody(s.upload(6)));
-    assert.equal(refused.status, 400); assert.match(refused.json.error, /codex login/);
+    assert.equal(refused.status, 400); assert.match(refused.json.error, /点「登录 Codex」/);
     writeFileSync(join(home, 'auth.json'), '{}');
     const ready = (await s.call('GET', '/api/health')).json;
     assert.equal(ready.agentName, 'Codex'); assert.equal(ready.agentReady, true); assert.equal(ready.agentProblem, null); assert.equal(ready.keyReady, false);

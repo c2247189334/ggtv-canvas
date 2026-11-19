@@ -10,7 +10,12 @@ import { runAgentProcess, startable } from './agentProcess.mjs';
 import { configured } from './config.mjs';
 
 export const CLAUDE_DEFAULT_MODEL = 'sonnet';
-export const CLAUDE_LOGIN_HINT = '在终端运行 claude，按提示用你自己的 Claude 账号登录（本程序不读也不存你的登录信息）';
+/** claude 命令行 --effort 认的几档（2.1.322 的 --help 原文：low, medium, high, xhigh, max）。不填就不传，用命令行自己的默认。 */
+export const CLAUDE_EFFORTS = Object.freeze(['low', 'medium', 'high', 'xhigh', 'max']);
+/** .env.local 的 CLAUDE_EFFORT：认得的才用，乱填的当没填。 */
+export const claudeEffortOf = env => { const value = configured(env, 'CLAUDE_EFFORT').toLowerCase(); return CLAUDE_EFFORTS.includes(value) ? value : ''; };
+// 11-19：别再叫人去终端敲 claude——桌面版自带的那份不在 PATH 里，敲了报「不是内部或外部命令」。登录按钮见 agentLogin.mjs。
+export const CLAUDE_LOGIN_HINT = '点右上角「设置」，在「本机 AI 助手」里点「登录 Claude」，在弹出的官方窗口和浏览器里用你自己的 Claude 账号登录（本程序不读也不存你的登录信息）';
 export const CLAUDE_TIMEOUT_MS = 5 * 60 * 1000;
 
 function versionKey(name) {
@@ -60,7 +65,7 @@ export function claudeConfigDir(processEnv = process.env, home = homedir()) {
 export function claudeHealth(env, options = {}) {
   const { exists = existsSync, home = claudeConfigDir() } = options;
   const claudeCli = Boolean(findClaudeCli(env, options)), claudeLogin = exists(join(home, '.credentials.json'));
-  return { claudeReady: claudeCli && claudeLogin, claudeCli, claudeLogin, claudeModel: configured(env, 'CLAUDE_MODEL') || CLAUDE_DEFAULT_MODEL };
+  return { claudeReady: claudeCli && claudeLogin, claudeCli, claudeLogin, claudeModel: configured(env, 'CLAUDE_MODEL') || CLAUDE_DEFAULT_MODEL, claudeEffort: claudeEffortOf(env) };
 }
 
 /** 子进程的环境：去掉当前会话带的 Claude Code 变量（否则它以为自己在别的会话里），也去掉令牌和 API Key（不花 API 的钱，只用用户自己的官方登录）。 */
@@ -71,8 +76,8 @@ export function childEnv(base) {
 }
 
 /** 只开 Read（看图）、不问权限、不存会话、不认斜杠命令。提问放最后、前面隔 `--`：用户原话以「-」开头时不会被当成选项。 */
-export function cliArgs({ userPrompt, system, model }) {
-  return ['-p', '--system-prompt', system, '--output-format', 'json', '--model', model, '--safe-mode',
+export function cliArgs({ userPrompt, system, model, effort = '' }) {
+  return ['-p', '--system-prompt', system, '--output-format', 'json', '--model', model, ...(effort ? ['--effort', effort] : []), '--safe-mode',
     '--tools', 'Read', '--allowedTools', 'Read', '--permission-prompts', 'none', '--no-session-persistence', '--disable-slash-commands',
     '--', userPrompt];
 }
@@ -103,7 +108,7 @@ export function createClaudeCall({ env, tmpRoot, launch = spawn, timeoutMs = CLA
   return async function call({ system, prompt, files = [], model, timeoutMs: limit = timeoutMs }) {
     const cli = findCli(env);
     if (!cli) throw Error('找不到 claude 命令行。装 Claude 桌面版或 Claude Code，或在 .env.local 填 CLAUDE_CLI（要 claude.exe 的完整路径，npm 装出来的 claude.cmd 用不了）。');
-    const args = cliArgs({ userPrompt: prompt, system, model: model || configured(env, 'CLAUDE_MODEL') || CLAUDE_DEFAULT_MODEL });
+    const args = cliArgs({ userPrompt: prompt, system, model: model || configured(env, 'CLAUDE_MODEL') || CLAUDE_DEFAULT_MODEL, effort: claudeEffortOf(env) });
     const output = await runAgentProcess({ name: 'Claude', command: 'claude', cli, args, files, tmpRoot, env: childEnv(baseEnv), launch, limit });
     return parseCliOutput(output.stdout, output.stderr);
   };

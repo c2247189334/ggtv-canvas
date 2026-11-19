@@ -64,7 +64,7 @@ test('解析回话：取最后一条回话、去代码块；配置警告和重�
 
 test('解析回话：真失败报人话；401 提示 codex login；没回话、空回话都报错', () => {
   const failed = message => event({ type: 'turn.failed', error: { message } });
-  assert.throws(() => parseCodexEvents(failed('unexpected status 401 Unauthorized: Missing bearer')), /codex login/);
+  assert.throws(() => parseCodexEvents(failed('unexpected status 401 Unauthorized: Missing bearer')), /点「登录 Codex」/);
   assert.throws(() => parseCodexEvents(failed("The 'x' model is not supported")), /Codex 调用失败：The 'x' model/);
   assert.throws(() => parseCodexEvents('不是 JSON', '报错原文'), /Codex 没有按格式回话。报错原文/);
   assert.throws(() => parseCodexEvents(event({ type: 'turn.completed', usage: {} })), /空内容/);

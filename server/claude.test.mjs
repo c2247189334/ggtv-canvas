@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { childEnv, cliArgs, claudeConfigDir, claudeHealth, createClaudeCall, findClaudeCli, parseCliOutput } from './claude.mjs';
+import { childEnv, claudeEffortOf, cliArgs, claudeConfigDir, claudeHealth, createClaudeCall, findClaudeCli, parseCliOutput } from './claude.mjs';
 import { tempDir } from './testKit.mjs';
 
 // npm 装的 Claude Code 在 PATH 里是 claude.cmd：不开 shell 启动不了（Node 22 直接抛 spawn EINVAL），所以不认它，接着往下找 .exe。
@@ -28,9 +28,9 @@ test('Claude 就绪 = 找到命令行 + 用户自己用官方方式登录过；.
   const home = 'C:\\U\\.claude', login = join(home, '.credentials.json');
   const base = { exists: file => file === 'C:\\bin\\claude.exe', path: 'C:\\bin', localAppData: '', platform: 'win32', home };
   const logged = { ...base, exists: file => file === login || base.exists(file) };
-  assert.deepEqual(claudeHealth({ CLAUDE_MODEL: 'opus' }, logged), { claudeReady: true, claudeCli: true, claudeLogin: true, claudeModel: 'opus' });
-  assert.deepEqual(claudeHealth({ CLAUDE_CODE_OAUTH_TOKEN: 'tok' }, base), { claudeReady: false, claudeCli: true, claudeLogin: false, claudeModel: 'sonnet' });
-  assert.deepEqual(claudeHealth({}, { ...logged, path: '' }), { claudeReady: false, claudeCli: false, claudeLogin: true, claudeModel: 'sonnet' });
+  assert.deepEqual(claudeHealth({ CLAUDE_MODEL: 'opus', CLAUDE_EFFORT: 'XHigh' }, logged), { claudeReady: true, claudeCli: true, claudeLogin: true, claudeModel: 'opus', claudeEffort: 'xhigh' });
+  assert.deepEqual(claudeHealth({ CLAUDE_CODE_OAUTH_TOKEN: 'tok' }, base), { claudeReady: false, claudeCli: true, claudeLogin: false, claudeModel: 'sonnet', claudeEffort: '' });
+  assert.deepEqual(claudeHealth({}, { ...logged, path: '' }), { claudeReady: false, claudeCli: false, claudeLogin: true, claudeModel: 'sonnet', claudeEffort: '' });
   assert.equal(claudeConfigDir({ CLAUDE_CONFIG_DIR: 'D:\\cfg' }, 'C:\\U'), 'D:\\cfg');
   assert.equal(claudeConfigDir({}, 'C:\\U'), join('C:\\U', '.claude'));
 });
@@ -49,6 +49,16 @@ test('子进程环境去掉当前会话的 Claude Code 变量、API Key 和令�
   for (const pair of [['--output-format', 'json'], ['--tools', 'Read'], ['--allowedTools', 'Read'], ['--permission-prompts', 'none']]) assert.equal(args[args.indexOf(pair[0]) + 1], pair[1]);
   for (const flag of ['--safe-mode', '--no-session-persistence', '--disable-slash-commands']) assert.ok(args.includes(flag));
   assert.ok(!args.includes('--bare'));
+  // 11-19 写词强度：没填强度就不传 --effort（用命令行默认）；填了就跟在 --model 后面，用户原话仍在最后。
+  assert.ok(!args.includes('--effort'));
+  const strong = cliArgs({ userPrompt: '原话', system: '系统提示', model: 'opus', effort: 'xhigh' });
+  assert.equal(strong[strong.indexOf('--effort') + 1], 'xhigh'); assert.deepEqual(strong.slice(-2), ['--', '原话']);
+});
+
+test('CLAUDE_EFFORT：认得的五档才用（不分大小写），乱填、占位话、没填都当没填', () => {
+  for (const value of ['low', 'medium', 'high', 'xhigh', 'max']) assert.equal(claudeEffortOf({ CLAUDE_EFFORT: value }), value);
+  assert.equal(claudeEffortOf({ CLAUDE_EFFORT: ' Medium ' }), 'medium');
+  for (const value of ['', 'ultra', '请填本机Claude的思考强度', undefined]) assert.equal(claudeEffortOf({ CLAUDE_EFFORT: value }), '');
 });
 
 test('解析回话：成功取 result、去掉代码块、合计输入 token；登录失败提示自己用官方方式登录；坏输出报人话', () => {
@@ -57,7 +67,7 @@ test('解析回话：成功取 result、去掉代码块、合计输入 token；�
   assert.deepEqual(ok, { text: '{"a":1}', model: 'claude-sonnet-5-5', elapsedMs: 1200, usage: { input_tokens: 306, output_tokens: 30 } });
   assert.deepEqual(parseCliOutput(JSON.stringify({ result: 'x' })).usage, { input_tokens: 0, output_tokens: 0 });
   assert.throws(() => parseCliOutput(JSON.stringify({ is_error: true, result: 'Failed to authenticate: OAuth session expired' })),
-    error => /没登录或登录过期.*运行 claude.*自己的.*账号登录/.test(error.message) && !/setup-token|令牌/.test(error.message));
+    error => /没登录或登录过期.*点「登录 Claude」.*自己的.*账号登录/.test(error.message) && !/setup-token|令牌/.test(error.message));
   assert.throws(() => parseCliOutput(JSON.stringify({ is_error: true, result: 'rate limit' })), /调用失败：rate limit/);
   assert.throws(() => parseCliOutput('not json', 'stderr 原话'), /没有按格式回话.*stderr 原话/);
   assert.throws(() => parseCliOutput(JSON.stringify({ result: '   ' })), /空内容/);
@@ -73,7 +83,7 @@ test('调用：文件写进临时目录当工作目录、跑完删掉；模型�
     setImmediate(() => { child.stdout.emit('data', JSON.stringify({ result: '{"ok":true}', duration_ms: 5, usage: { input_tokens: 10, output_tokens: 2 } })); child.emit('close', 0); });
     return child;
   };
-  const env = { CLAUDE_CODE_OAUTH_TOKEN: 'tok', CLAUDE_MODEL: 'opus' };
+  const env = { CLAUDE_CODE_OAUTH_TOKEN: 'tok', CLAUDE_MODEL: 'opus', CLAUDE_EFFORT: 'xhigh' };
   const call = createClaudeCall({ env, tmpRoot, launch, findCli: () => 'C:\\fake\\claude.exe', baseEnv: { PATH: 'p', CLAUDECODE: '1', CLAUDE_CODE_OAUTH_TOKEN: 'sys' } });
   const files = [{ name: '提示词.txt', buffer: Buffer.from('词') }, { name: '图片1_人物.jpg', buffer: Buffer.from([1, 2]) }];
   const result = await call({ system: '系统', prompt: '看图', files });
@@ -85,6 +95,7 @@ test('调用：文件写进临时目录当工作目录、跑完删掉；模型�
   assert.equal(calls[0].options.env.CLAUDECODE, undefined);
   assert.equal(calls[0].options.env.PATH, 'p');
   assert.equal(calls[0].args[calls[0].args.indexOf('--model') + 1], 'opus');
+  assert.equal(calls[0].args[calls[0].args.indexOf('--effort') + 1], 'xhigh', '.env.local 的 CLAUDE_EFFORT 带上');
   assert.equal(calls[0].args[calls[0].args.indexOf('--system-prompt') + 1], '系统');
   assert.equal(existsSync(calls[0].options.cwd), false);
   await call({ system: 's', prompt: 'p', model: 'haiku' });
@@ -92,6 +103,7 @@ test('调用：文件写进临时目录当工作目录、跑完删掉；模型�
   const plain = createClaudeCall({ env: {}, tmpRoot, launch, findCli: () => 'x' });
   await plain({ system: 's', prompt: 'p' });
   assert.equal(calls[2].args[calls[2].args.indexOf('--model') + 1], 'sonnet');
+  assert.ok(!calls[2].args.includes('--effort'), '没填强度就不传');
   const slow = createClaudeCall({ env, tmpRoot, timeoutMs: 5, findCli: () => 'x', launch: () => {
     const child = new EventEmitter(); child.stdout = new EventEmitter(); child.stderr = new EventEmitter(); child.kill = () => child.emit('close', null); return child;
   } });

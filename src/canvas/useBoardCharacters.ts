@@ -7,6 +7,7 @@ import type { CharacterSaveImage, CharacterView } from '@/characterTypes';
 import type { CharacterSaveFields } from '@/library/SaveCharacterDialog';
 import { characterCenteredStart, characterDropId, characterNodes, characterSaveImages, characterSaveProblem } from '@/domain/characterCanvas';
 import { rewriteCharacterDrop, rewriteImagePatch } from '@/domain/rewriteDrop';
+import { voiceDropPlan } from '@/domain/voiceCard';
 import type { Point } from '@/domain/placement';
 import { currentResult } from '@/domain/cards';
 import { bumpWorks, isWorkDeleted } from '@/library/worksEvents';
@@ -44,6 +45,20 @@ export function useBoardCharacters(doc: ReturnType<typeof useBoardDoc>, notify: 
     clearGroup();
     doc.setNodes(current => [...current.map(node => node.selected ? { ...node, selected: false } : node), ...nodes]);
     doc.setEdges(current => current.map(edge => edge.selected ? { ...edge, selected: false } : edge));
+  };
+  // 11-19 第二期：人物有声音、落在说话版的人物卡上，就铺（或换）一张声音样本卡连到视频卡，声音栏空着时填人物那句嗓音。
+  const addVoice = (personId: string, character: CharacterView) => {
+    const plan = voiceDropPlan(flow.getNodes(), flow.getEdges(), personId, character);
+    if (!plan) return;
+    const { node: added, edge, replaceId, result, videoId, voiceText } = plan;
+    doc.setNodes(current => [...current.map(node => {
+      if (node.id === replaceId && node.data.kind === 'audio') return { ...node, data: { ...node.data, results: [result], page: 0, voiceOf: plan.name, title: `${plan.name} · 声音` } };
+      if (node.id === videoId && voiceText && node.data.kind === 'video') return { ...node, data: { ...node.data, rewriteVoice: voiceText } };
+      return node;
+    }), ...(added ? [added] : [])]);
+    if (edge) doc.setEdges(current => [...current, edge]);
+    notify(plan.keptVoice ? `已连上「${character.name}」的声音；视频卡「声音」栏已有字，没改，要统一就换成：${character.voice?.desc}`
+      : `已连上「${character.name}」的声音，点「生成提示词」时写进去（已经生成过的要重新点）。`);
   };
   receive.current = character => add(character);
   useEffect(() => subscribeCharacterAdd(character => receive.current(character)), []);
@@ -84,6 +99,7 @@ export function useBoardCharacters(doc: ReturnType<typeof useBoardDoc>, notify: 
         if (plan.kind === 'new') { add(character, at); return; }
         doc.setNodes(current => current.map(node => node.id === plan.id && node.data.kind === 'image'
           ? { ...node, data: { ...node.data, ...rewriteImagePatch(node.data, plan.asset) } } : node));
+        addVoice(plan.id, character);
         if (plan.lostAsset) notify(`「${character.name}」的真人素材编号没带过来：改写图片卡不支持素材编号，交视频时这张图可能被火山拦下。`);
       } catch (reason) { if (alive.current) notify((reason as Error).message); }
     }

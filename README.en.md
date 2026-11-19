@@ -31,7 +31,7 @@ Install https://github.com/c2247189334/ggtv-canvas for me. Follow docs/AI助手�
 
 ## Features
 
-- **Video rewrite** — upload a clip; your local AI agent describes it and writes per-segment prompts; you swap in your own character, outfit and background images; the result is generated and the original soundtrack is re-attached. Multi-location and two-person clips are supported.
+- **Video rewrite** — upload a clip; your local AI agent describes it and writes per-segment prompts; you swap in your own character, outfit and background images; the result is generated and the original soundtrack is re-attached. Multi-location and two-person clips are supported. You first pick the clip type: on-camera with the original sound (dance, catwalk), on-camera with AI voice (talking-head and explainers: the original lines are transcribed and re-spoken with lip sync), or faceless with the original sound (products, hands and feet only).
 - **Motion reference (optional, runs on your GPU, free)** — a depth map (Video-Depth-Anything Small) or a body mesh (ComfyUI + SAM 3D Body).
 - **Infinite canvas** — multiple canvases; place image and video cards anywhere and connect them to use one as a reference for another; group cards with Ctrl+G.
 - **Image generation / editing** — Seedream 5.0 (Flash / Lite).
@@ -39,20 +39,20 @@ Install https://github.com/c2247189334/ggtv-canvas for me. Follow docs/AI助手�
 - **Video generation** — Seedance 2.0 Mini / Fast / 2.0 / 2.5; images, videos and audio can all serve as references.
 - **Library** — generated images, videos and audio are collected automatically and can be dragged back onto the canvas; "My uploads" keeps the images and videos you uploaded (one copy per file), and a "Characters" page stores reusable characters.
 - **Video utilities** — extract the original soundtrack, trim a clip, capture a frame (current / first / last); a "rewrite for me" button asks your local AI agent to polish your prompt.
-- **Product remake (no person)** — for product clips that only show hands or feet: say what to swap, and the product group and a new video card are laid out with the source clip as the reference. No GPU needed.
+- **Faceless product clips** — in video rewrite pick "faceless" for clips that only show products, hands or feet: say what to swap, and the product group and a new video card are laid out with the source clip as the reference; no GPU needed. No GPU needed.
 
 See the [CHANGELOG](CHANGELOG.md) for what each version added or changed.
 
 ## Requirements
 
 - **OS**: Windows.
-- **GPU**: the motion reference for video rewrite needs an NVIDIA GPU (driver with CUDA 12.8+); without one you can still generate images and videos, use the library and run product remake.
+- **GPU**: the motion reference for video rewrite needs an NVIDIA GPU (driver with CUDA 12.8+); without one you can still generate images and videos, use the library and the faceless mode of video rewrite.
 - **Model service**: Volcengine Ark (Seedream / Seedance) with your own API key.
 - **UI language**: Chinese.
 
 ## Local AI agent (Claude Code / Codex built in, pluggable)
 
-Clip analysis, image lookups and prompt writing for video rewrite and product remake, plus "rewrite for me", run through the AI coding agent on your machine, using your own subscription rather than Ark credit. Plain image and video generation do not need it.
+Clip analysis, image lookups and prompt writing for video rewrite, plus "rewrite for me", run through the AI coding agent on your machine, using your own subscription rather than Ark credit. Plain image and video generation do not need it.
 
 - **Built in**: Claude Code (the copy bundled with the Claude desktop app is detected too) and Codex. Whichever is installed and signed in is used automatically, or pick one in the Settings panel.
 - **Pluggable**: to add another command-line agent, write one adapter modelled on `server/codex.mjs` and register it in `server/agent.mjs`. Pull requests are welcome.
@@ -73,12 +73,12 @@ Bug reports are welcome in [issues](https://github.com/c2247189334/ggtv-canvas/i
 
 ## Quick start (release bundle, recommended)
 
-You need: Windows, [Node.js](https://nodejs.org/) 22.12 or newer. Generating images and videos needs a Volcengine Ark API key; using a video as a reference also needs a TOS bucket in the Beijing region; clipping, frame capture, audio extraction, depth and video rewrite need ffmpeg (with ffprobe); video rewrite, product remake and "rewrite for me" also need the local AI agent set up (see above). Without these you can still open the canvas and use everything else; you are told what is missing at the step that needs it.
+You need: Windows, [Node.js](https://nodejs.org/) 22.12 or newer. Generating images and videos needs a Volcengine Ark API key; using a video as a reference also needs a TOS bucket in the Beijing region; clipping, frame capture, audio extraction, depth and video rewrite need ffmpeg (with ffprobe); video rewrite and "rewrite for me" also need the local AI agent set up (see above). Without these you can still open the canvas and use everything else; you are told what is missing at the step that needs it.
 
 1. Download `ggtv-canvas-<version>-win.zip` from the [latest release](../../releases/latest) (not "Source code") and extract it completely into an ordinary folder.
 2. Install ffmpeg (can wait until later): run `winget install Gyan.FFmpeg` in a terminal.
 3. Double-click `一键启动.bat` (one-click start). Your browser opens `http://127.0.0.1:5290`. When you are done, close the console window or double-click `停止.bat` (stop).
-4. Click "设置" (settings) at the top right, enter your Ark key and TOS settings, and save. No restart needed. The panel also explains how to get a key ("怎么拿 Key") and lists which features are ready and what each one still needs.
+4. Click "设置" (settings) at the top right, enter your Ark key and TOS settings, and save. No restart needed. Hover the "?" next to each field to see how to get that key; the panel also lists which features are ready and what each one still needs.
 
 The start script never installs anything on its own: a missing Node.js or page bundle stops it with an explanation; a missing ffmpeg only shows a warning and the app starts anyway. Step-by-step details, the optional depth / mesh installs and troubleshooting are in the **[installation guide](docs/安装说明.md)** (Chinese). Once it is running, the **[usage guide](docs/使用教程.md)** (Chinese, with screenshots) walks through the first image, a full video rewrite and the rules that are easy to miss.
 
@@ -117,7 +117,7 @@ Day-to-day development: `npm run dev` (web, port 5280) and `npm start` (local se
 - The local server binds `127.0.0.1` only; it is unreachable from the LAN or the internet, and it rejects requests from other websites.
 - Keys live only in `.env.local`, which is ignored by Git; keys are masked in logs.
 - Works, jobs and uploaded videos are stored in the local `数据/` folder.
-- What leaves your machine: for image and video generation, prompts and reference images / videos go to Volcengine (reference videos via your own TOS bucket); for video rewrite, product remake and "rewrite for me", frames from the clip, connected images and prompts are handed to the AI agent on your machine, which sends them to its model service under your own account (Claude Code → Anthropic, Codex → OpenAI).
+- What leaves your machine: for image and video generation, prompts and reference images / videos go to Volcengine (reference videos via your own TOS bucket); for video rewrite and "rewrite for me", frames from the clip, connected images and prompts are handed to the AI agent on your machine, which sends them to its model service under your own account (Claude Code → Anthropic, Codex → OpenAI).
 
 See [SECURITY.md](SECURITY.md) for how to report a vulnerability, [CONTRIBUTING.md](CONTRIBUTING.md) to take part, and [CHANGELOG.md](CHANGELOG.md) for version history.
 

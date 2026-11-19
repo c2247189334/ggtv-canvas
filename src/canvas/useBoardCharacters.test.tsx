@@ -2,7 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { useBoardCharacters } from './useBoardCharacters';
 import { api } from '@/api';
 import { requestCharacterAdd } from '@/library/characterEvents';
-import { newCard } from '@/domain/cards';
+import { newCard, newVideoCard } from '@/domain/cards';
 import type { CharacterView } from '@/characterTypes';
 import type { CardNode } from '@/types';
 
@@ -21,7 +21,7 @@ vi.mock('react', async original => ({ ...await original<typeof import('react')>(
   },
   useEffect: (effect: () => void) => { hooks.effects.push(effect); }
 }));
-vi.mock('@xyflow/react', () => ({ useReactFlow: () => ({ getNodes: () => hooks.nodes, screenToFlowPosition: ({ x, y }: { x: number; y: number }) => ({ x: x / 2, y: y / 2 }) }) }));
+vi.mock('@xyflow/react', () => ({ useReactFlow: () => ({ getNodes: () => hooks.nodes, getEdges: () => hooks.edges, screenToFlowPosition: ({ x, y }: { x: number; y: number }) => ({ x: x / 2, y: y / 2 }) }) }));
 vi.mock('@/api', () => ({ api: { listCharacters: vi.fn(), saveCharacter: vi.fn() } }));
 vi.mock('@/library/worksEvents', () => ({ isWorkDeleted: () => false, bumpWorks: vi.fn() }));
 const notify = vi.fn(), clear = vi.fn();
@@ -113,4 +113,21 @@ it('11-06 拖到正在生成的卡：只提示，不填图也不新建', async (
   await render().drop('{"id":"p"}', { x: 1, y: 2 }, 'slot');
   expect(hooks.nodes).toHaveLength(1); expect(hooks.nodes[0].data.results).toHaveLength(0);
   expect(notify).toHaveBeenCalledWith('这张卡正在生成，请等生成结束后再放图片。');
+});
+
+it('11-19 第二期：有声音的人物拖到说话版的人物卡上，铺一张声音样本卡连到视频卡、声音栏填人物那句，并提示要点生成提示词', async () => {
+  const voice = { ref: { type: 'work' as const, id: 'v1' }, desc: '清亮的年轻男声', seconds: 6 };
+  vi.mocked(api.listCharacters).mockResolvedValue([{ ...person, name: '阿青', voice }]);
+  const personSlot = { ...slot(), data: { ...slot().data, rewriteItem: { id: 'P1', kind: '人物' as const, desc: '女生', from: 0, to: 8, frame: 0 } } };
+  const video = { id: 'v', type: 'card' as const, position: { x: 900, y: 0 }, data: { ...newVideoCard('generate', 3), rewriteId: 'r', rewriteTalking: true as const } };
+  hooks.nodes = [personSlot, video]; hooks.edges = [{ id: 'link:slot>v', source: 'slot', target: 'v' }];
+  await render().drop('{"id":"p"}', { x: 1, y: 2 }, 'slot');
+  const audio = hooks.nodes.find(node => node.data.kind === 'audio')!;
+  expect(audio.data).toMatchObject({ voiceOf: '阿青', title: '阿青 · 声音', results: [{ type: 'work', id: 'v1', media: 'audio', seconds: 6 }] });
+  expect(hooks.edges).toContainEqual(expect.objectContaining({ source: audio.id, target: 'v' }));
+  expect(hooks.nodes.find(node => node.id === 'v')!.data).toMatchObject({ rewriteVoice: '清亮的年轻男声' });
+  expect(notify).toHaveBeenCalledWith(expect.stringContaining('已连上「阿青」的声音'));
+  // 再拖一次：换声音，不再多铺一张。
+  await render().drop('{"id":"p"}', { x: 1, y: 2 }, 'slot');
+  expect(hooks.nodes.filter(node => node.data.kind === 'audio')).toHaveLength(1);
 });

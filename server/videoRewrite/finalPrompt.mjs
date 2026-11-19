@@ -8,6 +8,11 @@ import { planChangeSeconds } from './rules.mjs';
 import { FAKE_SCENE_READ, fakeSceneTexts, SCENE_TEXT_EXTRA, sceneReadsOf, sceneTextFiles, sceneTextRows } from './sceneTexts.mjs';
 import { fakeItemTexts, ITEM_TEXT_EXTRA, itemTextFiles, itemTextRows } from './itemTexts.mjs';
 import { removeRewrite, rewriteFolder } from './storage.mjs';
+import { linesFile, TALKING_EXTRA } from './talkingPrompt.mjs';
+
+/** 台词表.txt 里谁说：连了图的人写素材编号，没连的写拆解里的称呼。 */
+const speakerName = input => id => input.materials.find(material => material.itemId === id)?.tag
+  ?? input.plan.items.find(item => item.id === id)?.desc.split(/[，,]/)[0].trim() ?? '出镜的人';
 
 // 11-10 用户定：每次生成提示词都按官方 Seedance 2.5 提示词指南写（暂时不管选的哪个模型），再结合这次的视频。
 const COMMON = `你是 Seedance 2.5「视频复刻」的提示词定稿员。底稿.txt 是程序按固定模板拼好的提示词，素材分工、秒数划分和换装时间已按真出片调过。你的任务：按官方 Seedance 2.5 提示词指南（见下面「官方写法」）把底稿补齐成官方结构，再对照参考图、原片抽帧、拆解单改掉会让成片出错的句子；程序写好的素材分工句和秒数划分保留，其余没问题的句子不改。输出可以直接发给 Seedance 的定稿。不评价文笔，不为了好看改写。
@@ -53,9 +58,9 @@ const RULES = `官方写法（Seedance 2.5 提示词指南，必须照做；不�
 输出：只输出一个 JSON 对象，不要别的文字、不要代码围栏：
 {"prompt":"定稿全文（保留底稿的换行）","changes":[{"before":"底稿原句","after":"改后的句子","why":"为什么改","evidence":"哪张图、第几秒、看到什么"}],"unfixable":[{"what":"改字解决不了的问题","evidence":"证据","fix":"建议用户怎么处理"}],"checked":"一句话说明看了哪些文件"}`;
 
-export function finalSystem(kind, duration, sceneText = false, itemText = false) {
+export function finalSystem(kind, duration, sceneText = false, itemText = false, talking = false) {
   return [COMMON, kind === 'product' ? PRODUCT : PERSON, RULES.replace('{DURATION}', String(duration)),
-    ...(sceneText ? [SCENE_TEXT_EXTRA] : []), ...(itemText ? [ITEM_TEXT_EXTRA] : [])].join('\n\n');
+    ...(sceneText ? [SCENE_TEXT_EXTRA] : []), ...(itemText ? [ITEM_TEXT_EXTRA] : []), ...(talking ? [TALKING_EXTRA] : [])].join('\n\n');
 }
 
 /** 抽帧时刻：6～10 个，从 0 均分到结尾（留 0.15 秒免得读到黑尾）。 */
@@ -147,6 +152,7 @@ export async function finalFiles(input, { sheets }) {
   files.push({ name: '底稿.txt', buffer: Buffer.from(input.draft) }, { name: '素材表.txt', buffer: Buffer.from(rows.join('\n')) },
     { name: '拆解单.json', buffer: Buffer.from(JSON.stringify(input.plan ?? {}, null, 1)) }, { name: '用户原话.txt', buffer: Buffer.from(input.userText || '（没写）') });
   if (input.warnings?.length) files.push({ name: '提醒.txt', buffer: Buffer.from(input.warnings.map(text => `- ${text}`).join('\n')) });
+  if (input.linesText) files.push({ name: '台词表.txt', buffer: Buffer.from(input.linesText) });
   return files;
 }
 
@@ -174,7 +180,7 @@ async function finalizeOnce(input, { call, sheets, model, rules, timeoutMs = 10 
   const s = input.settings ?? {};
   const ask = [`视频设置：${modelLabel(s.model)}，参考模式，${s.ratio ?? ''}，${s.resolution ?? ''}，${target} 秒，生成音频${s.audio ? '开' : '关'}。`,
     `当前目录一共 ${files.length} 个文件。请先把它们全部 Read 一遍，再按清单核对和定稿，最后只输出 JSON。`].join('\n');
-  const system = finalSystem(input.kind, target, Boolean(input.sceneTexts?.length), Boolean(input.itemTexts?.length));
+  const system = finalSystem(input.kind, target, Boolean(input.sceneTexts?.length), Boolean(input.itemTexts?.length), Boolean(input.linesText));
   const round = async (extraFiles, extraAsk) => parseFinal((await call({ system, prompt: extraAsk ? `${ask}\n${extraAsk}` : ask,
     files: [...files, ...extraFiles], model, timeoutMs })).text);
   let first;
@@ -230,7 +236,8 @@ export function createFinalizer({ dataRoot, promptImages, media, sheets, fake, a
       const result = await finalizePrompt({ kind, draft: draft.videoPrompt, materials, plan: input.plan, userText: input.userText, warnings: draft.warnings,
         settings: { ...settings, model: settings.model ?? input.model }, duration: input.duration, folder,
         ...(texts.length ? { sourceVideo: { path: clip.path } } : {}), ...(scenes.length ? { sceneTexts: sceneTextRows(scenes, input.plan, clip.duration) } : {}),
-        ...(items.length ? { itemTexts: itemTextRows(items, input.plan, clip.duration) } : {}) },
+        ...(items.length ? { itemTexts: itemTextRows(items, input.plan, clip.duration) } : {}),
+        ...(input.talking ? { linesText: linesFile(input.lines ?? [], speakerName(input), input.voice) } : {}) },
       { call: agentCall(env), sheets, model: agent.agentModel, rules });
       return { ...draft, videoPrompt: result.videoPrompt, warnings: [...draft.warnings, ...finalNotes(result, agent.agentName)], issues: result.issues,
         finalized: result.finalized, changes: result.changes, ...(texts.length ? { sceneReads: sceneReadsOf(texts, result.sceneReads) } : {}) };

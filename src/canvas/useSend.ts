@@ -15,6 +15,7 @@ import { isWorkDeleted } from "@/library/worksEvents";
 import { rewriteOutputProblem } from '@/domain/rewriteProgress';
 import { productMaterials, productSourceProblem } from '@/domain/productPrompt';
 import { sceneTextIds } from '@/domain/rewriteTextScene';
+import { talkingLines } from '@/domain/rewriteLines';
 import { requireKey } from '@/common/keyNeeded';
 import type { CardNode } from "@/types";
 
@@ -58,7 +59,8 @@ export function useSend(canvasId: string, setNodes: (update: (nodes: CardNode[])
             ? await api.checkProductPrompt({ cardId, videoPrompt: card.data.prompt, duration: card.data.video.duration,
               materials: productMaterials(flow.getNodes(), flow.getEdges(), cardId), plan: card.data.productPlan })
             : await api.checkVideoPrompt({ cardId, videoPrompt: card.data.prompt, duration: card.data.video.duration,
-              materials, changeSeconds: rewriteChangeSeconds(card.data, materials, sceneTextIds(flow.getNodes(), card.data)) });
+              materials, changeSeconds: rewriteChangeSeconds(card.data, materials, sceneTextIds(flow.getNodes(), card.data)),
+              ...(card.data.rewriteTalking ? { lines: talkingLines(card.data).map(line => ({ text: line.text })) } : {}) });
           if (checked.issues.length) throw new Error(checked.issues.join('\n'));
         }
         await submitVideoBatch({ card: card.data, canvasId, cardId, refs, health: await api.health(),

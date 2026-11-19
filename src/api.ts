@@ -65,6 +65,10 @@ export const api = {
   /** 设置面板填 Key：写进 .env.local，只回填没填，不回值。 */
   /** 设置里选本机 AI 助手用谁（auto / claude / codex），回最新的助手状态。 */
   saveAgent: (engine: string) => call<Pick<Health, "agent" | "agentName" | "agentReady" | "agentModel" | "agentProblem" | "agentChoice" | "agents">>("POST", "/api/settings/agent", { json: { engine } }),
+  /** 设置里选写词强度（standard / strong / max），回最新的助手状态。 */
+  /** 设置里点「登录 Claude / Codex」：小服务打开官方登录窗口；already 是那个窗口还开着。 */
+  openAgentLogin: (engine: string) => call<{ opened: boolean; already?: boolean }>("POST", "/api/settings/agent-login", { json: { engine } }),
+  saveStrength: (strength: string) => call<Pick<Health, "agent" | "agentModel" | "agentStrength">>("POST", "/api/settings/strength", { json: { strength } }),
   saveKeys: (json: Partial<Record<KeyName, string>>) => call<{ saved: KeyName[]; keyReady: boolean; tosReady: boolean; keyCheck?: KeyCheck }>("POST", "/api/settings/keys", { json }),
   listCanvases: () => call<CanvasSummary[]>("GET", "/api/canvases"),
   createCanvas: (name: string) => call<CanvasDoc>("POST", "/api/canvases", { json: { name } }),

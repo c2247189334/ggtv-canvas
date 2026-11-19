@@ -5,12 +5,14 @@ import { parseModelJson } from './modelJson.mjs';
 export const ASK_SYSTEM = '你是视频拆解员。用户会告诉你图片在当前目录里叫什么，先用 Read 工具把每一张都看完，再严格按用户的要求回答。'
   + '只输出一个 JSON 对象，不要别的文字、不要代码围栏。看不清、拿不准的写进 unsure，不要按常识猜。';
 
-/** 拆解：前几张是总览大图、后几张是清楚大图（提问里写了「另附N张」）；看人物图：按顺序编号。 */
+/** 拆解：前几张是总览大图、后几张是清楚大图（提问里写了「另附N张」），说话版最后是字幕连拍；看人物图：按顺序编号。 */
 export function imageNames(round, count, text = '') {
   if (round === 'look') return Array.from({ length: count }, (_, i) => `人物图-${i + 1}.jpg`);
   if (round === 'product-look') return Array.from({ length: count }, (_, i) => `商品图-${i + 1}.jpg`);
-  const big = Number((text.match(/另附(\d+)张/) ?? [])[1] ?? 0), sheets = Math.max(0, count - big);
-  return Array.from({ length: count }, (_, i) => (i < sheets ? `总览大图-${i + 1}.jpg` : `清楚大图-${i - sheets + 1}.jpg`));
+  // 11-19 说话版最后再附字幕连拍（提问里写了「再附N张字幕连拍」）。
+  const subtitles = Number((text.match(/再附(\d+)张字幕连拍/) ?? [])[1] ?? 0), big = Number((text.match(/另附(\d+)张/) ?? [])[1] ?? 0);
+  const sheets = Math.max(0, count - big - subtitles);
+  return Array.from({ length: count }, (_, i) => (i < sheets ? `总览大图-${i + 1}.jpg` : i < sheets + big ? `清楚大图-${i - sheets + 1}.jpg` : `字幕连拍-${i - sheets - big + 1}.jpg`));
 }
 
 export function askPrompt(names, text) {

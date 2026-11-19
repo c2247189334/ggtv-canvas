@@ -1,5 +1,6 @@
 import { outfitChangePoints } from './rules.mjs';
 import { MESH_PURPOSE } from '../mesh/purpose.mjs';
+import { VOICE_PURPOSE, voiceRole } from './talkingPrompt.mjs';
 export { MESH_PURPOSE } from '../mesh/purpose.mjs';
 
 /** 称呼只取种类、顺序和时段，绝不使用原视频外观。 */
@@ -64,7 +65,8 @@ export function materialRoles({ materials, plan, keepClothes = false, itemTexts 
   return materials.map(material => {
     const { tag, purpose } = material;
     const item = connected.find(entry => entry.id === material.itemId);
-    if (tag.startsWith('@音频')) return `${tag}是背景音乐，${rhythm}跟随它。`;
+    if (tag.startsWith('@音频')) return purpose.startsWith(VOICE_PURPOSE) ? voiceRole(tag, people.length === 1 ? people[0].tag : '出镜的人')
+      : `${tag}是背景音乐，${rhythm}跟随它。`;
     if (tag.startsWith('@视频')) {
       if (purpose === MESH_PURPOSE) {
         const identity = people.length === 1 ? `；${tag}里的灰色人体模型就是${people[0].tag}` : people.length > 1

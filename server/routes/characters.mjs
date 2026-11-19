@@ -1,14 +1,19 @@
 import { HttpError, readJson, sendJson } from '../http.mjs';
 import { keyFilled, keyMissingText } from '../config.mjs';
 import { characterImageJob, characterVideo } from '../characterPolicy.mjs';
-import { characterDescription, characterFields, characterImages, requireCharacter } from '../characterInput.mjs';
+import { characterDescription, characterFields, characterImages, characterVoice, requireCharacter } from '../characterInput.mjs';
 
 export function characterRoutes(router, { characters, jobs, queue, uploads, works, readEnv, fake }) {
   const metadata = ref => ref.type === 'upload' ? uploads.metadata(ref.id) : works.metadata(ref.id);
   const workIndex = () => new Map(works.list().map(work => [work.id, work]));
-  const view = (character, index = workIndex()) => ({ ...character,
+  // 11-19 第二期：声音作品删了就不显示声音（和图片一样只在读的时候滤掉，不改存档）；带上秒数，页面铺声音卡要用。
+  const voiceView = voice => {
+    const meta = voice ? works.metadata(voice.ref.id) : null;
+    return meta?.kind === 'audio' ? { voice: { ...voice, seconds: meta.duration } } : {};
+  };
+  const view = (character, index = workIndex()) => { const { voice, ...rest } = character; return { ...rest,
     images: character.images.filter(image => metadata(image.ref)?.kind === 'image')
-      .map(image => ({ ...image, video: characterVideo(image, index.get(image.ref.id)) })) });
+      .map(image => ({ ...image, video: characterVideo(image, index.get(image.ref.id)) })), ...voiceView(voice) }; };
 
   function collect(character) {
     if (character.status !== 'generating') return character;
@@ -39,7 +44,8 @@ export function characterRoutes(router, { characters, jobs, queue, uploads, work
   router.add('PATCH', '/api/characters', async ({ req, res }) => {
     const body = await readJson(req);
     const character = requireCharacter(characters, body?.id);
-    sendJson(res, 200, view(characters.patch(character.id, characterFields(body))));
+    const voice = body.voice === undefined ? {} : { voice: characterVoice(body.voice, id => works.metadata(id)) };
+    sendJson(res, 200, view(characters.patch(character.id, { ...characterFields(body), ...voice })));
   });
 
   router.add('DELETE', '/api/characters', async ({ query, res }) => {

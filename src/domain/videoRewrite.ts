@@ -13,6 +13,7 @@ import type { MotionReference } from './motionReference';
 import { FFMPEG_MISSING, missingDepthConfig, meshConfigProblem } from './health';
 import { compareCard, compareSecond, frameAspect, type RewriteRow } from './rewriteRows';
 import { rewritePeers } from './rewritePeers';
+import { voicePurpose } from './voiceCard';
 
 export const REWRITE_VIDEO_MODEL = 'doubao-seedance-2-5-260628';
 /** 背景卡的用途以「背景」开头，小服务按这个检查提示词里有没有写它是场景；别写「去掉」（视频提示词禁用编辑词）。 */
@@ -57,13 +58,14 @@ export function rewriteRatio(source: AssetRef): VideoRatio {
 }
 
 /** 第一步先建媒体卡；拆解后把单子和用户原话存入新视频卡，供补图后写词。 */
-export function startVideoRewrite({ source, nodes, edges, takeNumber, makeId, userText, motionReference = 'depth' }: GraphArgs & { source: CardNode; userText: string; motionReference?: MotionReference }) {
+export function startVideoRewrite({ source, nodes, edges, takeNumber, makeId, userText, motionReference = 'depth', talking = false }: GraphArgs & { source: CardNode; userText: string; motionReference?: MotionReference; talking?: boolean }) {
   const asset = currentResult(source.data);
   const problem = source.data.kind === 'video' ? rewriteSourceProblem(asset) : '先选一张有结果的视频卡。';
   if (problem || !asset) throw new Error(problem!);
   const batchId = makeId();
   const state: VideoRewriteState = { batchId, sourceId: source.id, source: { ...asset }, sourcePosition: { ...source.position },
-    userText, motionReference, plan: null, ratio: rewriteRatio(asset), duration: asset.seconds!, targetDuration: Math.round(asset.seconds!), hasAudio: asset.hasAudio === true };
+    userText, motionReference, plan: null, ratio: rewriteRatio(asset), duration: asset.seconds!, targetDuration: Math.round(asset.seconds!), hasAudio: asset.hasAudio === true,
+    ...(talking ? { talking: true } : {}) };
   const media = ensureRewriteMedia({ state, nodes: nodes.map(node => ({ ...node, selected: false })), edges, takeNumber, makeId });
   const unfinished = media.nodes.find(node => node.data.kind === 'video' && node.data.source === 'generate' &&
     node.data.rewriteSourceId === source.id && sameAsset(node.data.rewriteSource ?? null, asset) &&
@@ -72,6 +74,7 @@ export function startVideoRewrite({ source, nodes, edges, takeNumber, makeId, us
   const card = unfinished?.data.kind === 'video' ? { ...unfinished.data } : newVideoCard('generate', takeNumber());
   card.rewriteId = batchId; card.rewriteSourceId = source.id; card.rewriteSource = { ...asset };
   card.rewriteMotionReference = motionReference;
+  if (talking) card.rewriteTalking = true; else delete card.rewriteTalking;
   card.rewriteStatus = { status: 'pending' };
   card.video = rewriteVideoSettings(state);
   const next = unfinished ? media.nodes.map(node => node.id === videoId ? { ...node, data: card } : node)
@@ -79,9 +82,9 @@ export function startVideoRewrite({ source, nodes, edges, takeNumber, makeId, us
   return { ...media, nodes: next, state: { ...media.state, videoId }, batchId };
 }
 
-/** 10-30 用户定：成片关着生成音频出，原片有声音时出好后由小服务配回原声（交单带 soundtrack，见 `videoSend.ts`）。 */
+/** 10-30 用户定：成片关着生成音频出，原片有声音时出好后由小服务配回原声（交单带 soundtrack，见 `videoSend.ts`）；11-19 说话版开着生成音频、不配回原声。 */
 function rewriteVideoSettings(state: VideoRewriteState): VideoCardData['video'] {
-  return { model: REWRITE_VIDEO_MODEL, mode: 'reference', ratio: state.ratio, resolution: '480p', duration: state.targetDuration, audio: false, count: 1 };
+  return { model: REWRITE_VIDEO_MODEL, mode: 'reference', ratio: state.ratio, resolution: '480p', duration: state.targetDuration, audio: state.talking === true, count: 1 };
 }
 
 /** 按种类补同一来源的动作参考卡；depthId 沿用旧字段名，指向本次选中的参考卡。 */
@@ -220,6 +223,7 @@ export function prepareRewriteCards({ state, nodes, edges, takeNumber, makeId, k
   card.rewriteChangeSeconds = planChangeSeconds(state.plan!);
   card.video = rewriteVideoSettings(state); card.prompt = '';
   if (state.keepClothes) card.rewriteKeepClothes = true;
+  if (state.talking) card.rewriteTalking = true;
   delete card.rewriteBusy; delete card.rewriteStatus;
   if (existing) next[next.indexOf(existing)] = { ...existing, data: card };
   else next.push({ id: videoId, type: 'card', position: rewriteSpot(col4, next), data: card });
@@ -243,7 +247,7 @@ export function videoRewriteMaterials(nodes: readonly CardNode[], edges: readonl
     const scene = node.data.kind === 'image' && node.data.rewriteNewScene ? REWRITE_NEW_SCENE_PURPOSE : REWRITE_BACKGROUND_PURPOSE;
     const mesh = node.data.source === 'mesh' || currentResult(node.data)?.mesh === true;
     return [{ tag: `@${kind === 'image' ? '图片' : kind === 'video' ? '视频' : '音频'}${number}`,
-      purpose: item ? itemPurpose(item, items) : background ? scene : kind === 'audio' ? '原声，作为背景音乐和节奏参考' : kind === 'video' ? mesh ? REWRITE_MESH_PURPOSE : '深度，参考机位、动作、空间和遮挡节奏' : node.data.title ?? '图片参考',
+      purpose: item ? itemPurpose(item, items) : background ? scene : node.data.kind === 'audio' ? node.data.voiceOf ? voicePurpose(node.data.voiceOf) : '原声，作为背景音乐和节奏参考' : kind === 'video' ? mesh ? REWRITE_MESH_PURPOSE : '深度，参考机位、动作、空间和遮挡节奏' : node.data.title ?? '图片参考',
       ...(item ? { itemId: item.id, originalDesc: item.desc } : background && node.data.kind === 'image' && node.data.rewriteSceneId ? { itemId: node.data.rewriteSceneId } : {}) }];
   });
 }
@@ -284,7 +288,8 @@ export function rewriteChangeSeconds(data: VideoCardData, materials: readonly Re
 export function rewriteVideoHints(data: VideoCardData, nodes: readonly CardNode[], edges: readonly Pick<Edge, 'source' | 'target'>[], videoId?: string): string[] {
   if (!data.rewriteId || data.rewriteKind === 'product') return [];
   const hints: string[] = [];
-  if (data.video.model !== REWRITE_VIDEO_MODEL) hints.push('时间戳会失效，请改回 2.5。');
+  if (data.video.model !== REWRITE_VIDEO_MODEL) hints.push(data.rewriteTalking ? '时间戳会失效，请改回 2.5（AI 配音只在 2.5 上真出过片）。' : '时间戳会失效，请改回 2.5。');
+  if (data.rewriteTalking && !data.video.audio) hints.push('生成音频关了：人物不会说话，会配回原片声音，口型对不上。');
   const snapshot = data.rewriteSource; const sourceId = data.rewriteSourceId;
   const target = videoId ?? nodes.find(node => node.data === data)?.id;
   if (edges.some(edge => edge.target === target && (edge.source === sourceId || Boolean(snapshot && sameAsset(currentResult(nodes.find(node => node.id === edge.source)?.data ?? data), snapshot)))))

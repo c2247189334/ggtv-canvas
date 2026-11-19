@@ -56,6 +56,7 @@ export function CharactersPanel({ characters, error, notify, onUpdate, onRemove 
     {selected ? <CharacterDetailDialog key={selected.id} character={selected} busy={busy} error={actionError}
       onClose={() => setSelectedId(null)}
       onSave={(name, description) => void mutate(() => api.patchCharacter({ id: selected.id, name, description }), onUpdate)}
+      onRemoveVoice={() => void mutate(() => api.patchCharacter({ id: selected.id, voice: null }), onUpdate)}
       onAdd={() => {
         if (requestCharacterAdd(selected)) setSelectedId(null);
         else notify('画布还没打开，等一下再添加。');

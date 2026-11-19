@@ -4,6 +4,7 @@ import { validatePlan, validCardId } from './analyze.mjs';
 import { isId } from '../store/files.mjs';
 import { isNewScene, NEW_SCENE_PURPOSE, ownItemTitles } from './roles.mjs';
 import { checkItemTexts } from './itemTexts.mjs';
+import { validateLines } from './lines.mjs';
 
 /**
  * 11-11 用户定：换新背景时也按场景每段铺一张背景卡；用户删掉多的（想几段共用一张），那几段就沿用前一张。
@@ -92,7 +93,17 @@ export function checkPromptInput(body) {
   const sceneTexts = checkSceneTexts(body.sceneTexts, body.plan, materials), itemTexts = ownItemTitles({ materials, plan: body.plan, itemTexts: checkItemTexts(body.itemTexts, body.plan, materials) });
   return { cardId: body.cardId, plan: scenesInUse(body.plan, materials, sceneTexts), duration: body.duration, sourceDuration, ratio: body.ratio,
     userText: checkUserText(body.userText), materials, ...(sceneTexts.length ? { sceneTexts } : {}), ...(itemTexts.length ? { itemTexts } : {}),
-    ...(body.keepClothes === true ? { keepClothes: true } : {}) };
+    ...(body.keepClothes === true ? { keepClothes: true } : {}), ...checkTalking(body, sourceDuration) };
+}
+
+/** 11-19 说话版：台词表至少一句、每句都有字（页面也这么拦）；voice 是用户写的嗓音，可以不写。 */
+function checkTalking(body, duration) {
+  if (body.talking !== true) return {};
+  validateLines(body.plan, duration, { allowBlank: false });
+  if (!body.plan.lines?.length) throw Error('台词表是空的：至少写一句台词，再生成提示词。');
+  if (body.voice !== undefined && (typeof body.voice !== 'string' || body.voice.length > 200)) throw Error('声音那一栏最多 200 字。');
+  const voice = typeof body.voice === 'string' ? body.voice.replace(/[{}]/g, '').trim() : '';
+  return { talking: true, lines: body.plan.lines, ...(voice ? { voice } : {}) };
 }
 
 export function nearestRatio(width, height) {

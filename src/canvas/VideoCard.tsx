@@ -127,8 +127,8 @@ function VideoCardView({ id, data, selected }: NodeProps<CardNode>) {
     {isGenerate ? <CardHandle type="target" visible={handles.target} showPlus={onlySelected} onClick={anchor => board.openRefMenu(id, anchor)} />
       : data.source === "depth" || data.source === 'mesh' || data.mediaSource ? <LineEnd /> : null}
     <CardHandle type="source" visible={handles.source} showPlus={onlySelected} onClick={anchor => board.openNextMenu(id, anchor)} />
-    {clipping ? null : productInput ? <NodeToolbar position={Position.Bottom} offset={14}><ProductInput key={`${id}:${current?.type}:${current?.id}`} id={id} /></NodeToolbar> :
-      rewriteInput ? <NodeToolbar position={Position.Bottom} offset={14}><RewriteInput key={`${id}:${current?.type}:${current?.id}`} id={id} /></NodeToolbar> :
+    {clipping ? null : productInput ? <NodeToolbar position={Position.Bottom} offset={14}><ProductInput key={`${id}:${current?.type}:${current?.id}`} id={id} noAudio={current?.hasAudio === false} /></NodeToolbar> :
+      rewriteInput ? <NodeToolbar position={Position.Bottom} offset={14}><RewriteInput key={`${id}:${current?.type}:${current?.id}`} id={id} noAudio={current?.hasAudio === false} /></NodeToolbar> :
       // 面板不随缩放、比卡宽，居中会盖住左边那列；改写卡从卡左边往右展开（用户 10-30）。
       isGenerate ? <NodeToolbar position={Position.Bottom} offset={14} align={data.rewriteId ? "start" : "center"}><PromptPanel id={id} data={data} /></NodeToolbar> : null}
   </div>;

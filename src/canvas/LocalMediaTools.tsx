@@ -24,22 +24,19 @@ export function MeshChoices({ onConfirm, busy }: { onConfirm: () => void; busy: 
   </div>;
 }
 
-type ItemProps = { asset: AssetRef; busy: boolean; onDepth: () => void; onMesh: () => void; onAudio: () => void; onClip: () => void };
+type ItemProps = { asset: AssetRef; busy: boolean; onDepth: () => void; onMesh: () => void; onAudio: () => void };
 
-/** 「更多 ▾」里的四项，顺序：深度、白模、提取原声、片段截取（11-08 用户定：不常用的收进更多）。 */
-export function VideoMoreItems({ asset, busy, onDepth, onMesh, onAudio, onClip }: ItemProps) {
-  const short = typeof asset.seconds === 'number' && asset.seconds < 1;
+/** 「更多 ▾」里的三项，顺序：深度、白模、提取原声（11-08 用户定：不常用的收进更多；11-19 片段截取挪到外面）。 */
+export function VideoMoreItems({ asset, busy, onDepth, onMesh, onAudio }: ItemProps) {
   return <div className="card-tools__menu-list" role="menu">
     <button type="button" role="menuitem" className="card-tools__menu-item" disabled={busy} onClick={onDepth}>深度动作捕捉</button>
     <button type="button" role="menuitem" className="card-tools__menu-item" disabled={busy} onClick={onMesh}>白模动作捕捉</button>
     <button type="button" role="menuitem" className="card-tools__menu-item" disabled={busy || asset.hasAudio === false}
       title={asset.hasAudio === false ? "这段视频没有声音" : "提取视频原声"} onClick={onAudio}>提取原声</button>
-    <button type="button" role="menuitem" className="card-tools__menu-item" aria-label="片段截取" disabled={short}
-      title={short ? '视频不到 1 秒，不能截取' : '片段截取'} onClick={onClip}>片段截取</button>
   </div>;
 }
 
-/** 视频卡上方的「更多 ▾」：点开列四项；深度 / 白模再弹确认浮层，浮层挂在「更多」按钮上（菜单关了也不丢位置）。 */
+/** 视频卡上方的「更多 ▾」：点开列三项；深度 / 白模再弹确认浮层，浮层挂在「更多」按钮上（菜单关了也不丢位置）。 */
 export function VideoMoreTools({ cardId, asset }: { cardId: string; asset: AssetRef }) {
   const board = useBoard();
   const button = useRef<HTMLButtonElement>(null);
@@ -59,7 +56,7 @@ export function VideoMoreTools({ cardId, asset }: { cardId: string; asset: Asset
       onClick={event => { setAction(null); setMenu(menu ? null : event.currentTarget); }}>更多 ▾</button>
     {menu ? <FloatingPanel anchor={menu} keepAnchor className="card-tools__menu" onClose={() => setMenu(null)}>
       <VideoMoreItems asset={asset} busy={busy} onDepth={() => choose('depth')} onMesh={() => choose('mesh')}
-        onAudio={() => void run("audio")} onClip={() => { setMenu(null); void board.videoClip?.start(cardId); }} />
+        onAudio={() => void run("audio")} />
     </FloatingPanel> : null}
     {action && button.current ? <FloatingPanel anchor={button.current} onClose={() => setAction(null)}>
       {action === 'mesh' ? <MeshChoices busy={busy} onConfirm={() => void run('mesh')} /> :

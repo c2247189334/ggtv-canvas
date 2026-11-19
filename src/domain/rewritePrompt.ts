@@ -5,6 +5,7 @@ import type { Notify } from '@/common/Toast';
 import { cardTitle, currentResult } from './cards';
 import { videoRewriteMaterials } from './videoRewrite';
 import { rewriteOutputProblem } from './rewriteProgress';
+import { talkingLinesProblem } from './rewriteLines';
 import { attachReadCards, canUseText, cardTextsOf, itemTextsOf, SCENE_TEXT_HINT, sceneTextProblem, sceneTextsOf } from './rewriteTextScene';
 
 export type LookPromptState = { id: string; data: VideoCardData; nodes: readonly CardNode[]; edges: readonly Pick<Edge, 'source' | 'target'>[] };
@@ -37,7 +38,7 @@ export function lookPromptProblem(state: LookPromptState, loading = pending.has(
   // 11-13：缺的是背景卡（11-16 起衣服卡、东西卡也算）就顺带说一句可以不出图、改用文字；只连着这一张图时不说（改了就一张图都没有了）。
   if (missing.length) return `还差 ${missing.length} 张图：${missing.map(node => cardTitle(node.data)).join('、')}`
     + (images.length > 1 && missing.some(node => canUseText(node.data)) ? `；${SCENE_TEXT_HINT}` : '');
-  return sceneTextProblem(cardTextsOf(state.nodes, state.data, state.edges));
+  return talkingLinesProblem(state.data) ?? sceneTextProblem(cardTextsOf(state.nodes, state.data, state.edges));
 }
 export function lookPromptRequest(state: LookPromptState): WriteVideoRequest {
   if (!state.data.rewritePlan) throw Error('这张卡没存拆解结果，请重新做一次视频改写');
@@ -53,7 +54,8 @@ export function lookPromptRequest(state: LookPromptState): WriteVideoRequest {
     duration: state.data.video.duration, sourceDuration: state.data.rewriteSource?.seconds ?? state.data.video.duration,
     ratio: state.data.video.ratio, materials, ...(state.data.rewriteKeepClothes ? { keepClothes: true } : {}),
     ...(state.data.rewriteSource ? { source: { ...state.data.rewriteSource } } : {}), settings: finalSettings(state.data),
-    ...(sceneTexts.length ? { sceneTexts } : {}), ...(itemTexts.length ? { itemTexts } : {}) };
+    ...(sceneTexts.length ? { sceneTexts } : {}), ...(itemTexts.length ? { itemTexts } : {}),
+    ...(state.data.rewriteTalking ? { talking: true, ...(state.data.rewriteVoice?.trim() ? { voice: state.data.rewriteVoice.trim() } : {}) } : {}) };
 }
 /** 11-08 看图定稿要的视频设置（写进提问，不进存档）。 */
 export function finalSettings(data: VideoCardData): FinalSettings {

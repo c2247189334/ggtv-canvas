@@ -22,7 +22,7 @@ it("什么都没装的新电脑：每行说缺什么和怎么办，不出现变�
   const bare = rows({ ok: true, fake: false, keyReady: false, tosReady: false, todayYuan: 0, uncertainToday: 0, ffmpegFound: false, ffprobeFound: false,
     agentReady: false, agentProblem: "本机 Claude 没配好：装 Claude Code。" });
   expect(bare["出图、出视频"]).toMatchObject({ ok: false, state: "还不能用，缺 火山 Key" });
-  expect(bare["出图、出视频"].fix).toContain("怎么拿 Key");
+  expect(bare["出图、出视频"].fix).toContain("Key 框旁边的「?」");
   expect(bare["拿视频当参考出片"].state).toBe("还不能用，缺 火山 Key、TOS 三项");
   expect(bare["片段截取、视频截图、提取原声"].fix).toContain("winget install Gyan.FFmpeg");
   expect(bare["片段截取、视频截图、提取原声"].fix).toContain("重新双击「一键启动.bat」");

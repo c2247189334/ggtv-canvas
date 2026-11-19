@@ -45,6 +45,8 @@ import { GroupFrames } from './GroupFrames';
 import { cardAtPointer } from './useBoardActions';
 import { useBoardCharacters } from './useBoardCharacters';
 import { SaveCharacterDialog } from '@/library/SaveCharacterDialog';
+import { SaveVoiceDialog } from '@/library/SaveVoiceDialog';
+import { useBoardVoiceSave } from './useBoardVoiceSave';
 import { CHARACTER_DRAG_TYPE } from '@/library/characterEvents';
 import { useProductRemake } from './useProductRemake';
 import { useLayers } from './useLayers';
@@ -112,7 +114,8 @@ function Board(props: BoardProps) {
   const actions = useBoardActions(doc, history, () => closeMenu.current(), notify, stopLocal, groups);
   const characters = useBoardCharacters(doc, notify, actions.selectedNodes, groups.clear);
   const altDrag = useAltDrag(doc);
-  const menus = useBoardMenus(cards, doc, actions, history, pending, () => setPending(null), groups, characters);
+  const voiceSave = useBoardVoiceSave(notify, actions.selectedNodes);
+  const menus = useBoardMenus(cards, doc, actions, history, pending, () => setPending(null), groups, characters, voiceSave);
   closeMenu.current = menus.close;
   useJobPolling(doc.nodes, doc.setNodes);
   const localMedia = useLocalMedia({ canvasId: canvas.id, nodes: doc.nodes, setNodes: doc.setNodes, setEdges: doc.setEdges, takeNumber: doc.takeNumber, notify });
@@ -262,6 +265,8 @@ function Board(props: BoardProps) {
       {menus.assetDialog ? <AssetIdDialog value={menus.assetDialog.value} onSave={menus.saveAssetId} onClose={menus.closeAssetDialog} /> : null}
       {characters.images ? <SaveCharacterDialog images={characters.images} busy={characters.busy} error={characters.error}
         onSave={fields => void characters.save(fields)} onClose={characters.closeSave} /> : null}
+      {voiceSave.source ? <SaveVoiceDialog source={voiceSave.source} characters={voiceSave.characters} busy={voiceSave.busy} error={voiceSave.error}
+        onSave={(id, desc) => void voiceSave.save(id, desc)} onClose={voiceSave.close} /> : null}
       {layerNode ? <LayerEditor node={layerNode} nodes={doc.nodes} onClose={layers.close} split={layers.split} merge={layers.merge}
         redraw={layers.redraw} redrawn={layers.redrawn} /> : null}
       {picking ? (

@@ -7,22 +7,27 @@ import { usePanelFit } from './usePanelFit';
 import { localMediaProblem } from '@/domain/localMedia';
 import type { MotionReference } from '@/domain/motionReference';
 import { addRewriteSubject, REWRITE_SUBJECTS, type RewriteSubject } from '@/domain/rewriteSubjects';
+import type { RewriteMode } from '@/domain/rewriteMode';
+import { RewriteModePicker } from './RewriteModePicker';
 
 type Props = { text: string; pending: boolean; error?: string | null; keepBackground: boolean; keepClothes?: boolean;
   motionReference?: MotionReference; meshProblem?: string | null; onMotionReference?: (kind: MotionReference) => void; onPick?: (subject: RewriteSubject) => void;
-  onChange: (text: string) => void; onKeepBackground: (keep: boolean) => void; onKeepClothes?: (keep: boolean) => void; onStart: () => void };
+  onChange: (text: string) => void; onKeepBackground: (keep: boolean) => void; onKeepClothes?: (keep: boolean) => void; onStart: () => void;
+  /** 11-19 三选一：这里只管两种露脸的；选「不露脸」由外面换成拆解（无人物）的输入框。 */
+  mode?: RewriteMode; noAudio?: boolean; onMode?: (mode: RewriteMode) => void };
 /**
  * 「视频改写」输入框。11-08 用户定：少占地方——两个勾并排一行、动作参考和「开始改写」同一行，
  * 解释全收进旁边的「?」（鼠标移上去才看），面板不出屏，「开始改写」点得到。
  */
 export function RewriteInputView({ text, pending, error, keepBackground, keepClothes = false, onChange, onKeepBackground, onKeepClothes, onStart,
-  motionReference = 'depth', meshProblem, onMotionReference, onPick }: Props) {
+  motionReference = 'depth', meshProblem, onMotionReference, onPick, mode = 'face', noAudio, onMode }: Props) {
   const panel = useRef<HTMLDivElement>(null);
   usePanelFit(panel);
   // 11-06 用户定：默认勾上 = 截原片当背景（11-09 起每个场景由拆解挑帧），没人直接用、有人铺去人的卡；不勾 = 不截图，背景卡留空自己补。
   // 11-06 用户：只写换人时衣服跟原片，默认勾上；不勾 = 不抽衣服图。
   // 11-09 用户定：铺卡不自动出图（去人、衣服图都等用户点），开始改写花不花钱只看拆解。
   return <div ref={panel} className="panel rewrite-input nodrag nopan nowheel">
+    {onMode ? <RewriteModePicker mode={mode} noAudio={noAudio} onMode={onMode} /> : null}
     <div className="rewrite-input__title">你想换什么
       <span className="rewrite-input__picks">{REWRITE_SUBJECTS.map(subject => <button key={subject.label} type="button"
         onClick={() => onPick?.(subject)}>{subject.label}</button>)}</span></div>
@@ -51,10 +56,12 @@ export function RewriteInputView({ text, pending, error, keepBackground, keepClo
     {error ? <div className="panel__error">{error}</div> : null}
   </div>;
 }
-export function RewriteInput({ id }: { id: string }) {
+export function RewriteInput({ id, noAudio = false }: { id: string; noAudio?: boolean }) {
   const board = useBoard();
   const rewrite = board.videoRewrite;
   const [text, setText] = useState(() => rewrite?.textFor(id) ?? '');
+  // 11-19 用户定：每次打开回到「露脸 · 声音按原视频」；从「不露脸」切过来时带着切过来的那种。
+  const [mode, setMode] = useState<RewriteMode>(() => rewrite?.openedMode?.() ?? 'face');
   const [keepBackground, setKeepBackground] = useState(true);
   const [keepClothes, setKeepClothes] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +77,11 @@ export function RewriteInput({ id }: { id: string }) {
   const change = (value: string) => { setText(value); rewrite?.remember(id, value); };
   return <RewriteInputView text={text} error={error} pending={rewrite?.isPending(id) ?? false} keepBackground={keepBackground} keepClothes={keepClothes}
     motionReference={motionReference} meshProblem={meshProblem} onMotionReference={setMotionReference}
+    mode={mode} noAudio={noAudio} onMode={next => {
+      if (next !== 'faceless') { setMode(next); return; }
+      // 写过的原话三种共用一份草稿。
+      board.productRemake?.remember(id, text); rewrite?.close(); board.productRemake?.start(id);
+    }}
     onChange={change} onKeepBackground={setKeepBackground} onKeepClothes={setKeepClothes}
     onPick={subject => {
       // 11-10：点了要换背景 / 衣服，对应的「和原片保持一致」就取消（背景只看这个勾，不取消会照样截原片）。
@@ -79,7 +91,7 @@ export function RewriteInput({ id }: { id: string }) {
     }}
     onStart={async () => {
       setError(null);
-      try { const problem = await rewrite?.run(id, text, keepBackground, motionReference, keepClothes); if (problem) setError(problem); }
+      try { const problem = await rewrite?.run(id, text, keepBackground, motionReference, keepClothes, mode === 'talking'); if (problem) setError(problem); }
       catch (reason) { setError((reason as Error).message); }
     }} />;
 }

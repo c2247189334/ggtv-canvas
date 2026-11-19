@@ -11,7 +11,7 @@ const health = (patch: Partial<Health>) => ({ ok: true, fake: false, keyReady: t
 it('说明框讲清干嘛、花不花钱、缺什么、怎么办，带「去填 Key」和「先不填」两个按钮', () => {
   const html = renderToStaticMarkup(<KeyNeededView onFill={() => {}} onClose={() => {}} />);
   expect(html).toContain('role="dialog"'); expect(html).toContain('aria-modal="true"');
-  for (const text of ['要先填火山 Key', '这一步干嘛', '花不花钱', '从你自己的火山账号扣', '现在缺什么', '这单没发出去，没花钱', '怎么办', '怎么拿 Key', '>去填 Key<', '>先不填<']) {
+  for (const text of ['要先填火山 Key', '这一步干嘛', '花不花钱', '从你自己的火山账号扣', '现在缺什么', '这单没发出去，没花钱', '怎么办', 'Key 框旁边的「?」', '>去填 Key<', '>先不填<']) {
     expect(html).toContain(text);
   }
   expect(html).not.toContain('ARK_API_KEY');

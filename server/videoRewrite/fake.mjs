@@ -12,7 +12,12 @@ export async function fakeRound({ context }, { delayMs = 0 } = {}) {
   const scenes = context.userText?.includes('假多场景') ? ['客厅，暖光', '红墙，日光', '花园，日光', '海边，黄昏']
     .map((desc, i) => ({ id: `S${i + 1}`, desc, from: boundaries[i], to: boundaries[i + 1], frame: middle(boundaries[i], boundaries[i + 1]), empty }))
     : [{ id: 'S1', desc: '客厅，暖光', from: 0, to: duration, frame: middle(0, duration), empty }];
+  // 11-19 说话版：一句镜头外的人问、两句出镜的人答；原话写「假无字幕」就回空的（小服务按人声时段铺空行）。
+  const talk = context.talking && !context.userText?.includes('假无字幕')
+    ? { lines: [{ who: '镜头外', text: '哎一样的东西你怎么买两个', from: 0, to: time(1.9) }, { who: 'P1', text: '我本来是给我妈买的', from: time(2.1), to: time(4.5) },
+      { who: 'P1', text: '结果自己试了一下真的太好用了', from: time(4.6), to: time(7.5) }] } : context.talking ? { lines: [] } : {};
   return {
+    ...talk,
     people: [{ id: 'P1', desc: '女生，黑色长发', from: 0, to: duration, ...(onlyPerson ? { where: '上半屏' } : {}) }],
     clothes: ['上衣长裤，浅色棉质', '连衣裙，红色', '短裙，深色', '长裙，浅色'].map((desc, i) => ({ id: `C${i + 1}`, person: 'P1', desc, from: boundaries[i], to: boundaries[i + 1], ...(onlyPerson && i === 3 ? { sameAs: 'C2' } : {}) })),
     things: [{ id: 'D1', desc: '吊扇叶片，深色木质' }],

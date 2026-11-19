@@ -108,3 +108,57 @@ test('接口：选本机 AI 助手写进 AGENT_ENGINE、别的行不动，health
   assert.equal((await call(b.port, { method: 'POST', path: '/api/settings/agent', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ engine: 'codex' }) })).status, 400);
   await b.close();
 });
+
+// 11-19 用户定：写词强度三档在设置里点选，写进 CLAUDE_MODEL、CLAUDE_EFFORT。
+test('接口：选写词强度写进 CLAUDE_MODEL / CLAUDE_EFFORT、别的行不动，health 跟着变；只收三档', async () => {
+  const dir = tempDir(), file = join(dir, '.env.local');
+  writeFileSync(file, 'ARK_API_KEY=ark-keep\nCLAUDE_MODEL=请填本机Claude用的模型\n');
+  const app = createApp({ dataRoot: tempDir(), distDir: tempDir(), port: 5290, fake: false, readEnv: () => readEnvAt(file),
+    envFile: file, logError: () => {}, log: () => {} });
+  const s = await listen(app.handler);
+  const post = body => call(s.port, { method: 'POST', path: '/api/settings/strength', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  assert.equal((await call(s.port, { path: '/api/health' })).json.agentStrength, 'standard');
+  const max = await post({ strength: 'max' });
+  assert.equal(max.status, 200); assert.equal(max.json.agentStrength, 'max'); assert.equal(max.json.agentModel, 'opus');
+  assert.deepEqual([readEnvAt(file).CLAUDE_MODEL, readEnvAt(file).CLAUDE_EFFORT, readEnvAt(file).ARK_API_KEY], ['opus', 'xhigh', 'ark-keep']);
+  assert.equal(JSON.stringify(max.json).includes('ark-keep'), false);
+  assert.equal((await post({ strength: 'strong' })).json.agentStrength, 'strong');
+  assert.equal(readEnvAt(file).CLAUDE_EFFORT, 'medium');
+  assert.equal((await post({ strength: 'standard' })).json.agentStrength, 'standard');
+  assert.deepEqual([readEnvAt(file).CLAUDE_MODEL, readEnvAt(file).CLAUDE_EFFORT], ['sonnet', '']);
+  for (const strength of ['custom', 'ultra', '', 7, 'max\nARK_API_KEY=x']) {
+    const bad = await post({ strength });
+    assert.equal(bad.status, 400); assert.match(bad.json.error, /只能选/);
+  }
+  assert.equal(readEnvAt(file).ARK_API_KEY, 'ark-keep'); assert.equal((await call(s.port, { path: '/api/health' })).json.agentStrength, 'standard');
+  await s.close();
+});
+
+// 11-19 用户定：没登录的助手在设置里点「登录」，小服务开官方登录窗口；不写 .env.local，假模式和没给 openLogin 时拒收。
+test('接口：登录按钮把助手名交给 openLogin、回它的结果；人话错误回 400；假模式不开', async () => {
+  const dir = tempDir(), file = join(dir, '.env.local');
+  writeFileSync(file, 'ARK_API_KEY=ark-keep\n');
+  const asked = [];
+  const openLogin = async (engine, env) => {
+    asked.push([engine, env.ARK_API_KEY]);
+    if (engine !== 'codex') throw Error('只能登录 Claude 或 Codex。');
+    return { opened: true };
+  };
+  const post = (port, body) => call(port, { method: 'POST', path: '/api/settings/agent-login', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const app = createApp({ dataRoot: tempDir(), distDir: tempDir(), port: 5290, fake: false, readEnv: () => readEnvAt(file), envFile: file, openLogin, logError: () => {}, log: () => {} });
+  const s = await listen(app.handler);
+  const ok = await post(s.port, { engine: 'codex' });
+  assert.equal(ok.status, 200); assert.deepEqual(ok.json, { opened: true });
+  const bad = await post(s.port, { engine: 'gemini' });
+  assert.equal(bad.status, 400); assert.match(bad.json.error, /只能登录/);
+  assert.deepEqual(asked, [['codex', 'ark-keep'], ['gemini', 'ark-keep']]);
+  assert.equal(readFileSync(file, 'utf8'), 'ARK_API_KEY=ark-keep\n');
+  await s.close();
+
+  const fake = createApp({ dataRoot: tempDir(), distDir: tempDir(), port: 5290, fake: true, readEnv: () => ({}), openLogin, logError: () => {}, log: () => {} });
+  const f = await listen(fake.handler);
+  const refused = await post(f.port, { engine: 'codex' });
+  assert.equal(refused.status, 400); assert.match(refused.json.error, /打不开登录窗口/);
+  assert.equal(asked.length, 2);
+  await f.close();
+});

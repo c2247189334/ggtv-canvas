@@ -18,6 +18,7 @@ import { createTos } from './tos.mjs';
 import { transport } from './net.mjs';
 import { installShutdown } from './depth/executor.mjs';
 import { checkArkKey } from './keyCheck.mjs';
+import { createAgentLogin } from './agentLogin.mjs';
 
 const options = runtimeOptions();
 const logError = createLogger(options.logDir);
@@ -56,7 +57,7 @@ const uploadVideo = fakeVideo?.uploadVideo ?? (asset => {
   const env = readEnv();
   return createTos({ env, fetch: transport(env).fetch }).uploadVideo(asset);
 });
-const app = createApp({ ...options, fakeDelayMs, readEnv, envFile, envTemplate, checkKey: env => checkArkKey(env), generate, splitLayers, redrawLayer, videoClient, uploadVideo, logError, log: console.log, concurrency: concurrencyOf(readEnv()) });
+const app = createApp({ ...options, fakeDelayMs, readEnv, envFile, envTemplate, checkKey: env => checkArkKey(env), openLogin: createAgentLogin(), generate, splitLayers, redrawLayer, videoClient, uploadVideo, logError, log: console.log, concurrency: concurrencyOf(readEnv()) });
 installShutdown(() => { app.depthQueue.stop(); app.stopVideoRewrite(); });
 
 // 启动时的收拾（恢复、清理、开跑）哪一步出错都只跳过那一步、服务照常启动：不能因为一个文件正被占用就起不来。

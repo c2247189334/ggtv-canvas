@@ -1,5 +1,6 @@
 import { MAX_PROMPT } from '../jobInput.mjs';
 import { MESH_PURPOSE } from '../mesh/purpose.mjs';
+import { lineIssues, withoutLines } from './lines.mjs';
 
 export const EDIT_WORDS = ['编辑视频', '增加', '加上', '删除', '去掉', '修改', '替换', '改成'];
 export const targetDuration = duration => Math.round(duration);
@@ -42,11 +43,14 @@ export const sceneChangePoints = plan => sceneItems(plan).slice(1).map(item => (
 export const planChangeSeconds = plan => [...new Set([...outfitChangeSeconds(plan), ...sceneChangePoints(plan).map(point => point.second)])].sort((a, b) => a - b);
 
 /** 区间统一写成“0-6秒”；源视频小数时长四舍五入为生成时长（源已限 4~30 秒，结果仍在 2.5 的 4~30 秒内）。 */
-export function checkRules({ videoPrompt, materials = [], duration, changeSeconds, plan, itemTexts = [] }) {
-  const text = typeof videoPrompt === 'string' ? videoPrompt : '';
+export function checkRules({ videoPrompt, materials = [], duration, changeSeconds, plan, itemTexts = [], lines }) {
+  const raw = typeof videoPrompt === 'string' ? videoPrompt : '';
+  // 11-19 说话版：{} 里是人说的台词，不查编辑词、字幕这些（换成占位再查）；台词表另查一字不差。
+  const text = withoutLines(raw);
   const issues = [];
   if (!text.trim()) issues.push('请填写视频提示词。');
-  if (text.length > MAX_PROMPT) issues.push(`提示词太长，最多 ${MAX_PROMPT} 字。`);
+  if (raw.length > MAX_PROMPT) issues.push(`提示词太长，最多 ${MAX_PROMPT} 字。`);
+  if (Array.isArray(lines)) issues.push(...lineIssues(raw, lines));
   for (const word of EDIT_WORDS) if (text.includes(word)) issues.push(`提示词含有「${word}」，请用画面和动作直接描述。`);
   // 11-13 背景卡用文字：底稿里的占位（writePrompt 的 sceneTextMark）必须换成这一段的画面描述。
   for (const mark of new Set(text.match(/【[^【】\n]{1,40}用文字】/g) ?? [])) issues.push(`提示词里还有占位「${mark}」，要写成这一段的画面描述。`);
@@ -111,5 +115,8 @@ export function checkRules({ videoPrompt, materials = [], duration, changeSecond
     const used = sentences.some(sentence => sentence.includes(tag) && /背景音乐|节奏|音色|配音|旁白|人声|音效|用作|用于/.test(sentence));
     if (!used) issues.push(`${tag} 还没写用途，请说明它是背景音乐、音色还是音效。`);
   }
+  // 11-19 第二期：人物的声音样本只能当音色用，定稿改成背景音乐就打回。
+  for (const { tag, purpose } of materials) if (tag.startsWith('@音频') && purpose.startsWith('音色') && mentioned.has(tag)
+    && !sentences.some(sentence => sentence.includes(tag) && sentence.includes('音色'))) issues.push(`${tag}是人物的声音样本，要在同一句写明使用它的「音色」。`);
   return issues;
 }

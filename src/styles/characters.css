@@ -29,3 +29,10 @@
 .character-detail__images p { color: var(--muted); font-size: 12px; line-height: 1.6; }
 .character-save__authorization { flex-direction: row !important; align-items: flex-start; }
 .character-save__authorization input { flex: none; width: auto; margin-top: 4px; }
+/* 11-19 第二期：人物详情的「声音」一行、存为人物的声音弹框 */
+.character-voice { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 12px; border-radius: 8px; background: var(--bg); }
+.character-voice audio { height: 32px; max-width: 100%; }
+.character-voice p { flex: 1 1 100%; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.voice-save p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.voice-save__audio { width: 100%; height: 36px; }
+.character-dialog select { width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: inherit; }

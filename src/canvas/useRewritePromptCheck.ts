@@ -5,6 +5,7 @@ import type { CardNode, VideoCardData } from "@/types";
 import type { Edge } from "@xyflow/react";
 import { productMaterials, productSourceProblem } from '@/domain/productPrompt';
 import { sceneTextIds } from '@/domain/rewriteTextScene';
+import { talkingLines } from '@/domain/rewriteLines';
 
 /** 免费检查只提示；超时、旧响应和失败都不会触发付费重写。 */
 export function useRewritePromptCheck(id: string, data: VideoCardData | { kind: "image" }, nodes: CardNode[], edges: Edge[]) {
@@ -16,14 +17,18 @@ export function useRewritePromptCheck(id: string, data: VideoCardData | { kind: 
   const materials = rewriteId ? product ? productMaterials(nodes, edges, id) : videoRewriteMaterials(nodes, edges, id) : [];
   const changeSeconds = data.kind === "video" ? rewriteChangeSeconds(data, product ? [] : materials, sceneTextIds(nodes, data)) : [];
   const materialsKey = JSON.stringify(materials);
-  const key = JSON.stringify([rewriteId, prompt, duration, materialsKey, changeSeconds, plan]);
+  // 11-19 说话版：台词表也送去查，每句都要原样在 {} 里。
+  const lines = data.kind === 'video' && !product ? talkingLines(data).map(line => ({ text: line.text })) : [];
+  const linesKey = JSON.stringify(lines);
+  const key = JSON.stringify([rewriteId, prompt, duration, materialsKey, changeSeconds, plan, linesKey]);
   const [result, setResult] = useState<{ key: string; issues: string[] } | null>(null);
   useEffect(() => {
     if (!rewriteId || !prompt.trim()) return;
     let alive = true;
     const timer = window.setTimeout(() => {
       const check = product ? api.checkProductPrompt({ cardId: id, videoPrompt: prompt, duration, materials: JSON.parse(materialsKey), plan })
-        : api.checkVideoPrompt({ cardId: rewriteId, videoPrompt: prompt, duration, materials: JSON.parse(materialsKey), changeSeconds });
+        : api.checkVideoPrompt({ cardId: rewriteId, videoPrompt: prompt, duration, materials: JSON.parse(materialsKey), changeSeconds,
+          ...(data.kind === 'video' && data.rewriteTalking ? { lines: JSON.parse(linesKey) } : {}) });
       void check.then(
         value => { if (alive) setResult({ key, issues: value.issues }); },
         error => { if (alive) setResult({ key, issues: [`免费检查没完成：${(error as Error).message}`] }); }

@@ -30,5 +30,8 @@ export function characterDeleteText(name: string): string {
 export function workDeleteText(workId: string, characters: readonly CharacterView[]): string {
   const base = '删掉这件作品？硬盘上的文件会一起删掉，画布上用到它的卡片会显示「作品已删除」。';
   const owners = characters.filter(character => character.images.some(image => image.ref.type === 'work' && image.ref.id === workId));
-  return base + owners.map(character => `它是人物「${character.name}」的图，人物里也会少这张。`).join('');
+  // 11-19 第二期：是人物的声音样本也提醒一句。
+  const voices = characters.filter(character => character.voice?.ref.id === workId);
+  return base + owners.map(character => `它是人物「${character.name}」的图，人物里也会少这张。`).join('')
+    + voices.map(character => `它是人物「${character.name}」的声音，人物会没有声音。`).join('');
 }

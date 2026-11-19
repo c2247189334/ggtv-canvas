@@ -27,6 +27,7 @@ import { mergeTagIssues } from '@/domain/panelNotes';
 import { HelpTip } from '@/common/HelpTip';
 import { sceneTextStaleNotes, usesText } from '@/domain/rewriteTextScene';
 import { SceneReads, SceneTextPanel, SceneTextToggle } from './SceneTextPanel';
+import { RewriteLinesTable } from './RewriteLinesTable';
 
 /**
  * 选中生成卡时，卡片正下方浮出的提示词面板：
@@ -141,8 +142,9 @@ function GenerationPromptPanel({ id, data }: { id: string; data: ImageCardData |
   return (
     <div ref={panel} className={`panel${rewriteCard ? " panel--rewrite" : data.kind === "video" ? " panel--video" : ""} nodrag nowheel nopan`}
       data-focus-ready={data.kind !== 'video' || health !== null || healthError !== null}>
+      {data.kind === "video" ? <RewriteLinesTable id={id} data={data} /> : null}
       <div className="panel__tools">
-        {data.kind === "image" ? <><RewriteImageUpload id={id} data={data} /><SceneTextToggle id={id} data={data} /></> : null}
+        {data.kind === "image" ?<><RewriteImageUpload id={id} data={data} /><SceneTextToggle id={id} data={data} /></> : null}
         {/* 11-08 用户定：改写视频卡的提示词只走「生成提示词」一步（拼底稿 + 看图定稿），不再放「帮我改写」。 */}
         {!rewriteCard ? <button type="button" disabled={!data.prompt.trim() || rewrite.loading} onClick={() => void rewrite.run()}>
           {rewrite.loading ? "改写中…" : "帮我改写"}

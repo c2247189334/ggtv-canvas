@@ -1,6 +1,7 @@
 import { validatePlan } from './analyze.mjs';
 import { outfitChangePoints, sceneChangePoints, sceneItems, targetDuration } from './rules.mjs';
 import { isNewScene, itemLabel, itemTextOf, labelPeers, materialRoles, MESH_PURPOSE } from './roles.mjs';
+import { lateLineNotes, SOUND_RULE, talkingClosing, talkingSegments } from './talkingPrompt.mjs';
 
 const THINGS = ['道具', '遮挡物', '其他'];
 const KEEP_CLOTHES = /衣服(?:不换|不变|别换|不要换|照旧|保留|保持|还用原)|(?:保留|保持|不换|别换|不要换)(?:原来的|原视频的|原)?衣服|只换(?:脸|人脸|头)|换脸/;
@@ -93,19 +94,25 @@ export function writePrompt(input, looks = {}) {
   };
   const points = [...(clothes.length && !wearing ? outfitChangePoints(plan) : []), ...sceneChangePoints(plan)]
     .filter(point => Math.floor(point.second) + 1 <= total).sort((a, b) => a.second - b.second);
-  const lines = [], timing = moving ? '切换时机' : '换装时机';
+  const parts = [], timing = moving ? '切换时机' : '换装时机';
   let cursor = 0, opened = '', current = total;
   for (const { second, start } of points) {
     const at = Math.floor(second);
     // 同一秒里换两次：并成一段，从这一秒开头的样子直接写到最后一次换完。
-    if (at < cursor) lines.pop(); else { opened = state(start - 0.001); if (at > cursor) lines.push(`${cursor}-${at}秒：${opened}。`); }
-    lines.push(`${at}-${at + 1}秒：${opened}，随后${state(start, true)}${depth ? `，${timing}跟随${depth}` : ''}。`);
+    if (at < cursor) parts.pop(); else { opened = state(start - 0.001); if (at > cursor) parts.push({ from: cursor, to: at, body: opened }); }
+    parts.push({ from: at, to: at + 1, body: `${opened}，随后${state(start, true)}${depth ? `，${timing}跟随${depth}` : ''}`, fixed: true });
     cursor = at + 1; current = start;
   }
-  if (cursor < total) lines.push(`${cursor}-${total}秒：${state(current)}。`);
+  if (cursor < total) parts.push({ from: cursor, to: total, body: state(current) });
   const crowd = people.length > 1 ? `这${people.length}个人` : '同一个人';
   // 11-11：拆解没分场景不等于没换地方（婚礼每次换装都换了地方），有换装点就不写死「同一个场景」，交给定稿看原片写。
-  const closing = moving ? `全程${crowd}，场景和光线按上面每段来，不要字幕。` : points.length ? `全程${crowd}，不要字幕。` : `全程${crowd}、同一个场景和光线，不要字幕。`;
+  const ending = moving ? `全程${crowd}，场景和光线按上面每段来，不要字幕。` : points.length ? `全程${crowd}，不要字幕。` : `全程${crowd}、同一个场景和光线，不要字幕。`;
+  // 11-19 说话版：时间轴按台词再切、每段末尾放 {台词}；开头加声音约束，结尾加嗓音和嘴型同步。
+  const talk = input.talking ? input.lines ?? plan.lines ?? [] : null;
+  const speaker = id => { const person = people.find(item => item.id === id) ?? (people.length === 1 ? people[0] : null); return person ? nameOf(person.id) : '画面里的人'; };
+  const segments = talk ? talkingSegments(parts, talk, speaker) : parts;
+  const closing = talk ? `${talkingClosing(talk, speaker, input.voice)}${ending}` : ending;
+  const lines = segments.map(part => `${part.from}-${part.to}秒：${part.body}。`);
   const mesh = materials.some(material => material.tag.startsWith('@视频') && material.purpose === MESH_PURPOSE);
   const note = mesh ? meshThingsNote : isNewScene(materials) ? newSceneThingsNote : thingsNote;
   const warnings = [...plan.unsure.map(text => `拆解没把握：${text}`), ...(outfit?.changing ? [outfitsNote(outfit.changing)] : []),
@@ -115,6 +122,7 @@ export function writePrompt(input, looks = {}) {
       .map(item => item.desc.split(/[，,]/)[0].trim()).filter(Boolean))];
     if (missing.length) warnings.push(`白模里没有${missing.join('、')}，成片里它怎么动只能靠模型猜；在意就改用深度`);
   }
+  if (talk) warnings.push(...lateLineNotes(talk, total));
   const roles = materialRoles(input, { looks, wearPerson: Boolean(wearing) });
-  return { videoPrompt: [roles, once(lines.join('\n')), closing].join('\n'), warnings };
+  return { videoPrompt: [...(talk ? [SOUND_RULE] : []), roles, once(lines.join('\n')), closing].join('\n'), warnings };
 }

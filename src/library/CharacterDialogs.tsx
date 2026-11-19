@@ -34,8 +34,22 @@ export function NewCharacterDialog({ busy, error, onClose, onSubmit }: ActionPro
   </CharacterDialogShell>;
 }
 
-type DetailProps = ActionProps & { character: CharacterView; onSave: (name: string, description: string) => void; onAdd: () => void; onDelete: () => void };
-export function CharacterDetailDialog({ character, busy, error, onClose, onSave, onAdd, onDelete }: DetailProps) {
+/** 11-19 第二期：人物详情里的「声音」一行——试听、删；换就是再从声音卡右键存一次。 */
+export function CharacterVoiceRow({ character, busy, onRemoveVoice }: Pick<DetailProps, 'character' | 'busy' | 'onRemoveVoice'>) {
+  const voice = character.voice;
+  return <div className="character-voice">
+    <strong>声音</strong>
+    {voice ? <>
+      <audio controls preload="metadata" src={assetUrl(voice.ref)} aria-label={`${character.name} · 声音`} />
+      <p>{voice.desc}</p>
+      <button type="button" disabled={busy} onClick={onRemoveVoice}>删掉声音</button>
+    </> : <p>还没有声音。出片满意后，用「片段截取」截 5～10 秒他说话的片段 →「更多」→「提取原声」→ 右键声音卡「存为人物的声音」。</p>}
+  </div>;
+}
+
+type DetailProps = ActionProps & { character: CharacterView; onSave: (name: string, description: string) => void; onAdd: () => void; onDelete: () => void;
+  onRemoveVoice: () => void };
+export function CharacterDetailDialog({ character, busy, error, onClose, onSave, onAdd, onDelete, onRemoveVoice }: DetailProps) {
   const [name, setName] = useState(character.name);
   const [description, setDescription] = useState(character.description);
   const problem = characterFieldsProblem(name, description);
@@ -46,6 +60,7 @@ export function CharacterDetailDialog({ character, busy, error, onClose, onSave,
         <figcaption><strong>{image.label}</strong><p>{characterVideoText(image.video)}</p></figcaption>
       </figure>)}
     </div>
+    <CharacterVoiceRow character={character} busy={busy} onRemoveVoice={onRemoveVoice} />
     <form onSubmit={event => { event.preventDefault(); if (!problem && !busy) onSave(name.trim(), description.trim()); }}>
       <label>名字<input autoFocus aria-label="人物名字" value={name} maxLength={80} onChange={event => setName(event.target.value)} /></label>
       <label>描述<textarea aria-label="人物描述" value={description} rows={3} maxLength={1000} onChange={event => setDescription(event.target.value)} /></label>

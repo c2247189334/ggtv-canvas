@@ -88,12 +88,15 @@ export type VideoCardData = CardBase & { kind: "video"; video: VideoGenSettings;
   rewritePlan?: RewritePlan; rewriteUserText?: string; rewriteWarnings?: string[]; rewriteMotionReference?: 'depth' | 'mesh';
   /** 勾了「衣服和原片保持一致」：衣服卡删了也不穿人物图那身，退回文字描述。 */
   rewriteKeepClothes?: true;
+  /** 11-19「露脸 · AI 自己配音」做的卡：面板多一张台词表，默认开生成音频；rewriteVoice 是用户写的嗓音（空着由本机 AI 助手照人物图写）。 */
+  rewriteTalking?: true; rewriteVoice?: string;
   rewriteSceneReads?: SceneRead[] };
-export type AudioCardData = CardBase & { kind: "audio"; gen?: never; video?: never; assetId?: never };
+/** voiceOf：11-19 第二期人物拖进说话版时铺的声音样本卡，存人物名字；交提示词时用途写「音色」，不当背景音乐。 */
+export type AudioCardData = CardBase & { kind: "audio"; gen?: never; video?: never; assetId?: never; voiceOf?: string };
 export type CardData = ImageCardData | VideoCardData | AudioCardData;
 export type CardPatch = Partial<Omit<CardBase, "source" | "number">> & { gen?: GenSettings; video?: VideoGenSettings; assetId?: string;
   rewriteItem?: RewriteItem; rewritePlan?: RewritePlan; rewriteUserText?: string; rewriteWarnings?: string[]; productPlan?: ProductPlan;
-  rewriteTextOn?: boolean; rewriteSceneText?: string; rewriteSceneReads?: SceneRead[];
+  rewriteTextOn?: boolean; rewriteSceneText?: string; rewriteSceneReads?: SceneRead[]; rewriteVoice?: string;
   layerJob?: string; layerSplit?: LayerSplit; layerRedraw?: LayerRedrawPending };
 
 export type CardNode = Node<CardData, "card">;
@@ -159,7 +162,9 @@ export type Health = { ok: boolean; fake: boolean; keyReady: boolean; tosReady: 
   /** 本机 agent（拆解 / 看图 / 定稿提示词）：这次用的是谁、好没好；agentProblem 是没配好时给人看的话；假模式按就绪。 */
   agent?: string; agentName?: string; agentReady?: boolean; agentModel?: string; agentProblem?: string | null;
   /** 11-17 设置里点选用谁：agentChoice 是 auto（自动，默认）或指定的那个；agents 是每个助手装没装、登没登录。 */
-  agentChoice?: string; agents?: AgentState[] };
+  agentChoice?: string; agents?: AgentState[];
+  /** 11-19 设置里的写词强度：standard / strong / max，手填别的组合是 custom；只管本机 Claude。 */
+  agentStrength?: string };
 export type AgentState = { id: string; name: string; cli: boolean; login: boolean; ready: boolean };
 
 export type LocalMediaSource = { type: "upload" | "work"; id: string };

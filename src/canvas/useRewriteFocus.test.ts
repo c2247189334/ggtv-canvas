@@ -3,7 +3,7 @@ import { newVideoCard } from '@/domain/cards';
 import { TOOLBAR_SPACE, rewriteFocusViewport } from '@/domain/rewriteFocus';
 import { useCardFocus, useRewriteFocus } from './useRewriteFocus';
 
-const state = vi.hoisted(() => ({ frame: 0, readyAt: 0, appearsAt: 0, deselectAt: Infinity,
+const state = vi.hoisted(() => ({ frame: 0, readyAt: 0, appearsAt: 0, deselectAt: Infinity, hidden: 0,
   sizes: new Map<number, number>(), selectors: [] as string[], setViewport: vi.fn() }));
 vi.mock('@xyflow/react', () => ({
   useReactFlow: () => ({
@@ -15,7 +15,7 @@ vi.mock('@xyflow/react', () => ({
 }));
 
 beforeEach(() => {
-  state.frame = 0; state.readyAt = 0; state.appearsAt = 0; state.deselectAt = Infinity;
+  state.frame = 0; state.readyAt = 0; state.appearsAt = 0; state.deselectAt = Infinity; state.hidden = 0;
   state.selectors = []; state.sizes.clear(); state.setViewport.mockReset();
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
     const frame = ++state.frame; queueMicrotask(() => callback(frame * 16)); return frame;
@@ -26,7 +26,8 @@ beforeEach(() => {
     if (!selector.includes(':has(.panel)')) return { getBoundingClientRect: () => ({ width: 200, height: 40 }) };
     if (state.frame < state.appearsAt) return null;
     return {
-      querySelector: () => ({ getAttribute: () => state.frame >= state.readyAt ? 'true' : 'false' }),
+      querySelector: () => ({ getAttribute: () => state.frame >= state.readyAt ? 'true' : 'false',
+        ...(state.hidden ? { scrollHeight: 300 + state.hidden, clientHeight: 300 } : {}) }),
       getBoundingClientRect: () => ({ width: 560, height: state.sizes.get(state.frame) ?? 387 })
     };
   } });
@@ -50,6 +51,17 @@ it('等选中后的面板出现、配置就绪且量到稳定尺寸，不能提�
   const view = state.setViewport.mock.calls[0]?.[0];
   expect(view).toEqual(rewriteFocusViewport({ x: 860, y: 534, width: 280, height: 426 },
     { width: 560, height: 387 }, { width: 1600, height: 1100 }, 1));
+});
+
+it('11-19 面板被屏幕限高、里面要滚动：按完整高度（加上滚动藏起来的那截）缩放，双击也一样', async () => {
+  state.hidden = 126;
+  await useRewriteFocus()('v');
+  const full = { width: 560, height: 387 + 126 };
+  expect(state.setViewport).toHaveBeenCalledWith(rewriteFocusViewport({ x: 860, y: 534, width: 280, height: 426 }, full, { width: 1600, height: 1100 }, 1), { duration: 300 });
+  state.setViewport.mockReset();
+  useCardFocus()('v');
+  expect(state.setViewport).toHaveBeenCalledWith(rewriteFocusViewport({ x: 860, y: 534, width: 280, height: 426 }, full, { width: 1600, height: 1100 }, 1,
+    { maxZoom: 1.5, align: 'center', top: TOOLBAR_SPACE }), { duration: 300 });
 });
 
 it('等面板时用户已经取消选中，不再把画面拉回来', async () => {

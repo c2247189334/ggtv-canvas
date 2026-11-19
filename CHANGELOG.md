@@ -3,6 +3,21 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号按 [语义化版本](https://semver.org/lang/zh-CN/)。
 Format follows Keep a Changelog; versions follow Semantic Versioning.
 
+## [0.1.5] - 2026-11-19
+
+### 新增 / Added
+
+- 视频改写点开先选这条视频是哪种：露脸 · 声音按原视频（跳舞、走秀）；露脸 · AI 自己配音（口播、讲解：读出原片台词，能改台词，让 AI 重新说、对上口型）；不露脸 · 声音按原视频（原来的「拆解（无人物）」）。Video rewrite now starts by picking the clip type: on-camera with the original sound, on-camera with AI voice (talking-head: the original lines are transcribed, editable, and re-spoken with lip sync), or faceless (formerly "product remake").
+- 人物带声音：声音卡右键「存为人物的声音」，人物详情里能试听、删；把带声音的人物拖进「AI 自己配音」的视频改写，会自动连上声音卡，多段出片用同一个音色。Characters can carry a voice sample: save one from an audio card, preview or delete it in the character details; dragging such a character into an AI-voice rewrite links the sample so every segment uses the same voice.
+- 设置里一键登录 Claude / Codex：点「登录 Claude」或「登录 Codex」会弹出官方登录窗口，登好设置里自己变成能用，不用去终端敲命令。One-click sign-in for Claude / Codex in Settings: opens the official sign-in window; no terminal commands needed.
+- 设置里加「写词强度」三档：标准 / 更强 / 最强，只对本机 Claude 生效；越强写得越细，也越慢、越费额度。A "writing strength" setting (standard / stronger / strongest) for the local Claude agent; stronger is more detailed but slower and uses more quota.
+
+### 改动 / Changed
+
+- 设置改成一个面板三块：功能、火山 Key、本机 AI 助手；Key 填好了只显示一行打勾，点「重新填」才摊开。Settings are now one panel in three parts (features, Volcengine keys, local AI agent); filled keys collapse to a single check line.
+- 填 Key 的说明收进每栏旁边的「?」：方舟 Key、TOS 三项各有步骤和官方网址；写明 TOS 是干嘛的、费用由火山从你自己的账号直接扣，本工具不加价、不抽成。Key help moved into a "?" next to each field, with steps and official links for the Ark key and the three TOS fields, plus why TOS is needed and that all charges go straight to your own Volcengine account with no markup.
+- 视频卡工具条：「视频改写」「片段截取」露在外面，「更多」里只剩深度、白模、提取原声。The video card toolbar shows "video rewrite" and "trim clip" directly; "more" now holds only depth, body mesh and audio extraction.
+
 ## [0.1.4] - 2026-11-17
 
 ### 新增 / Added

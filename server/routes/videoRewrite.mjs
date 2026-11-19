@@ -7,6 +7,7 @@ import { checkRules, targetDuration } from '../videoRewrite/rules.mjs';
 import { sceneRatioNotes, writePrompt } from '../videoRewrite/writePrompt.mjs';
 import { checkCardId, checkChangeSeconds, checkDuration, checkMaterials, checkPromptInput, checkUserText, nearestRatio } from '../videoRewrite/input.mjs';
 import { removeRewrite, rewriteFolder } from '../videoRewrite/storage.mjs';
+import { checkLineTexts } from '../videoRewrite/lines.mjs';
 
 const checked = action => { try { return action(); } catch (error) { throw new HttpError(400, error.message); } };
 
@@ -28,7 +29,8 @@ export function videoRewriteRoutes(router, options) {
       const ratio = nearestRatio(meta.width, meta.height);
       const folder = checked(() => rewriteFolder(dataRoot, cardId, true));
       return await paid(res, cardId, env, async ask => {
-        const result = await analyze({ source: meta.path, folder, duration: meta.duration, width: meta.width, height: meta.height, ratio, userText }, { sheets, ask });
+        const result = await analyze({ source: meta.path, folder, duration: meta.duration, width: meta.width, height: meta.height, ratio, userText,
+          ...(body.talking === true ? { talking: true } : {}) }, { sheets, ask });
         return { plan: result.plan, cuts: result.cuts, cardId, ...metadata(meta), backgroundFrames: result.backgroundFrames };
       });
     } finally { removeRewrite(dataRoot, cardId); }
@@ -63,7 +65,7 @@ export function videoRewriteRoutes(router, options) {
     const body = await readJson(req);
     checked(() => { checkCardId(body?.cardId); checkDuration(body?.duration); checkMaterials(body?.materials);
       if (typeof body?.videoPrompt !== 'string') throw Error('请填写要检查的视频提示词。'); });
-    const seconds = checked(() => checkChangeSeconds(body?.changeSeconds, body.duration));
-    sendJson(res, 200, { issues: checkRules({ ...body, changeSeconds: seconds }), yuan: 0 });
+    const seconds = checked(() => checkChangeSeconds(body?.changeSeconds, body.duration)), lines = checked(() => checkLineTexts(body.lines));
+    sendJson(res, 200, { issues: checkRules({ ...body, changeSeconds: seconds, lines }), yuan: 0 });
   });
 }

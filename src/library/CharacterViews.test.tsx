@@ -40,7 +40,7 @@ it('创建弹框有大标题、空白占位、描述入口和不写价格的发�
 });
 
 it('人物详情每张图带视频提示，能改名描述、添加和删除，空图不能添加', () => {
-  const props = { busy: false, error: null, onSave: noop, onAdd: noop, onDelete: noop, onClose: noop };
+  const props = { busy: false, error: null, onSave: noop, onAdd: noop, onDelete: noop, onClose: noop, onRemoveVoice: noop };
   const html = renderToStaticMarkup(<CharacterDetailDialog {...props} character={character} />);
   expect(html).toContain('aria-label="人物名字"'); expect(html).toContain('value="阿青"');
   expect(html).toContain('蓝色外套'); expect(html).toContain('设定图'); expect(html).toContain('视频可用 · 剩 30 天');
@@ -49,10 +49,20 @@ it('人物详情每张图带视频提示，能改名描述、添加和删除，�
   expect(empty).toMatch(/<button[^>]*disabled=""[^>]*>添加到画布<\/button>/);
 });
 
+it('人物详情的声音一行：没声音写怎么存，有声音能试听、看嗓音描述、删掉', () => {
+  const props = { busy: false, error: null, onSave: noop, onAdd: noop, onDelete: noop, onClose: noop, onRemoveVoice: noop };
+  const none = renderToStaticMarkup(<CharacterDetailDialog {...props} character={character} />);
+  expect(none).toContain('还没有声音'); expect(none).toContain('存为人物的声音'); expect(none).not.toContain('<audio');
+  const voice = { ref: { type: 'work' as const, id: 'v1' }, desc: '清亮的年轻男声', seconds: 6 };
+  const html = renderToStaticMarkup(<CharacterDetailDialog {...props} character={{ ...character, voice }} />);
+  expect(html).toContain('<audio'); expect(html).toContain('/api/works/file?id=v1'); expect(html).toContain('清亮的年轻男声');
+  expect(html).toContain('>删掉声音</button>');
+});
+
 it('创建、详情和保存弹框隔离画布快捷键，Esc仍交给弹层管理', () => {
   const dialogs = [
     <NewCharacterDialog busy={false} error={null} onSubmit={noop} onClose={noop} />,
-    <CharacterDetailDialog character={character} busy={false} error={null} onSave={noop} onAdd={noop} onDelete={noop} onClose={noop} />,
+    <CharacterDetailDialog character={character} busy={false} error={null} onSave={noop} onAdd={noop} onDelete={noop} onClose={noop} onRemoveVoice={noop} />,
     <SaveCharacterDialog images={[{ type: 'work', id: 'w' }]} busy={false} error={null} onSave={noop} onClose={noop} />
   ];
   for (const dialog of dialogs) {

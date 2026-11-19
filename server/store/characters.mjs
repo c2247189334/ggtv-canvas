@@ -8,8 +8,11 @@ function isCharacter(value, id) {
     && typeof value.createdAt === 'string' && typeof value.updatedAt === 'string'
     && ['ready', 'generating', 'failed'].includes(value.status) && Array.isArray(value.images)
     && value.images.every(image => image && ['work', 'upload'].includes(image.ref?.type)
-      && isId(image.ref.id) && typeof image.label === 'string');
+      && isId(image.ref.id) && typeof image.label === 'string')
+    && (value.voice === undefined || isVoice(value.voice));
 }
+/** 11-19 第二期：声音样本只认作品里的声音 + 一句嗓音描述。 */
+const isVoice = voice => voice && voice.ref?.type === 'work' && isId(voice.ref.id) && typeof voice.desc === 'string';
 
 export function createCharacterStore(dataRoot, { now = () => new Date() } = {}) {
   const dir = join(dataRoot, '人物');
@@ -33,6 +36,7 @@ export function createCharacterStore(dataRoot, { now = () => new Date() } = {}) 
     const old = read(id);
     if (!old) return null;
     const character = { ...old, ...changes, id, createdAt: old.createdAt, updatedAt: now().toISOString() };
+    if (character.voice === null) delete character.voice;
     writeJsonAtomic(file(id), character);
     return character;
   }

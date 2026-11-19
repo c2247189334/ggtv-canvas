@@ -14,11 +14,11 @@ export const SERVER_FILES = [
   'routes/productRemake', 'routes/rewrite', 'routes/settings', 'routes/videoJobs', 'routes/videoRewrite',
   'store/canvases', 'store/characters', 'store/files', 'store/jobs', 'store/spend',
   'store/uploadRecords', 'store/uploads', 'store/works',
-  'agent', 'agentProcess', 'claude', 'codex', 'keyCheck',
+  'agent', 'agentLogin', 'agentProcess', 'agentStrength', 'claude', 'codex', 'keyCheck',
   'videoRewrite/analysisImages', 'videoRewrite/analyze', 'videoRewrite/claudeAsk', 'videoRewrite/finalPrompt', 'videoRewrite/fake', 'videoRewrite/input', 'videoRewrite/backgroundFrames',
-  'videoRewrite/itemTexts', 'videoRewrite/lookPeople', 'videoRewrite/modelJson', 'videoRewrite/promptImages',
+  'videoRewrite/itemTexts', 'videoRewrite/lines', 'videoRewrite/lookPeople', 'videoRewrite/modelJson', 'videoRewrite/promptImages',
   'videoRewrite/roles', 'videoRewrite/rules', 'videoRewrite/sceneTexts', 'videoRewrite/session', 'videoRewrite/sheets', 'videoRewrite/storage',
-  'videoRewrite/writePrompt',
+  'videoRewrite/talkingPrompt', 'videoRewrite/writePrompt',
 ].map(name => `server/${name}.mjs`).concat('server/depth/depth_video.py');
 
 export const SCRIPT_FILES = [

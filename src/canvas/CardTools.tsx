@@ -22,19 +22,20 @@ const PreviewIcon = () => <svg {...ICON}><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5
 
 /**
  * 只选中一张有内容的卡时，卡上方的工具条（11-08 用户定）：
- * 原视频卡左边「视频改写 / 拆解（无人物）/ 更多 ▾」，不常用的深度、白模、原声、片段截取收进更多；
+ * 原视频卡左边「视频改写 / 片段截取 / 更多 ▾」（11-19 用户定：拆解（无人物）收进视频改写的三选一，片段截取摆在外面），不常用的深度、白模、原声收进更多；
  * 最右边下载、预览两个小图标，视频卡下载左边多一个「视频截图 ▾」（11-09）。看大图走预览，双击卡片是放大对准。
  */
 export function CardTools({ asset, title, media, onOpen, cardId, product, frame, panelBelow }: Props) {
   const board = useBoard();
   const source = media === "video" && cardId && !asset.depth && !asset.mesh ? cardId : null;
+  const short = typeof asset.seconds === 'number' && asset.seconds < 1;
   return (
     <NodeToolbar position={Position.Top} offset={10}>
       <ViewportTools panelBelow={panelBelow}>
         {source ? <button type="button" className="card-tools__button"
           onClick={() => { board.productRemake?.close(); board.videoRewrite?.start(source); }}>视频改写</button> : null}
-        {source ? <button type="button" className="card-tools__button"
-          onClick={() => { board.videoRewrite?.close(); board.productRemake?.start(source); }}>拆解（无人物）</button> : null}
+        {source ? <button type="button" className="card-tools__button" disabled={short}
+          title={short ? '视频不到 1 秒，不能截取' : '片段截取'} onClick={() => void board.videoClip?.start(source)}>片段截取</button> : null}
         {source ? <VideoMoreTools cardId={source} asset={asset} /> : null}
         {product && cardId ? <ProductToolButtons id={cardId} /> : null}
         {media === "image" && cardId && board.openLayers ? <button type="button" className="card-tools__button"

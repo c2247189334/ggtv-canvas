@@ -22,7 +22,8 @@ type Menu = { x: number; y: number } & (
 export type PendingLink = { source: string; screen: Point; at: Point };
 const NOT_BLANK = ".react-flow__node, .react-flow__edge, [data-edge-cut], .group-frame, .react-flow__panel, .react-flow__node-toolbar, .react-flow__attribution";
 
-export function useBoardMenus(cards: ReturnType<typeof useCards>, doc: ReturnType<typeof useBoardDoc>, actions: ReturnType<typeof useBoardActions>, history: ReturnType<typeof useGraphHistory>, pending: PendingLink | null, closePending: () => void, groups?: ReturnType<typeof useBoardGroups>, characters?: Pick<ReturnType<typeof useBoardCharacters>, 'canSave' | 'openSave'>) {
+export function useBoardMenus(cards: ReturnType<typeof useCards>, doc: ReturnType<typeof useBoardDoc>, actions: ReturnType<typeof useBoardActions>, history: ReturnType<typeof useGraphHistory>, pending: PendingLink | null, closePending: () => void, groups?: ReturnType<typeof useBoardGroups>, characters?: Pick<ReturnType<typeof useBoardCharacters>, 'canSave' | 'openSave'>,
+  voiceSave?: { canOpen: () => boolean; open: () => void }) {
   const flow = useReactFlow<CardNode, Edge>();
   const [menu, setMenu] = useState<Menu | null>(null);
   const [assetDialog, setAssetDialog] = useState<{ id: string; value: string } | null>(null);
@@ -82,6 +83,8 @@ export function useBoardMenus(cards: ReturnType<typeof useCards>, doc: ReturnTyp
     }, { undo: history.canUndo, redo: history.canRedo, paste: actions.canPaste }),
     ...(opened.card && groups ? cardGroupMenuItems(groups.makeGroup) : []),
     ...(opened.card && characters ? [{ label: '存为人物', disabled: !characters.canSave(), onSelect: characters.openSave }] : []),
+    // 11-19 第二期：声音卡多一项，存成人物的声音样本。
+    ...(opened.card && voiceSave?.canOpen() ? [{ label: '存为人物的声音', onSelect: voiceSave.open }] : []),
     ...assetMenuItems(opened.id ? flow.getNode(opened.id)?.data : undefined, () => {
       const data = opened.id ? flow.getNode(opened.id)?.data : undefined;
       if (data?.kind === "image" && opened.id) setAssetDialog({ id: opened.id, value: data.assetId ?? "" });

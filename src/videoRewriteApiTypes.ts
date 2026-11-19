@@ -3,7 +3,8 @@ import type { RewritePlan, RewriteMaterial } from "./videoRewriteTypes";
 import type { VideoRatio } from "./domain/videoModels";
 
 export type RewriteCharge = { yuan: number };
-export type AnalyzeVideoRequest = { cardId: string; source: AssetRef; userText: string; background?: boolean };
+/** talking：11-19「露脸 · AI 自己配音」，拆解多读台词（plan.lines）。 */
+export type AnalyzeVideoRequest = { cardId: string; source: AssetRef; userText: string; background?: boolean; talking?: boolean };
 export type RewriteVideoMeta = {
   duration: number; targetDuration: number; ratio: VideoRatio; hasAudio: boolean;
 };
@@ -19,10 +20,14 @@ export type SceneText = { title: string; sceneId?: string; text: string; cardId?
 export type ItemText = { title: string; itemId: string; text: string; cardId?: string };
 export type WriteVideoRequest = { cardId: string; plan: RewritePlan; userText: string;
   duration: number; sourceDuration?: number; ratio: string; materials: RewriteMaterial[]; keepClothes?: boolean; source?: AssetRef; settings?: FinalSettings;
-  sceneTexts?: SceneText[]; itemTexts?: ItemText[] };
+  sceneTexts?: SceneText[]; itemTexts?: ItemText[];
+  /** 11-19 说话版：台词按 plan.lines 写进时间轴；voice 是用户写的嗓音（没写不带）。 */
+  talking?: boolean; voice?: string };
 export type FinalChange = { before: string; after: string; why: string; evidence: string };
 /** 小服务按模板拼底稿；连了要换的人物图会先看一次图，yuan 是那次看图的花费（没有就是 0）。11-08 起本机 agent 就绪时再看图定稿：
  * finalized 为真才是定稿，changes 是改了哪几句；warnings 里有拆解没把握的、看图发现改字解决不了的、退回底稿的原因。 */
 export type WriteVideoResult = RewriteCharge & { videoPrompt: string; issues: string[]; warnings: string[]; finalized?: boolean; changes?: FinalChange[];
   sceneReads?: SceneRead[] };
-export type CheckVideoRequest = { cardId: string; videoPrompt: string; materials: RewriteMaterial[]; duration: number; changeSeconds: number[] };
+/** lines：11-19 说话版带上台词表，检查每句都原样写进了 {}。 */
+export type CheckVideoRequest = { cardId: string; videoPrompt: string; materials: RewriteMaterial[]; duration: number; changeSeconds: number[];
+  lines?: Array<{ text: string }> };

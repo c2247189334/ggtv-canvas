@@ -78,5 +78,23 @@ export function createSheets({ executor = createExecutor(), platform = process.p
     const match = String(stderr).match(/lavfi\.signalstats\.YMAX=([\d.]+)/);
     return match ? Number(match[1]) : null;
   }
-  return { timeline, frames, contact, cuts, peak, stop: () => executor.stop() };
+  /**
+   * 11-19 说话版：按音量量出哪几秒有人声（ffmpeg silencedetect，低于 -30dB 连续 0.35 秒算安静），回 [[起, 止], …]，丢掉短于 0.3 秒的。
+   * 没有声音轨或量不出来回 []（拆解照样做，台词全靠字幕）。背景音乐响的片可能分不出来（设计第 14 节，没验）。
+   */
+  async function speech({ source }, duration) {
+    let stderr = '';
+    try { ({ stderr = '' } = await executor.run('ffmpeg', ['-hide_banner', '-i', source, '-vn', '-af', 'silencedetect=noise=-30dB:d=0.35', '-f', 'null', '-'])); }
+    catch { return []; }
+    const quiet = [...String(stderr).matchAll(/silence_(start|end): (-?[\d.]+)/g)].map(match => [match[1], Math.max(0, Number(match[2]))]);
+    const spans = [];
+    let from = 0;
+    for (const [kind, at] of quiet) {
+      if (kind === 'start') { if (from !== null && at > from) spans.push([from, Math.min(at, duration)]); from = null; }
+      else from = at;
+    }
+    if (from !== null && from < duration) spans.push([from, duration]);
+    return spans.map(([a, b]) => [rounded(a), rounded(b)]).filter(([a, b]) => b - a >= 0.3);
+  }
+  return { timeline, frames, contact, cuts, peak, speech, stop: () => executor.stop() };
 }

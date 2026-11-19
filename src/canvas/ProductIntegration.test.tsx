@@ -18,11 +18,11 @@ vi.mock('./PromptPanel', () => ({ PromptPanel: () => <span>原提示词面板</s
 vi.mock('./ProductInput', () => ({ ProductInput: () => <span>商品输入框</span> }));
 vi.mock('./boardContext', () => ({ useBoard: () => ({ productRemake: { inputId: state.productInput ? 'v' : null, addImage: state.addImage } }) }));
 vi.mock('@/library/worksEvents', () => ({ useDeletedWorks: () => new Set() }));
-it('有结果原视频工具条：无人物入口紧接视频改写；输入框替代原面板', () => {
+it('有结果原视频工具条只有「视频改写」（11-19 起无人物收进它的三选一）；输入框替代原面板', () => {
   const data = newVideoCard('generate', 1, [{ type: 'upload', id: 'result', media: 'video', seconds: 6 }]);
   const render = () => renderToStaticMarkup(<VideoCard {...({ id: 'v', data, selected: true } as NodeProps<CardNode>)} />);
   state.productInput = false; const html = render();
-  expect(html).toContain('拆解（无人物）'); expect(html.indexOf('>视频改写<')).toBeLessThan(html.indexOf('>拆解（无人物）<'));
+  expect(html).toContain('>视频改写<'); expect(html).not.toContain('拆解（无人物）');
   state.productInput = true; expect(render()).toContain('商品输入框'); expect(render()).not.toContain('原提示词面板');
 });
 it('空输出也有加商品/背景，背景已有则禁用；商品空卡写实物照且提示词留空', () => {
@@ -53,8 +53,8 @@ it('商品组工具条解组旁有加一张，点了带组id；普通组不增�
   tools.props.children[1].props.onClick(); expect(state.addImage).toHaveBeenCalledWith('g');
   node.data.group = { id: 'g', name: 'Group 1' }; expect(renderToStaticMarkup(<GroupFrames {...props} />)).not.toContain('>加一张<');
 });
-it('商品拆解中断后指引重新点无人物入口，普通视频改写指引保持原文', () => {
+it('商品拆解中断后指引点视频改写、选不露脸那种，普通视频改写指引保持原文', () => {
   const data = { ...newVideoCard('upload', 0), rewriteStatus: { status: 'interrupted' as const } };
-  expect(renderToStaticMarkup(<RewriteProgress data={{ ...data, rewriteTask: 'product' }} />)).toContain('再点一次「拆解（无人物）」重来');
+  expect(renderToStaticMarkup(<RewriteProgress data={{ ...data, rewriteTask: 'product' }} />)).toContain('再点一次「视频改写」选「不露脸 · 声音按原视频」重来');
   expect(renderToStaticMarkup(<RewriteProgress data={data} />)).toContain('再点一次「视频改写」重来');
 });

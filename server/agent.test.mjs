@@ -28,7 +28,7 @@ test('Claude 没配好：分别说没装和没登录，不报路径，不叫用�
   assert.match(noCli.agentProblem, /本机 Claude 没配好.*装 Claude Code.*CLAUDE_CLI/);
   const noLogin = agentHealth({ CLAUDE_CODE_OAUTH_TOKEN: 'tok' }, { ...claudeOptions, exists: file => file === 'C:\\bin\\claude.exe' });
   assert.equal(noLogin.agentReady, false);
-  assert.match(noLogin.agentProblem, /本机 Claude 没配好.*运行 claude.*自己的.*账号登录/);
+  assert.match(noLogin.agentProblem, /本机 Claude 没配好.*「设置」.*点「登录 Claude」.*自己的.*账号登录/);
   for (const health of [noCli, noLogin]) assert.doesNotMatch(health.agentProblem, /setup-token|令牌|C:\\/);
 });
 
@@ -40,7 +40,7 @@ test('Codex 就绪：不用令牌，只看命令行和登录', () => {
 test('Codex 缺东西：分别说没装和没登录', () => {
   assert.match(agentHealth({ AGENT_ENGINE: 'codex' }, { ...codexOptions, path: '' }).agentProblem, /本机 Codex 没配好.*CODEX_CLI/);
   const noLogin = { ...codexOptions, exists: file => file === 'C:\\bin\\codex.exe' };
-  assert.match(agentHealth({ AGENT_ENGINE: 'codex' }, noLogin).agentProblem, /本机 Codex 没配好.*codex login/);
+  assert.match(agentHealth({ AGENT_ENGINE: 'codex' }, noLogin).agentProblem, /本机 Codex 没配好.*「设置」.*点「登录 Codex」/);
 });
 
 test('填了不认识的 agent：不就绪、原话报错，不偷偷换成 Claude', () => {
@@ -80,11 +80,12 @@ test('没指定就自动选：Claude 就绪用 Claude，否则 Codex 就绪用 C
   assert.doesNotMatch(agentHealth({ AGENT_ENGINE: 'claude' }, codexOptions).agentProblem, /也可以改用 Codex/);
 });
 
-test('设置面板用的清单：选的是自动还是指定、每个助手装没装登没登录；不带路径', () => {
-  assert.deepEqual(agentSettings({}, codexOptions), { agentChoice: 'auto', agents: [
+test('设置面板用的清单：选的是自动还是指定、写词强度哪一档、每个助手装没装登没登录；不带路径', () => {
+  assert.deepEqual(agentSettings({}, codexOptions), { agentChoice: 'auto', agentStrength: 'standard', agents: [
     { id: 'claude', name: 'Claude', cli: false, login: false, ready: false },
     { id: 'codex', name: 'Codex', cli: true, login: true, ready: true }] });
   assert.equal(agentSettings({ AGENT_ENGINE: ' Codex ' }, claudeOptions).agentChoice, 'codex');
   assert.equal(agentSettings({ AGENT_ENGINE: 'gemini' }, claudeOptions).agentChoice, 'gemini');
+  assert.equal(agentSettings({ CLAUDE_MODEL: 'opus', CLAUDE_EFFORT: 'xhigh' }, claudeOptions).agentStrength, 'max');
   assert.doesNotMatch(JSON.stringify(agentSettings({}, claudeOptions)), /C:\\|bin/);
 });

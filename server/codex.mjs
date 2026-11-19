@@ -8,6 +8,8 @@ import { runAgentProcess, startable } from './agentProcess.mjs';
 import { configured } from './config.mjs';
 
 export const CODEX_TIMEOUT_MS = 5 * 60 * 1000;
+// 11-19：别再叫人去终端敲 codex login——桌面版自带的那份不在 PATH 里，敲了报「不是内部或外部命令」。登录按钮见 agentLogin.mjs。
+export const CODEX_LOGIN_HINT = '点右上角「设置」，在「本机 AI 助手」里点「登录 Codex」，在弹出的官方窗口和浏览器里用你自己的账号登录';
 const isImage = file => /\.(jpe?g|png|webp)$/i.test(file.name);
 
 /** 返回 codex 可执行文件的完整路径，找不到返回 ''。不执行任何程序。 */
@@ -56,7 +58,7 @@ export function parseCodexEvents(stdout, stderr = '') {
     else if (event?.type === 'turn.failed') failure = String(event.error?.message ?? '未知错误');
   }
   if (failure !== null) {
-    if (/\b401\b|Unauthorized|login/i.test(failure)) throw Error(`Codex 登录没通过：${failure.slice(0, 200)}。在终端跑一次 codex login。`);
+    if (/\b401\b|Unauthorized|login/i.test(failure)) throw Error(`Codex 登录没通过：${failure.slice(0, 200)}。${CODEX_LOGIN_HINT}。`);
     throw Error(`Codex 调用失败：${failure.slice(0, 300)}`);
   }
   if (usage === null) throw Error(`Codex 没有按格式回话。${(stderr || stdout).trim().slice(0, 300)}`);

@@ -15,6 +15,7 @@ import type { AssetRef, CardNode, VideoCardData } from '@/types';
 import type { Notify } from '@/common/Toast';
 import type { RewriteItem, VideoRewriteState } from '@/videoRewriteTypes';
 import type { MotionReference } from '@/domain/motionReference';
+import type { RewriteMode } from '@/domain/rewriteMode';
 
 type Deps = { canvasId: string; nodes?: CardNode[]; setNodes: (update: (nodes: CardNode[]) => CardNode[]) => void;
   setEdges: (update: (edges: Edge[]) => Edge[]) => void; takeNumber: () => number; notify: Notify;
@@ -37,7 +38,7 @@ const clearBusy = ({ rewriteBusy: _busy, ...data }: VideoCardData): VideoCardDat
 export function useVideoRewrite({ canvasId, nodes, setNodes, setEdges, takeNumber, notify, layout, focus, reveal }: Deps) {
   const flow = useReactFlow<CardNode, Edge>();
   const mediaPending = useRef(new Set<string>());
-  const openedSource = useRef<string | null>(null);
+  const openedSource = useRef<string | null>(null), openedMode = useRef<Exclude<RewriteMode, 'faceless'>>('face');
   const [inputId, setInputId] = useState<string | null>(null);
   useSyncExternalStore(subscribePending, pendingSnapshot, pendingSnapshot);
   const activeCanvas = useRef(canvasId);
@@ -59,12 +60,14 @@ export function useVideoRewrite({ canvasId, nodes, setNodes, setEdges, takeNumbe
     if (!isActive()) return;
     setNodes(list => list.map(node => (node.id === id || node.id === videoId) && node.data.kind === 'video' ? { ...node, data: change(node.data) } : node));
   };
-  const start = (sourceId: string) => {
+  /** mode：11-19 三选一里从「不露脸」切回露脸那两种时带上；工具条点「视频改写」一律从默认开始。 */
+  const start = (sourceId: string, mode: Exclude<RewriteMode, 'faceless'> = 'face') => {
     const source = flow.getNode(sourceId);
     const problem = source?.data.kind === 'video' ? rewriteSourceProblem(currentResult(source.data)) : '先选一张有结果的视频卡。';
     if (problem) { notify(problem); return; }
     if (activeSources.has(sourceId)) { notify('这条视频正在拆解，做完再来。'); return; }
     if (!pending.has(sourceKey(sourceId))) updateSource(sourceId, data => data.rewriteStatus ? clearStatus(data) : data);
+    openedMode.current = mode;
     openedSource.current = sourceKey(sourceId); setInputId(sourceId); reveal?.(sourceId);
   };
   const dispatchMedia = async (node: CardNode, source: AssetRef) => {
@@ -100,7 +103,8 @@ export function useVideoRewrite({ canvasId, nodes, setNodes, setEdges, takeNumbe
     for (const node of graph.nodes.filter(node => node.id === graph.depthId &&
       (added.some(item => item.id === node.id) || retryRewriteMedia(node.data)))) void dispatchMedia(node, source);
   };
-  const run = async (sourceId: string, userText: string, keepBackground = true, motionReference: MotionReference = 'depth', keepClothes = true) => {
+  /** talking：11-19「露脸 · AI 自己配音」——拆解多读台词，新视频卡开生成音频、不配回原声。 */
+  const run = async (sourceId: string, userText: string, keepBackground = true, motionReference: MotionReference = 'depth', keepClothes = true, talking = false) => {
     const key = sourceKey(sourceId);
     if (pending.has(key) || activeSources.has(sourceId) || !userText.trim()) return;
     const source = flow.getNode(sourceId);
@@ -113,7 +117,7 @@ export function useVideoRewrite({ canvasId, nodes, setNodes, setEdges, takeNumbe
       if (askIfAgentMissing(health)) { pending.delete(key); activeSources.delete(sourceId); refreshPending(); return; }
       const problem = rewriteStartProblem(health, motionReference);
       if (problem) { pending.delete(key); activeSources.delete(sourceId); refreshPending(); return problem; }
-      graph = startVideoRewrite({ source, nodes: flow.getNodes(), edges: flow.getEdges(), takeNumber, makeId, userText, motionReference });
+      graph = startVideoRewrite({ source, nodes: flow.getNodes(), edges: flow.getEdges(), takeNumber, makeId, userText, motionReference, talking });
     } catch (error) { pending.delete(key); activeSources.delete(sourceId); refreshPending(); return (error as Error).message; }
     drafts.set(draftKey(sourceId), userText); setInputId(null);
     const batchId = graph.batchId, origin = rightOf(source.position);
@@ -128,7 +132,7 @@ export function useVideoRewrite({ canvasId, nodes, setNodes, setEdges, takeNumbe
     try {
       // 11-09 用户定：拆解给每个场景挑一帧当背景（人最少、没被挡、不黑；小服务兜底），拿到才截图（本机、不花钱）；拆解失败就不截图、不铺卡。
       // 勾「背景和原片保持一致」：那一帧没人直接当背景，有人才铺去人的卡。没勾：背景卡留空等用户上传或生成，左边放这一帧给人对照（11-11 用户定）。
-      const analyzed = await api.analyzeVideo({ cardId: batchId, source: state.source, userText });
+      const analyzed = await api.analyzeVideo({ cardId: batchId, source: state.source, userText, ...(talking ? { talking: true } : {}) });
       if (!isActive()) return;
       const plan = analyzed.plan;
       state = { ...state, keepClothes, plan, duration: analyzed.duration, targetDuration: analyzed.targetDuration, ratio: analyzed.ratio,
@@ -190,7 +194,7 @@ export function useVideoRewrite({ canvasId, nodes, setNodes, setEdges, takeNumbe
       activeSources.delete(sourceId); activeSources.delete(videoId); pending.delete(key); refreshPending();
     }
   };
-  return { inputId, start, close: () => setInputId(null), run, restore: (list: CardNode[]) => restoreRewriteProgress(list, activeSources),
+  return { inputId, start, close: () => setInputId(null), run, restore: (list: CardNode[]) => restoreRewriteProgress(list, activeSources), openedMode: () => openedMode.current,
     textFor: (id: string) => drafts.get(draftKey(id)) ?? '', remember: (id: string, text: string) => drafts.set(draftKey(id), text),
     isPending: (id: string) => pending.has(sourceKey(id)) };
 }

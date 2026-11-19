@@ -37,6 +37,23 @@ export function characterImages(body, metadata) {
   return images;
 }
 
+/** 11-19 第二期：人物的声音样本（设计 docs/specs/2026-11-19-口播改写-design.md 第 8 节）。null = 删掉；秒数照 Seedance 参考音频 2～15 秒。 */
+export const VOICE_MIN_SECONDS = 2, VOICE_MAX_SECONDS = 15, VOICE_DESC_MAX = 200;
+export function characterVoice(value, workMetadata) {
+  if (value === null) return null;
+  if (!value || typeof value !== 'object' || !isId(value.workId)) throw new HttpError(400, '声音样本的编号不对。');
+  const meta = workMetadata(value.workId);
+  if (meta?.kind !== 'audio') throw new HttpError(400, '这段声音找不到了，或者它不是声音作品。');
+  const seconds = Number(meta.duration);
+  if (!(seconds >= VOICE_MIN_SECONDS && seconds <= VOICE_MAX_SECONDS)) {
+    throw new HttpError(400, `声音样本要在 ${VOICE_MIN_SECONDS} 到 ${VOICE_MAX_SECONDS} 秒之间（这段 ${Number.isFinite(seconds) ? seconds.toFixed(1) : '?'} 秒）。先用「片段截取」截 5～10 秒他说话的片段，再「提取原声」。`);
+  }
+  const desc = typeof value.desc === 'string' ? value.desc.trim() : '';
+  if (!desc || [...desc].length > VOICE_DESC_MAX) throw new HttpError(400, `嗓音描述要在 1 到 ${VOICE_DESC_MAX} 字之间，比如：清亮自然的年轻男声，语速偏快，语气轻松。`);
+  if (/[{}]/.test(desc)) throw new HttpError(400, '嗓音描述里不能有 { }（那是写台词用的）。');
+  return { ref: { type: 'work', id: value.workId }, desc };
+}
+
 export function requireCharacter(characters, id) {
   if (!isId(id)) throw new HttpError(400, '人物编号不对。');
   const character = characters.read(id);

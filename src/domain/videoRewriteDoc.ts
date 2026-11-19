@@ -1,4 +1,4 @@
-import type { RewriteItem, RewriteItemKind, RewritePlan, RewriteStatus } from '@/videoRewriteTypes';
+import type { RewriteItem, RewriteItemKind, RewriteLine, RewritePlan, RewriteStatus } from '@/videoRewriteTypes';
 import type { MotionReference } from './motionReference';
 
 /** 旧存档没有动作参考种类时沿用深度。 */
@@ -28,6 +28,14 @@ export function readRewriteChangeSeconds(raw: unknown, duration: number): number
   return Array.isArray(raw) ? raw.filter((value): value is number => finite(value) && value < duration) : undefined;
 }
 
+/** 11-19 说话版台词：坏的行丢掉（字可以空着，等用户填）；没有 lines 的旧单子不带。 */
+export function readRewriteLines(raw: unknown): RewriteLine[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  return raw.map(object).filter((row): row is Record<string, unknown> => Boolean(row) && typeof row!.id === 'string' && typeof row!.who === 'string'
+    && typeof row!.text === 'string' && finite(row!.from) && finite(row!.to) && (row!.to as number) > (row!.from as number)).slice(0, 200)
+    .map(row => ({ id: row.id as string, who: row.who as string, text: row.text as string, from: row.from as number, to: row.to as number }));
+}
+
 /** 存档中的拆解单重新检查并复制，只保留写词需要的结构。旧卡没有单子就省略。 */
 export function readRewritePlan(raw: unknown): RewritePlan | undefined {
   const plan = object(raw);
@@ -49,5 +57,5 @@ export function readRewritePlan(raw: unknown): RewritePlan | undefined {
   return { summary: plan.summary, items: validItems, replace: [...replace] as string[],
     changes: changes.map(row => ({ second: row!.second as number, how: row!.how as string })),
     actions: actions.map(row => ({ from: row!.from as number, to: row!.to as number, desc: row!.desc as string })),
-    unsure: [...unsure] as string[] };
+    unsure: [...unsure] as string[], ...(readRewriteLines(plan.lines) ? { lines: readRewriteLines(plan.lines) } : {}) };
 }

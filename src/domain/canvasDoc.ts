@@ -82,12 +82,14 @@ export function readCard(raw: unknown): CardData | null {
     ...(Array.isArray(d.blocked) ? { blocked: d.blocked.filter((n): n is number => isInt(n) && n >= 1) } : {}),
     ...(readSentInputs(d.sentInputs) ? { sentInputs: readSentInputs(d.sentInputs) } : {})
   };
-  if (d.kind === "audio") return { ...common, kind: "audio" };
+  if (d.kind === "audio") return { ...common, kind: "audio",
+    ...(typeof d.voiceOf === "string" && d.voiceOf.trim() && d.voiceOf.length <= 40 ? { voiceOf: d.voiceOf.trim() } : {}) };
   if (d.kind === "video") {
     const settings = d.video && typeof d.video === "object" ? d.video as Record<string, unknown> : {};
     const input = { ...DEFAULT_VIDEO_SETTINGS, ...settings };
     return { ...common, kind: "video", ...(typeof d.rewriteId === 'string' ? { rewriteId: d.rewriteId, rewriteMotionReference: readRewriteMotionReference(d.rewriteMotionReference) } : {}),
       ...(d.rewriteKeepClothes === true ? { rewriteKeepClothes: true as const } : {}),
+      ...(d.rewriteTalking === true ? { rewriteTalking: true as const, ...(typeof d.rewriteVoice === 'string' ? { rewriteVoice: d.rewriteVoice.slice(0, 200) } : {}) } : {}),
       ...(readSceneReads(d.rewriteSceneReads) ? { rewriteSceneReads: readSceneReads(d.rewriteSceneReads) } : {}),
       ...(d.rewriteKind === 'product' ? { rewriteKind: 'product' as const, ...(readProductPlan(d.productPlan) ? { productPlan: readProductPlan(d.productPlan) } : {}) } : {}),
       ...(d.productAutoPosition && typeof d.productAutoPosition === 'object' &&

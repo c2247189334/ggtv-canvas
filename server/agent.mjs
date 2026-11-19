@@ -2,7 +2,8 @@
 // 用谁：.env.local 的 AGENT_ENGINE（页面「设置」里也能点选）。不填或填 auto 就自动选——Claude 装好并登录了用 Claude，否则 Codex 好了用 Codex（11-17 用户定）。
 // 加新的 agent：写一个和 codex.mjs 一样的适配文件 —— call({ system, prompt, files, model, timeoutMs }) → { text, model, elapsedMs, usage } —— 再在 AGENTS 里加一项。
 import { CLAUDE_LOGIN_HINT, claudeHealth, createClaudeCall } from './claude.mjs';
-import { codexHealth, createCodexCall } from './codex.mjs';
+import { strengthOf } from './agentStrength.mjs';
+import { CODEX_LOGIN_HINT, codexHealth, createCodexCall } from './codex.mjs';
 import { configured } from './config.mjs';
 
 const AGENTS = {
@@ -12,7 +13,7 @@ const AGENTS = {
   } },
   codex: { name: 'Codex', create: createCodexCall, health(env, options) {
     const { ready, cli, login, model } = codexHealth(env, options);
-    return { ready, cli, login, model, fix: cli ? '在终端跑一次 codex login' : '装 Codex（桌面版或命令行），或在 .env.local 填 CODEX_CLI（要 codex.exe 的完整路径，npm 装出来的 codex.cmd 用不了）' };
+    return { ready, cli, login, model, fix: cli ? CODEX_LOGIN_HINT :'装 Codex（桌面版或命令行），或在 .env.local 填 CODEX_CLI（要 codex.exe 的完整路径，npm 装出来的 codex.cmd 用不了）' };
   } },
 };
 const AUTO = 'auto';
@@ -31,9 +32,9 @@ export function agentOf(env, options) {
   return Object.keys(AGENTS).find(id => AGENTS[id].health(env, options).ready) ?? 'claude';
 }
 
-/** 设置面板「本机 AI 助手」一栏用：选的是自动还是指定、每个助手装没装登没登录。不报路径和令牌。 */
+/** 设置面板「本机 AI 助手」一栏用：选的是自动还是指定、写词强度哪一档（只管 Claude）、每个助手装没装登没登录。不报路径和令牌。 */
 export function agentSettings(env, options) {
-  return { agentChoice: choiceOf(env), agents: Object.entries(AGENTS).map(([id, { name, health }]) => {
+  return { agentChoice: choiceOf(env), agentStrength: strengthOf(env), agents: Object.entries(AGENTS).map(([id, { name, health }]) => {
     const { cli, login, ready } = health(env, options);
     return { id, name, cli, login, ready };
   }) };
